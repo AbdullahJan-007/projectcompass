@@ -24,7 +24,9 @@
 | :--- | :--- | :--- |
 | `Department` | Institutional tenant boundary (e.g., Computer Science, Software Engineering) | Has many `Cohort`, `User`, `SupervisorProfile`, `ProjectArchive` |
 | `Cohort` | Academic FYP cycle (e.g., `Fall 2026 - Spring 2027`) | Belongs to `Department`; has many `StudentProfile` |
-| `User` | Canonical identity decoupled from Clerk via `clerkId` | Belongs to `Department`; optional 1:1 `StudentProfile` or `SupervisorProfile` |
+| `User` | Canonical identity decoupled from Clerk via `clerkId` | Belongs to `Department`; optional 1:1 `StudentAccount`, `FacultyAccount`, `StudentProfile`, or `SupervisorProfile` |
+| `StudentAccount` | University Student Registration Number credential schema (`B23F0184CS042`, batch, intake, serial, department, roll no, hashed 4-digit PIN) | 1:1 with `User` (`role = STUDENT`) |
+| `FacultyAccount` | University Faculty credential schema (`facultyHandle`, `universityEmail`, `designation`, `departmentCode`, hashed 4-digit PIN) | 1:1 with `User` (`role = SUPERVISOR \| COORDINATOR \| ADMIN`) |
 | `Skill` | Normalized canonical skill taxonomy (slug, category, displayName) | Linked via `StudentSkill`, `SupervisorSkill`, `IdeaSkillGap` |
 | `StudentProfile` | Student skills, interests, career goal, weekly hours, duration, embedding | Has many `StudentSkill`, `RecommendationRun`, `SupervisorRequest` |
 | `SupervisorProfile` | Faculty expertise, research summary embedding, `maxSlots`, `activeSlots`, `isAccepting` | Belongs to `User` & `Department`; has many `SupervisorMatch`, `SupervisorRequest` |
@@ -178,12 +180,49 @@ model User {
   updatedAt    DateTime @updatedAt
 
   department        Department?        @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  studentAccount    StudentAccount?
+  facultyAccount    FacultyAccount?
   studentProfile    StudentProfile?
   supervisorProfile SupervisorProfile?
   uploadedArchives  ProjectArchive[]   @relation("ArchiveUploader")
   auditLogs         AuditLog[]
 
   @@index([departmentId, role])
+}
+
+model StudentAccount {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  registrationNo String   @unique // e.g., "B23F0184CS042"
+  program        String   @default("Bachelor")
+  batchYear      Int      // e.g., 2024
+  intakeTerm     String   // "Fall" | "Spring"
+  serialCode     String   // 4-digit form serial, e.g., "0184"
+  departmentCode String   // e.g., "BSCS", "BSSE"
+  rollNumber     String   // 3-digit roll no, e.g., "042"
+  pinHash        String   // Hashed 4-digit PIN (XXXX)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([departmentCode, batchYear])
+}
+
+model FacultyAccount {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  facultyHandle   String   @unique // e.g., "kamran.siddiqui"
+  universityEmail String   @unique // e.g., "kamran.siddiqui@university.edu"
+  designation     String   @default("Assistant Professor")
+  departmentCode  String   // e.g., "BSCS"
+  pinHash         String   // Hashed 4-digit PIN (XXXX)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([departmentCode])
 }
 
 model Skill {
@@ -515,7 +554,7 @@ CREATE INDEX IF NOT EXISTS idx_project_archive_embedding_hnsw
   WITH (m = 16, ef_construction = 64);
 
 CREATE INDEX IF NOT EXISTS idx_supervisor_profile_embedding_hnsw
-  ON "SupervisorProfile" USING hnsw (profile_embedding vector_cosine_ops)
+  ON "SupervisorProfile" USING hnsw ("profileEmbedding" vector_cosine_ops)
   WITH (m = 16, ef_construction = 64);
 
 -- Database-level quota safety invariant (defense in depth alongside atomic transactions)

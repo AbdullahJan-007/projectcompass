@@ -14,12 +14,13 @@
 
 ## 2. Full-Stack Engineer CV Bullets (ATS-Optimized)
 
-- **Architected ProjectCompass**, a modular multi-role FYP recommendation and planning platform (Student, Supervisor, Coordinator, Admin) using **Next.js App Router, strict TypeScript, Tailwind CSS, custom-themed shadcn/ui, Prisma ORM, and Supabase PostgreSQL (`pgvector`)**.
-- **Engineered a 3-stage hybrid recommendation engine** combining SQL capacity filtering, `pgvector` HNSW cosine similarity search, deterministic 4-factor explainable feasibility scoring (`40/30/20/10`), and Maximal Marginal Relevance (MMR) diversity ranking to eliminate generic recommendations and cold-start failure.
+- **Architected ProjectCompass**, a modular multi-role FYP recommendation and planning platform (Student, Supervisor, Coordinator, Admin) using **Next.js 15.5 App Router, React 19, strict TypeScript 5.9, Tailwind CSS v4, custom-themed shadcn/ui, Prisma ORM 6.19, and Supabase PostgreSQL 16 (`pgvector`)**.
+- **Designed a dual-schema institutional authentication engine (`StudentAccount` & `FacultyAccount`)** that deterministically decodes University Registration Numbers (`B23F0184CS042` -> Program, Batch Year, Fall/Spring Intake, Department `BSCS`/`BSSE`/`BSAI`, Roll No) and Faculty emails with SHA-256 salted 4-digit PIN verification (`XXXX`) and HttpOnly session isolation.
+- **Engineered a 3-stage hybrid recommendation engine** combining SQL capacity filtering, `pgvector` HNSW cosine similarity search across 42 curated CS archetypes, deterministic 4-factor explainable feasibility scoring (`40/30/20/10`), and Maximal Marginal Relevance (MMR) diversity ranking to eliminate generic recommendations and cold-start failure.
 - **Built an institutional anti-duplicate detection pipeline** using UploadThing and **Inngest** asynchronous workflows to extract and embed historical FYP PDFs (`1536`-dim vectors), flagging near-duplicate proposals (`>= 0.82` cosine similarity) and enforcing grounded differentiation angles.
 - **Eliminated supervisor over-allocation race conditions** by implementing atomic conditional PostgreSQL updates inside Prisma transactions paired with database-level `CHECK` invariants, validated under concurrent acceptance tests in **Vitest**.
 - **Designed a resilient, provider-agnostic AI synthesis layer** via **Vercel AI SDK** (`generateObject` + Zod) with prompt-injection delimiter isolation, `25s` timeout guards, and a deterministic fallback synthesizer achieving zero-downtime degradation during LLM outages.
-- **Established production-grade observability and QA gates**, pairing **Vitest** unit/integration tests, **Playwright** RBAC E2E suites, **Sentry** exception monitoring, **PostHog** funnel analytics, and GitHub Actions CI (`typecheck -> lint -> test -> build`).
+- **Established production-grade observability and QA gates**, pairing **24 Vitest** unit/integration tests, **Playwright** real-browser E2E suites, **Sentry** exception monitoring, **PostHog** funnel analytics, and GitHub Actions CI (`typecheck -> lint -> test -> build`).
 
 ---
 

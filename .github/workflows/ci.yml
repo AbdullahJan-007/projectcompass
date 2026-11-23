@@ -1,0 +1,65 @@
+name: ProjectCompass CI & E2E Security Verification Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Prisma Validate, Typecheck, ESLint, Vitest (27 Tests), Production Build & Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: "postgresql://postgres:password@localhost:5432/projectcompass"
+      DIRECT_URL: "postgresql://postgres:password@localhost:5432/projectcompass"
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      CI: "true"
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Prisma Schema & Generate Client
+        run: |
+          pnpm prisma validate
+          pnpm prisma generate
+
+      - name: Strict TypeScript Check (tsc --noEmit)
+        run: pnpm typecheck
+
+      - name: ESLint Zero-Warnings Check
+        run: pnpm lint
+
+      - name: Run Unit, Integration & Red-Team Security Tests (Vitest)
+        run: pnpm test
+
+      - name: Build Production Next.js Bundle
+        run: pnpm build
+
+      - name: Install Playwright Chromium Browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run Playwright E2E Golden-Path & RBAC Security Tests
+        run: |
+          pnpm start &
+          npx wait-on http://localhost:3000/api/health --timeout 30000 || sleep 5
+          pnpm test:e2e

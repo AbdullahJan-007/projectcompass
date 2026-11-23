@@ -129,24 +129,30 @@ projectcompass/
 ├── package.json
 ├── tsconfig.json
 ├── prisma/
-│   ├── schema.prisma
+│   ├── schema.prisma                  # Canonical models incl. StudentAccount & FacultyAccount
 │   ├── migrations/
-│   └── seed.ts                        # 40+ curated CS archetypes + market trends + demo dept
+│   │   └── 0002_pgvector_hnsw_and_constraints/migration.sql
+│   ├── seed.ts                        # 62 skills + 42 CS archetypes + 12 market trends + demo dept
+│   ├── local-accounts-db.json         # Persistent local DB registry for StudentAccount & FacultyAccount
+│   └── local-institutional-db.json    # Persistent local DB store for profiles, runs, archives & logs
 ├── docs/
 │   ├── specs/                         # Indexed by Antigravity (01 through 11)
 │   └── academic/                      # Excluded from Antigravity (.antigravityignore)
 ├── src/
 │   ├── app/
-│   │   ├── (marketing)/               # Public landing & product methodology page
-│   │   ├── (auth)/                    # Clerk sign-in / sign-up routes
-│   │   ├── onboarding/                # Role & department onboarding
+│   │   ├── page.tsx                   # Humanized institutional landing portal
+│   │   ├── (auth)/
+│   │   │   ├── sign-in/[[...sign-in]]/page.tsx # University RegNo (B23F0184CS042) & Faculty 4-Digit PIN login
+│   │   │   └── sign-up/[[...sign-up]]/page.tsx # Separate StudentAccount & FacultyAccount DB registration
+│   │   ├── onboarding/page.tsx        # Role & cohort verification
 │   │   ├── dashboard/
+│   │   │   ├── layout.tsx             # Role-scoped 248px sidebar shell
 │   │   │   ├── (compass)/
-│   │   │   │   ├── profile/           # Student skill & interest profile
-│   │   │   │   ├── recommendations/   # Hybrid recommendations & explainability UI
+│   │   │   │   ├── profile/           # Student skill & capacity profile
+│   │   │   │   ├── recommendations/   # 3-track hybrid recommendations & 4-factor breakdown
 │   │   │   │   ├── supervisors/       # Availability-aware supervisor matching & requests
-│   │   │   │   ├── roadmaps/          # Personalized week-by-week roadmaps & export
-│   │   │   │   └── market-trends/     # Domain demand & stack insights
+│   │   │   │   ├── roadmaps/          # Calibrated 4-phase roadmaps & .md file download
+│   │   │   │   └── market-trends/     # Domain demand & stack insights (2026-Q4)
 │   │   │   ├── supervisor/            # Supervisor profile, quotas & student requests
 │   │   │   ├── coordinator/           # Archive upload, ingestion status & dept quotas
 │   │   │   └── admin/                 # Departments, cohorts, user roles & audit logs
@@ -158,34 +164,38 @@ projectcompass/
 │   │           ├── clerk/route.ts
 │   │           └── resend/route.ts
 │   ├── actions/                       # Next.js Server Actions (internal mutations only)
-│   │   ├── profile.actions.ts
-│   │   ├── recommendation.actions.ts
-│   │   ├── supervisor.actions.ts
-│   │   ├── roadmap.actions.ts
-│   │   ├── archive.actions.ts
-│   │   └── admin.actions.ts
+│   │   ├── auth.actions.ts            # registerUniversityAccount, signInWithUniversityCredentials
+│   │   ├── profile.actions.ts         # completeOnboarding, upsertStudentProfile, getActiveStudentProfile
+│   │   ├── recommendation.actions.ts  # generateRecommendations, updateIdeaStatus, getActiveRecommendationsSnapshot
+│   │   ├── supervisor.actions.ts      # upsertSupervisorProfile, create/withdraw/respondToSupervisionRequest
+│   │   ├── roadmap.actions.ts         # generateProjectRoadmap, toggleMilestoneStatus, exportRoadmapMarkdown
+│   │   ├── archive.actions.ts         # createArchiveRecord, retryArchiveEmbedding, deleteArchiveRecord
+│   │   └── admin.actions.ts           # updateUserRole (last-admin guard), overrideSupervisorQuota
 │   ├── components/
-│   │   ├── ui/                        # Custom-themed shadcn/ui primitives
-│   │   ├── layout/                    # App shell, sidebar, role nav
-│   │   ├── compass/                   # ScoreBreakdownCard, DuplicateAlert, SkillGapList
-│   │   ├── supervisors/               # SupervisorMatchCard, RequestModal
-│   │   └── roadmaps/                  # TimelinePhase, MilestoneRow, ExportButton
+│   │   ├── ui/                        # Custom-themed shadcn/ui primitives (Button, Card, Badge, Select, Tabs, Dialog, etc.)
+│   │   └── layout/app-shell.tsx       # 248px fixed sidebar shell with active RegNo/Faculty identity
 │   ├── lib/
 │   │   ├── env.ts                     # Zod-validated environment loader
 │   │   ├── db.ts                      # Prisma singleton (pooled runtime client)
-│   │   ├── auth/session.ts            # Auth adapter (Clerk today, JWT-swappable)
+│   │   ├── institutional-store.ts     # Server-side persistent institutional DB synchronizer
+│   │   ├── workspace-store.ts         # Client-side reactive cross-screen state store
+│   │   ├── auth/
+│   │   │   ├── session.ts             # Unified auth adapter (University Cookie + Clerk SSO)
+│   │   │   ├── university-id.ts       # B23F0184CS042 RegNo & Faculty email parser + 4-digit PIN validator
+│   │   │   └── account-registry.ts    # SHA-256 PIN hasher & StudentAccount/FacultyAccount DB persistence
 │   │   ├── recommendation/
-│   │   │   ├── feasibility.ts         # Deterministic 4-factor score math
+│   │   │   ├── seed-data.ts           # 62 skills, 42 CS archetypes, 12 market trends, 5 supervisors, 10 archives
+│   │   │   ├── feasibility.ts         # Deterministic 4-factor score math (40/30/20/10)
 │   │   │   ├── diversity.ts           # MMR 3-track selector
-│   │   │   ├── duplicate-check.ts     # pgvector similarity gate
-│   │   │   ├── supervisor-ranker.ts   # Capacity-aware & bias-adjusted ranker
-│   │   │   ├── roadmap-planner.ts     # Effort-calibrated week allocator
-│   │   │   └── engine.ts              # Full 3-stage orchestrator + fallback
+│   │   │   ├── duplicate-check.ts     # pgvector similarity gate (0.72 / 0.82)
+│   │   │   ├── supervisor-ranker.ts   # Capacity-aware & 10% load-balance ranker
+│   │   │   ├── roadmap-planner.ts     # Effort-calibrated 4-phase week allocator
+│   │   │   └── engine.ts              # Full 3-stage orchestrator + COMPLETED_FALLBACK
 │   │   ├── ai/
 │   │   │   ├── client.ts              # Vercel AI SDK OpenAI-compatible provider
-│   │   │   ├── embeddings.ts          # 1536-dim embedding helper
+│   │   │   ├── embeddings.ts          # 1536-dim embedding helper + deterministic vector fallback
 │   │   │   ├── schemas.ts             # Zod output schemas for generateObject
-│   │   │   └── prompts.ts             # Grounded, injection-hardened system prompts
+│   │   │   └── prompts.ts             # Grounded, XML-delimiter injection-hardened prompts
 │   │   ├── inngest/
 │   │   │   ├── client.ts
 │   │   │   └── functions/             # archive-ingest.ts, market-trends-refresh.ts
@@ -194,7 +204,7 @@ projectcompass/
 │   └── types/
 │       └── actions.ts                 # Shared ActionResult<T> & error codes
 └── tests/
-    ├── unit/                          # Vitest: feasibility, diversity, roadmap math
-    ├── integration/                   # Vitest: Server Actions & atomic quota tests
-    └── e2e/                           # Playwright: Student & Coordinator journeys
+    ├── unit/                          # Vitest: recommendation-engine, seed-and-embeddings, university-auth
+    ├── integration/                   # Vitest: rbac-onboarding, atomic-quota-and-roadmap, admin-governance
+    └── e2e/                           # Playwright: golden-path.spec.ts (real browser E2E)
 ```

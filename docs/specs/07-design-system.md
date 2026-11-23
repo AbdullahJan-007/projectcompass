@@ -17,6 +17,7 @@ ProjectCompass must look and behave like a crafted institutional engineering pro
   - Emoji used in place of vector icons (use `lucide-react` exclusively at `strokeWidth={1.75}`).
   - Generic centered "Welcome to our AI-powered platform" copy or "Project 1 / Item A" placeholders.
   - Unstyled default shadcn/ui boxes with identical padding and no typographic hierarchy.
+  - Artificial debug state dropdowns (`"State: Populated"`, `"Simulate LLM Fallback"`) or synthetic AI/vibe-coding jargon exposed in production user interfaces.
 
 ---
 

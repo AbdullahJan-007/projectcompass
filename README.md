@@ -2,7 +2,7 @@
 
 **Author:** Abdullah Jan  
 **System Class:** Production-Grade SaaS & Modular FYP Management System (FYP-MS) Core Module  
-**Primary Stack:** Next.js (App Router), TypeScript (Strict), Tailwind CSS, custom-themed shadcn/ui, Supabase PostgreSQL (`pgvector`), Prisma ORM, Clerk Auth, Vercel AI SDK, Inngest, UploadThing, Resend, PostHog, Vercel, Docker Compose
+**Primary Stack:** Next.js 15.5 (App Router) + React 19, TypeScript 5.9 (Strict), Tailwind CSS v4 (`@tailwindcss/postcss`), custom-themed shadcn/ui (Radix UI), Supabase PostgreSQL 16 (`pgvector`), Prisma ORM 6.19, Dual-Mode Institutional Auth (University Reg No `B23F0184CS042` & Faculty Email + 4-Digit PIN `XXXX` via `StudentAccount` & `FacultyAccount` schemas + Clerk SSO Adapter), Vercel AI SDK, Inngest, UploadThing, Resend, PostHog, Vitest 3.2, Playwright 1.65, Vercel, Docker Compose
 
 ---
 
@@ -12,9 +12,9 @@ Final-Year Project (FYP) selection fails at scale across universities for two op
 
 **ProjectCompass** is an engineering-first recommendation and planning platform—not a thin LLM prompt wrapper. It evaluates a student's verified skill profile, interests, academic background, weekly time budget, and career goal through a **3-stage hybrid engine**:
 
-1. **Deterministic SQL Filtering & Capacity Guard:** Enforces supervisor slot availability (`activeSlots < maxSlots`), department rules, and scope-to-time feasibility before ranking begins.
-2. **Semantic Similarity & Anti-Duplicate Gate (`pgvector` + Explicit Scoring):** Searches curated domain seed templates (solving Day-1 cold start) and historical department FYP archives via cosine similarity. Flags near-duplicates at similarity `>= 0.82` and computes a transparent **Explainable Feasibility Score (0–100)**.
-3. **Guardrailed AI Synthesis (`Vercel AI SDK` + Zod):** Generates grounded differentiation angles, skill-gap learning plans, and week-by-week project roadmaps strictly from retrieved records—with deterministic fallbacks if the LLM provider fails.
+1. **Deterministic SQL Filtering, Institutional Identity & Capacity Guard:** Authenticates students via University Registration Number pattern (`B[YY][F/S][4-Digits][DEPT][3-Digits]`, e.g., `B23F0184CS042`) and faculty via official University Email + 4-digit PIN (`XXXX`), automatically extracting batch year, intake semester, department (`BSCS`, `BSSE`, `BSAI`, `BSCY`), and enforcing supervisor slot availability (`activeSlots < maxSlots`) and scope-to-time feasibility before ranking begins.
+2. **Semantic Similarity & Anti-Duplicate Gate (`pgvector` + Explicit Scoring):** Searches 42 curated domain seed templates (solving Day-1 cold start) and historical department FYP archives via cosine similarity. Flags near-duplicates at similarity `>= 0.82` and computes a transparent **Explainable Feasibility Score (0–100)**.
+3. **Guardrailed AI Synthesis (`Vercel AI SDK` + Zod):** Generates grounded differentiation angles, skill-gap learning plans, and week-by-week project roadmaps strictly from retrieved records—with deterministic fallbacks (`COMPLETED_FALLBACK`) if the LLM provider fails.
 
 ---
 
@@ -54,22 +54,34 @@ Follow this exact sequence after pushing this repository to GitHub and cloning i
 
 ---
 
-## 4. Quick Local Setup (Once Scaffolded in Phase 0)
+## 4. Quick Local Setup & Verification (Phases 0–5 Built & Verified)
 
-1. Copy `.env.example` to `.env.local` and populate required keys.
-2. Start local PostgreSQL 16 with `pgvector`:
+1. Copy `.env.example` to `.env.local` and populate optional live provider keys (the app runs out-of-the-box locally using built-in persistent institutional DB fallback `prisma/local-accounts-db.json` & `prisma/local-institutional-db.json` and deterministic 1536-dim embeddings when Docker/OpenAI keys are omitted).
+2. *(Optional)* Start local PostgreSQL 16 with `pgvector`:
    ```bash
    docker compose up -d db
    ```
-3. Install dependencies and apply Prisma schema + `pgvector` SQL migration:
+3. Install dependencies, validate Prisma schema, and seed the 62 canonical skills + 42 CS archetypes:
    ```bash
    pnpm install
-   pnpm prisma migrate dev
-   pnpm prisma db seed
+   pnpm prisma validate
+   pnpm prisma generate
+   pnpm db:seed
    ```
-4. Start the Next.js development server and Inngest local dev server in separate terminals:
+4. Start the Next.js development server:
    ```bash
    pnpm dev
-   npx inngest-cli@latest dev
    ```
-5. Verify health endpoint at `http://localhost:3000/api/health`.
+5. Sign in at `http://localhost:3000/sign-in` or register a new Student/Faculty account at `http://localhost:3000/sign-up`:
+   - **Pre-Seeded Student Account:** Reg No `B23F0184CS042` · 4-Digit PIN `0184` (auto-decoded: Bachelor · Fall 2024 · BSCS · Roll #042)
+   - **Pre-Seeded Faculty Supervisor:** Email `kamran.siddiqui@university.edu` · 4-Digit PIN `2026`
+   - **Pre-Seeded FYP Coordinator:** Email `salman.raza@university.edu` · 4-Digit PIN `2026`
+   - **Pre-Seeded University Admin:** Email `naveed.ahmad@university.edu` · 4-Digit PIN `2026`
+6. Run the full verification gate:
+   ```bash
+   pnpm typecheck
+   pnpm lint
+   pnpm test
+   pnpm test:e2e
+   pnpm build
+   ```

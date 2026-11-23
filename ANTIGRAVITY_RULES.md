@@ -30,10 +30,10 @@ Never read or pull implementation requirements from `docs/academic/`.
 
 | Concern | Single Owner | Prohibited Pattern |
 | :--- | :--- | :--- |
-| **Framework** | Next.js App Router (latest stable) + React (latest stable) | Pages Router, class components, legacy `getServerSideProps` |
-| **Language** | TypeScript (`strict: true`, `noUncheckedIndexedAccess: true`) | `any`, `@ts-ignore`, `@ts-expect-error`, unvalidated casts (`as Foo`) |
-| **Database Access** | Prisma ORM against Supabase PostgreSQL (`pgvector`) | Supabase JS client (`@supabase/supabase-js`) for DB queries; raw SQL except typed `$queryRaw` for `pgvector` similarity |
-| **Authentication** | Clerk via `src/lib/auth/session.ts` adapter | Supabase Auth; calling `auth()` directly in dozens of UI files without the adapter; client-side-only RBAC checks |
+| **Framework** | Next.js 15.5 App Router + React 19 | Pages Router, class components, legacy `getServerSideProps` |
+| **Language** | TypeScript 5.9 (`strict: true`, `noUncheckedIndexedAccess: true`) | `any`, `@ts-ignore`, `@ts-expect-error`, unvalidated casts (`as Foo`) |
+| **Database Access** | Prisma ORM 6.19 against Supabase PostgreSQL (`pgvector`) + persistent local institutional fallback (`src/lib/institutional-store.ts`) | Supabase JS client (`@supabase/supabase-js`) for DB queries; raw SQL except typed `$queryRaw` / `$executeRaw` for `pgvector` similarity |
+| **Authentication** | Dual-Mode Institutional Auth (`StudentAccount` Reg No `B23F0184CS042` & `FacultyAccount` Email + 4-digit PIN `XXXX` + Clerk SSO) via `src/lib/auth/session.ts` adapter | Supabase Auth; calling `auth()` directly in dozens of UI files without the adapter; client-side-only RBAC checks; exporting non-async constants from `"use server"` files |
 | **Internal Mutations** | Next.js Server Actions (`src/actions/*.ts`) | Creating `/api/*` REST endpoints for internal form submits or UI mutations |
 | **External Callbacks** | Next.js Route Handlers (`src/app/api/*`) | Using Server Actions for Clerk, UploadThing, Inngest, or Resend webhooks |
 | **Background Jobs** | Inngest (`/api/inngest`) | Long-running PDF parsing or bulk embedding loops inside synchronous Server Actions |

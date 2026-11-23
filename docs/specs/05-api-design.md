@@ -49,12 +49,16 @@ export type ActionResult<T> =
 
 ## 3. Complete Server Actions Catalog (`src/actions/`)
 
-### A. Profile & Onboarding (`src/actions/profile.actions.ts`)
+### A. University Authentication, Account Registration & Profile (`src/actions/auth.actions.ts`, `src/actions/profile.actions.ts`)
 
 | Action Name | Allowed Roles | Input Schema (Zod) | Behavior & Side Effects |
 | :--- | :--- | :--- | :--- |
+| `registerUniversityAccount` | Public (Registration) | `{ accountType: "STUDENT" \| "FACULTY", fullName: string (3..80), identifier: string, pin: /^\d{4}$/, designation?, departmentCode?, facultyRole?, maxSlots?, researchDomains? }` | Validates Student Reg No (`B23F0184CS042`) or Faculty Email, hashes 4-digit PIN (`XXXX`) with SHA-256, persists `StudentAccount` or `FacultyAccount` record in DB, and sets HttpOnly session cookie. |
+| `signInWithUniversityCredentials` | Public (Sign In) | `{ loginMode: "STUDENT" \| "FACULTY", identifier: string, pin: /^\d{4}$/, facultyRole? }` | Verifies Student Reg No or Faculty Email against registered DB records and SHA-256 PIN hash; sets `projectcompass_uni_session` cookie and returns role-specific redirect path. |
+| `listRegisteredUniversityAccounts` | Public / Directory | `(none)` | Returns non-sensitive directory of registered `StudentAccount` and `FacultyAccount` database records (excluding `pinHash`). |
+| `signOutUniversitySession` | Any authenticated | `(none)` | Clears `projectcompass_uni_session` cookie and revalidates workspace routes. |
 | `completeOnboarding` | Any authenticated | `{ role: "STUDENT" \| "SUPERVISOR", departmentId: cuid, cohortId?: cuid }` | Assigns department/cohort; prevents self-escalation to `COORDINATOR` or `ADMIN`. |
-| `upsertStudentProfile` | `STUDENT` | `{ skills: Array<{ skillSlug, displayName, proficiency }> (min 3, max 25), interests: string[] (min 1, max 6), careerGoal: string (3..120), preferredType, weeklyHours (5..45), durationWeeks (12..36), teamSize (1..3), gpaBand? }` | Upserts normalized skills, sets status `READY`, generates/updates 1536-dim `profileEmbedding`, revalidates `/dashboard/profile`. |
+| `upsertStudentProfile` | `STUDENT` | `{ skills: Array<{ skillSlug, displayName, proficiency }> (min 3, max 25), interests: string[] (min 1, max 6), careerGoal: string (3..120), preferredType, weeklyHours (5..45), durationWeeks (12..36), teamSize (1..3), gpaBand? }` | Upserts normalized skills, sets status `READY`, generates/updates 1536-dim `profileEmbedding`, persists to institutional DB store, revalidates `/dashboard/profile`. |
 
 ### B. Recommendations (`src/actions/recommendation.actions.ts`)
 
