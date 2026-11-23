@@ -1,0 +1,12 @@
+# Exclude academic/presentation artifacts from Antigravity code-indexing context
+docs/academic/
+docs/academic/**
+
+# Standard build & dependency exclusions
+node_modules/
+.next/
+dist/
+coverage/
+.env
+.env.local
+.env.*.local
