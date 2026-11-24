@@ -19,18 +19,33 @@
 | **Env Validation** | `.env.local` validated by `src/lib/env.ts` | Vercel Encrypted Environment Variables (Preview vs. Production isolated) |
 | **Self-Host Option (University On-Prem)** | `docker-compose.yml` | Multi-stage Next.js standalone `Dockerfile` + `docker-compose.prod.yml` |
 
-### CI/CD Pipeline (`.github/workflows/ci.yml`)
-Every Pull Request to `main` executes:
-1. `pnpm install --frozen-lockfile`
-2. `pnpm prisma validate`
-3. `pnpm typecheck` (`tsc --noEmit`)
-4. `pnpm lint`
-5. `pnpm test:unit`
-6. `pnpm build` (verifies Next.js App Router production bundle compiles cleanly)
+### CI Pipeline (`.github/workflows/ci.yml`)
+Every push and Pull Request to `main` runs one job (`ubuntu-latest`, 15-minute timeout, superseded runs cancelled via `concurrency`) against a live **`pgvector/pgvector:pg16` service container** with a CI-only `AUTH_SECRET`:
 
-On merge to `main`:
-1. Run `pnpm prisma migrate deploy` using `DIRECT_URL` before traffic shift.
-2. Deploy immutable production build on Vercel and verify `/api/health` returns `200`.
+1. `pnpm install --frozen-lockfile` (pnpm 10, Node.js 22, `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`)
+2. `pnpm prisma validate` → `pnpm prisma generate` → `prisma/ensure-vector.ts` (creates the `vector` extension) → `pnpm prisma db push` → `pnpm db:seed`
+3. `pnpm typecheck` (`tsc --noEmit`)
+4. `pnpm lint` (`eslint . --max-warnings=0`)
+5. `pnpm test` (Vitest unit, integration & red-team security suites)
+6. `pnpm build` (production bundle; fonts load at runtime, so the build makes no external font fetch)
+7. `pnpm start` → wait until `/api/health` reports `"db":"connected"` → `pnpm test:e2e` (Playwright Chromium)
+
+> **Build note:** ESLint runs as its own CI step, so `next.config.ts` sets `eslint.ignoreDuringBuilds: true` to avoid a duplicate (and flat-config-incompatible) lint pass during `next build`. `devIndicators: false` hides the dev overlay badge.
+
+### Production Deployment (Recommended: Vercel + Managed PostgreSQL)
+1. **Database:** Provision PostgreSQL 16 with `pgvector` (Supabase or Neon). Use the pooled URL for `DATABASE_URL` and the direct URL for `DIRECT_URL`.
+2. **Environment variables (Production & Preview isolated):** `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET` (≥ 32 random chars, unique per environment), `NEXT_PUBLIC_APP_URL`, plus optional LLM / Inngest / UploadThing / Resend / PostHog / Sentry keys from `.env.example`.
+3. **Migrations:** Run `pnpm prisma migrate deploy` with `DIRECT_URL` before shifting traffic (never `db push` against production).
+4. **Seed only reference data:** Skills, archetypes, market benchmarks, and departments. Do **not** load the local demo accounts into production; create real faculty/admin accounts through the governed admin flow.
+5. **Deploy & verify:** Import the GitHub repo in Vercel (Next.js preset), protect `main` with the required `CI` status check, and confirm `GET /api/health` returns `200` after every deploy.
+6. **Self-host alternative:** Multi-stage standalone `Dockerfile` (uses `pnpm-lock.yaml` with `--frozen-lockfile`) behind a TLS reverse proxy, with the same env variables and migration step.
+
+### Production Readiness Checklist
+- [ ] `AUTH_SECRET` set in every deployed environment (the signer falls back to a built-in development key when it is missing — this must never happen in production).
+- [ ] Demo accounts absent from the production database.
+- [ ] `DATABASE_URL` points at a reachable production database (the local temp-file fallback store is a development convenience and is not durable on serverless hosts).
+- [ ] Branch protection on `main` requires the CI check to pass.
+- [ ] `/api/health` monitored with alerting.
 
 ---
 

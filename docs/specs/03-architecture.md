@@ -152,7 +152,7 @@ projectcompass/
 │   │   │   │   ├── recommendations/   # 3-track hybrid recommendations & 4-factor breakdown
 │   │   │   │   ├── supervisors/       # Availability-aware supervisor matching & requests
 │   │   │   │   ├── roadmaps/          # Calibrated 4-phase roadmaps & .md file download
-│   │   │   │   └── market-trends/     # Domain demand & stack insights (2026-Q4)
+│   │   │   │   └── market-trends/     # Domain demand & stack insights (rolling "Current Benchmark")
 │   │   │   ├── supervisor/            # Supervisor profile, quotas & student requests
 │   │   │   ├── coordinator/           # Archive upload, ingestion status & dept quotas
 │   │   │   └── admin/                 # Departments, cohorts, user roles & audit logs

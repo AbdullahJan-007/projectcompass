@@ -29,7 +29,7 @@ Do NOT ask Antigravity to build the entire repository in one prompt when extendi
   > 1. Verify latest stable setup docs for Next.js App Router, Tailwind CSS, shadcn/ui, and Prisma before generating config files.
   > 2. Scaffold the repo structure defined in `03-architecture.md` with TypeScript strict mode (`strict: true`, `noUncheckedIndexedAccess: true`), ESLint flat config, Prettier, and Vitest.
   > 3. Configure `docker-compose.yml` (`pgvector/pgvector:pg16`), `src/lib/env.ts` (Zod), `src/lib/db.ts` (Prisma singleton), `prisma/schema.prisma`, and the custom `pgvector` HNSW + CHECK constraint SQL migration from `04-database-schema.md`.
-  > 4. Configure `Plus Jakarta Sans`, `Inter`, and `JetBrains Mono` via `next/font` and wire every light-theme WCAG AA CSS/Tailwind token from `07-design-system.md` into globals and custom-themed shadcn/ui base components (`Button`, `Card`, `Badge`, `Input`, `Select`, `Tabs`, `Skeleton`, `Dialog`).
+  > 4. Configure `Plus Jakarta Sans`, `Inter`, and `JetBrains Mono` via CSS font variables + a runtime Google Fonts stylesheet (no build-time `next/font/google` fetch, so CI/offline builds never fail) and wire every light-theme WCAG AA CSS/Tailwind token from `07-design-system.md` into globals and custom-themed shadcn/ui base components (`Button`, `Card`, `Badge`, `Input`, `Select`, `Tabs`, `Skeleton`, `Dialog`).
   > 5. Implement `src/app/api/health/route.ts` checking DB and `pgvector` connectivity.
   > 6. Run `pnpm typecheck`, `pnpm lint`, and `pnpm prisma validate` before finishing.
 - **Gate 0:** `docker compose up -d db` starts cleanly; `prisma migrate dev` succeeds with HNSW indexes; `/api/health` returns `200`; zero TS/lint errors.
@@ -49,7 +49,7 @@ Do NOT ask Antigravity to build the entire repository in one prompt when extendi
 - **Goal:** Populate 40+ curated CS seed archetypes + 12 market trends, build Student & Supervisor profile forms, and wire Coordinator archive upload (UploadThing + Inngest embedding pipeline).
 - **Antigravity Prompt (Copy & Paste):**
   > Read `ANTIGRAVITY_RULES.md`, `docs/specs/02-workflows.md` (State Machine 3), `docs/specs/04-database-schema.md` (Section 5), `docs/specs/05-api-design.md`, and `docs/specs/07-design-system.md` (Screens 1 & 5). Execute Phase 2 only:
-  > 1. Implement idempotent `prisma/seed.ts` with 60+ canonical skills, 40+ high-rigor CS/SE/AI `SeedIdeaTemplate` records, 12 `MarketTrendSnapshot` (`2026-Q4`) records, and demo department/cohort/supervisors/archives.
+  > 1. Implement idempotent `prisma/seed.ts` with 60+ canonical skills, 40+ high-rigor CS/SE/AI `SeedIdeaTemplate` records, 12 `MarketTrendSnapshot` (`Current Benchmark`) records, and demo department/cohort/supervisors/archives.
   > 2. Implement `src/lib/ai/embeddings.ts` (Vercel AI SDK `text-embedding-3-small`, 1536 dims, with local deterministic test-mode fallback when `AI_API_KEY` is absent in unit tests).
   > 3. Implement `upsertStudentProfile` and `upsertSupervisorProfile` Server Actions and build `/dashboard/profile` (with live effort budget calculator & readiness checklist) and `/dashboard/supervisor` profile/quota settings.
   > 4. Implement `/api/uploadthing`, `/api/inngest`, `archiveIngestFunction`, `createArchiveRecord`, `retryArchiveEmbedding`, and `/dashboard/coordinator` archive dashboard handling all 5 `ArchiveIngestStatus` states.

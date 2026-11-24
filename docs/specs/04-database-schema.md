@@ -23,7 +23,7 @@
 | Entity | Primary Purpose | Key Relations |
 | :--- | :--- | :--- |
 | `Department` | Institutional tenant boundary (e.g., Computer Science, Software Engineering) | Has many `Cohort`, `User`, `SupervisorProfile`, `ProjectArchive` |
-| `Cohort` | Academic FYP cycle (e.g., `Fall 2026 - Spring 2027`) | Belongs to `Department`; has many `StudentProfile` |
+| `Cohort` | Academic FYP cycle (e.g., `Fall 2023 - Spring 2024`; one cohort per batch, any number of concurrent batches) | Belongs to `Department`; has many `StudentProfile` |
 | `User` | Canonical identity decoupled from Clerk via `clerkId` | Belongs to `Department`; optional 1:1 `StudentAccount`, `FacultyAccount`, `StudentProfile`, or `SupervisorProfile` |
 | `StudentAccount` | University Student Registration Number credential schema (`B23F0184CS042`, batch, intake, serial, department, roll no, hashed 4-digit PIN) | 1:1 with `User` (`role = STUDENT`) |
 | `FacultyAccount` | University Faculty credential schema (`facultyHandle`, `universityEmail`, `designation`, `departmentCode`, hashed 4-digit PIN) | 1:1 with `User` (`role = SUPERVISOR \| COORDINATOR \| ADMIN`) |
@@ -135,7 +135,7 @@ enum MilestoneStatus {
 
 model Department {
   id           String   @id @default(cuid())
-  code         String   @unique // e.g., "BSCS", "BSSE"
+  code         String   @unique // e.g., "BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"
   name         String
   university   String
   defaultSlots Int      @default(5)
@@ -195,7 +195,7 @@ model StudentAccount {
   userId         String   @unique
   registrationNo String   @unique // e.g., "B23F0184CS042"
   program        String   @default("Bachelor")
-  batchYear      Int      // e.g., 2024
+  batchYear      Int      // e.g., 2023 (decoded from "B23F...")
   intakeTerm     String   // "Fall" | "Spring"
   serialCode     String   // 4-digit form serial, e.g., "0184"
   departmentCode String   // e.g., "BSCS", "BSSE"
@@ -514,7 +514,7 @@ model MarketTrendSnapshot {
   topTechPairings String[]
   portfolioSignal String   // Concrete hiring/industry explanation
   sourceSummary   String
-  versionLabel    String   // e.g., "2026-Q4"
+  versionLabel    String   // e.g., "Current Benchmark" (rolling, not tied to a single cohort)
   refreshedAt     DateTime @default(now())
 }
 
@@ -574,8 +574,8 @@ ALTER TABLE "RecommendedIdea"
 
 `prisma/seed.ts` must be idempotent (`upsert` only) and populate:
 
-1. **1 Default Department & Active Cohort:** Computer Science (`BSCS`), Cohort `FYP 2026-2027`.
+1. **Department of Information Technology & Computing (6 Programs) & Multi-Batch Cohorts:** `BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS` (stable IDs in `src/lib/auth/university-id.ts` `DEPARTMENT_MAP`), with cohorts derived per batch from each Registration Number (e.g., `B21F`, `B22F`, `B23S`, `B24F`) — no single hardcoded academic year.
 2. **60+ Canonical Skills** across 7 categories (`Frontend`, `Backend`, `Database`, `AI/ML`, `Systems/DevOps`, `Cybersecurity`, `Mobile/IoT`).
 3. **40+ Curated `SeedIdeaTemplate` Archetypes** spanning non-generic, production-worthy domains (e.g., Distributed Log Anomaly Detector, Clinical Triage Support Workflow, Automated Exam Rubric Grader with Citation Verification, Supply-Chain Cold-Storage IoT Monitor, Static Code Vulnerability Scanner for TypeScript Repos, Accessibility Audit Pipeline for University Portals) — zero basic CRUD clones.
-4. **12 `MarketTrendSnapshot` Domain Records** (`2026-Q4`) with real stack pairings and hiring signals.
+4. **12 `MarketTrendSnapshot` Domain Records** (`Current Benchmark`) with real stack pairings and hiring signals.
 5. **5 Realistic Demo Supervisors & 10 Demo Past-FYP Archives** (in non-production / demo seed mode) so local testing and viva demonstrations immediately exercise anti-duplicate warnings and quota-aware matching.

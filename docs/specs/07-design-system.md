@@ -51,7 +51,9 @@ Every component MUST reference CSS custom properties / Tailwind theme tokens—z
 
 ## 3. Typography, Spacing & Themed shadcn/ui Rules
 
-### Typography System (Google Fonts via `next/font`)
+### Typography System (Google Fonts via CSS variables)
+> Fonts are declared as CSS variables in `src/app/globals.css` (`--font-plus-jakarta`, `--font-inter`, `--font-jetbrains-mono`) with system-font fallbacks and loaded at runtime from a preconnected Google Fonts stylesheet in `src/app/layout.tsx`. This avoids the build-time network fetch of `next/font/google`, so offline and CI builds never fail.
+
 - **Primary UI & Headings:** `Plus Jakarta Sans` (weights `500`, `600`, `700`) — geometric clarity with editorial restraint.
 - **Body & Long-Form Specs:** `Inter` (weights `400`, `500`, `600`) — optimal readability in tables and roadmaps.
 - **Metrics, Scores & Code/Stack Tags:** `JetBrains Mono` (weights `500`, `600`) — `tabular-nums` enabled for all Feasibility Scores (`84/100`), similarity percentages (`0.84`), and week ranges (`W01–W04`).
@@ -68,6 +70,20 @@ Every component MUST reference CSS custom properties / Tailwind theme tokens—z
 - **Radius:** Standardize on crisp `8px` (`--radius: 0.5rem`) for cards/inputs and `6px` for buttons/badges — avoid overly bubbly `rounded-3xl` boxes.
 - **Elevation:** Use hairline borders (`1px solid var(--border-default)`) + subtle ambient shadow (`0 1px 2px rgba(15, 23, 42, 0.04)`) rather than heavy drop shadows.
 - **Motion Discipline:** Animations are permitted ONLY for purposeful state feedback (`150ms ease-out` tab indicator slide, accordion expand for score breakdowns, subtle progress bar fill on recommendation generation). Respect `prefers-reduced-motion`.
+- **Select / Dropdowns:** Use the custom accessible `Select` in `src/components/ui/select.tsx` (ARIA `combobox` + `listbox` popover, keyboard navigable, `aria-controls` via `React.useId()`). Do not use native `<select>` with `truncate`/`overflow: hidden` — on Windows Chromium it renders a black scrollbar arrow artifact. `color-scheme: light` is set globally.
+
+### Responsive Layout Contract (Mobile `375px` → Tablet `768px` → Desktop `1280px+`)
+| Element | Mobile / Tablet (`< lg`) | Desktop (`lg+`) |
+| :--- | :--- | :--- |
+| **App Shell** (`src/components/layout/app-shell.tsx`) | Sticky top bar with menu button (`aria-label="Toggle workspace navigation"`) opening a slide-over drawer with backdrop; closes on `Escape`, backdrop click, or route change | Fixed `248px` sidebar |
+| **Session Badge** | Program + batch label (e.g., `Fall 2022 · BSIT · Roll #673`) shown in header and drawer | Shown in sidebar and page header |
+| **Tabs** (`tabs.tsx`) | `TabsList` wraps (`flex-wrap`, full width) | Inline (`sm:inline-flex sm:w-auto`) |
+| **Dialogs** (`dialog.tsx`) | `w-[calc(100vw-2rem)]`, `max-h-[90vh]`, internal scroll, `p-5` | `max-w-lg`, `p-6` |
+| **Filters & Selects** | Full width (`w-full`), stacked | Fixed widths (`sm:w-…`) inline |
+| **Side Summary Cards** | Flow inline below content | `lg:sticky` |
+| **Grids** | Single column, then `sm`/`md` two-column | Full asymmetric layouts |
+
+**Acceptance rule:** no page may produce horizontal scrolling at `375px` or `768px` (`scrollWidth <= innerWidth`) — enforced by the Playwright responsive spec.
 
 ---
 
@@ -110,5 +126,5 @@ Every route below MUST implement **Loading (matched skeleton)**, **Empty (action
 Use realistic academic CS data throughout UI previews, empty-state examples, and `prisma/seed.ts` — never lorem ipsum:
 - **Sample Idea Title:** *"Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams"*
 - **Sample Supervisor:** *"Dr. Kamran Siddiqui — Associate Professor, Distributed Systems & Automated Software Testing (3 of 5 slots open)"*
-- **Sample Past Archive Match:** *"Automated Server Log Visualizer (BSCS 2024 — 84% similarity)"*
+- **Sample Past Archive Match:** *"Automated Server Log Visualizer (BSIT 2023 — 84% similarity)"*
 - **Sample Differentiation Angle:** *"Shifts from passive log visualization to real-time clustering of CI failure traces with GitHub PR root-cause attribution and benchmarked precision on open-source build logs."*
