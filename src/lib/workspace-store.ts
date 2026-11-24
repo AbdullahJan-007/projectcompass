@@ -42,6 +42,7 @@ const PROFILE_STORAGE_KEY = "projectcompass_student_profile_v1";
 const IDEAS_STORAGE_KEY = "projectcompass_recommended_ideas_v1";
 const SHORTLIST_STORAGE_KEY = "projectcompass_shortlisted_ids_v1";
 const REQUESTS_STORAGE_KEY = "projectcompass_supervision_requests_v1";
+const MILESTONES_STORAGE_KEY = "projectcompass_milestone_statuses_v1";
 
 export const DEFAULT_STUDENT_PROFILE: StoredStudentProfile = {
   skills: [
@@ -157,4 +158,40 @@ export function saveStoredSupervisionRequests(requests: StoredSupervisionRequest
   } catch {
     // Ignore storage errors
   }
+}
+
+export function loadStoredMilestoneStatuses(): Record<
+  string,
+  "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
+> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(MILESTONES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<
+      string,
+      "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"
+    >;
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveStoredMilestoneStatuses(
+  statuses: Record<string, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MILESTONES_STORAGE_KEY, JSON.stringify(statuses));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function formatTrackLabel(track: string): string {
+  if (track === "CORE_SAFE") return "Track 1 · Core & Safe";
+  if (track === "CAREER_STRETCH") return "Track 2 · Career Stretch";
+  if (track === "RESEARCH_NICHE") return "Track 3 · Research & Niche";
+  return track;
 }

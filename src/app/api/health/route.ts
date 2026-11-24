@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, ensureDatabaseReachable } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(): Promise<NextResponse> {
   try {
+    await ensureDatabaseReachable();
     await db.$queryRaw`SELECT 1`;
     const vectorExt = await db.$queryRaw<Array<{ extname: string }>>`
       SELECT extname FROM pg_extension WHERE extname = 'vector'

@@ -38,6 +38,7 @@ import {
   loadStoredIdeas,
   loadStoredSupervisionRequests,
   saveStoredSupervisionRequests,
+  formatTrackLabel,
   type StoredSupervisionRequest,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
@@ -151,22 +152,7 @@ const DEFAULT_IDEAS_FOR_SUPERVISORS: [
   },
 ];
 
-const INITIAL_SUPERVISION_REQUESTS: StoredSupervisionRequest[] = [
-  {
-    id: "cm0req_demo_1",
-    supervisorProfileId: "cm0sup01kamransiddiqui001",
-    supervisorName: "Dr. Kamran Siddiqui",
-    ideaId: "cm0idea_core_safe_1",
-    ideaTitle: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
-    track: "CORE_SAFE",
-    feasibilityScore: 84,
-    skillGapsSummary: "pgvector (10h minor ramp-up)",
-    pitch:
-      "We have built a working TypeScript + PostgreSQL log parser prototype and want to evaluate vector failure clustering on open-source GitHub Actions traces under your lab.",
-    status: "PENDING",
-    createdAt: "2026-11-23T09:00:00Z",
-  },
-];
+const INITIAL_SUPERVISION_REQUESTS: StoredSupervisionRequest[] = [];
 
 function StudentSupervisorsWorkspace() {
   const searchParams = useSearchParams();
@@ -261,7 +247,7 @@ function StudentSupervisorsWorkspace() {
     if (activePendingCount >= 3) {
       setBannerMessage({
         type: "error",
-        text: "MAX_PENDING_REQUESTS: You can have at most 3 pending supervision requests simultaneously.",
+        text: "You can maintain at most 3 pending supervision requests simultaneously. Withdraw one first.",
       });
       setModalSupervisor(null);
       return;
@@ -365,7 +351,7 @@ function StudentSupervisorsWorkspace() {
           >
             {availableIdeas.map((idea) => (
               <option key={idea.id} value={idea.id}>
-                {idea.track}: {idea.title}
+                {formatTrackLabel(idea.track)} — {idea.title}
               </option>
             ))}
           </Select>
@@ -589,44 +575,52 @@ function StudentSupervisorsWorkspace() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {sentRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4"
-                >
-                  <div className="space-y-1 max-w-2xl">
-                    <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          req.status === "PENDING"
-                            ? "amber"
-                            : req.status === "ACCEPTED"
-                              ? "success"
-                              : "neutral"
-                        }
-                      >
-                        {req.status}
-                      </Badge>
-                      <span className="text-sm font-semibold text-text-primary">
-                        {req.supervisorName}
-                      </span>
-                      <span className="text-xs text-text-muted">· {req.ideaTitle}</span>
-                    </div>
-                    <p className="text-xs text-text-secondary">{req.pitch}</p>
-                  </div>
-
-                  {req.status === "PENDING" && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleWithdraw(req.id)}
-                    >
-                      <XCircle className="h-4 w-4 text-status-error" strokeWidth={1.75} />
-                      Withdraw Request
-                    </Button>
-                  )}
+              {sentRequests.length === 0 ? (
+                <div className="rounded-[8px] border border-dashed border-border-strong bg-bg-subtle/60 p-6 text-center text-xs text-text-secondary">
+                  No supervision requests submitted yet. Choose a matched supervisor above and click{" "}
+                  <strong className="text-text-primary">Request Supervision</strong> to send your
+                  project pitch.
                 </div>
-              ))}
+              ) : (
+                sentRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4"
+                  >
+                    <div className="space-y-1 max-w-2xl">
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            req.status === "PENDING"
+                              ? "amber"
+                              : req.status === "ACCEPTED"
+                                ? "success"
+                                : "neutral"
+                          }
+                        >
+                          {req.status}
+                        </Badge>
+                        <span className="text-sm font-semibold text-text-primary">
+                          {req.supervisorName}
+                        </span>
+                        <span className="text-xs text-text-muted">· {req.ideaTitle}</span>
+                      </div>
+                      <p className="text-xs text-text-secondary">{req.pitch}</p>
+                    </div>
+
+                    {req.status === "PENDING" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleWithdraw(req.id)}
+                      >
+                        <XCircle className="h-4 w-4 text-status-error" strokeWidth={1.75} />
+                        Withdraw Request
+                      </Button>
+                    )}
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </>

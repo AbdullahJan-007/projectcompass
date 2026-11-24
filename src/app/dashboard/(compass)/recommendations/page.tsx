@@ -802,7 +802,7 @@ export default function RecommendationsPage() {
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
                 <h4 className="text-sm font-semibold text-text-primary">
-                  Top Matched Available Department Supervisors (activeSlots &lt; maxSlots)
+                  Matched Department Supervisors with Open Capacity
                 </h4>
               </div>
               <Link
@@ -928,7 +928,7 @@ export default function RecommendationsPage() {
         >
           <Info className="h-4 w-4 shrink-0" strokeWidth={1.75} />
           <span>
-            <strong>COMPLETED_FALLBACK Notice:</strong> AI narrative refinement was temporarily
+            <strong>Deterministic Matching Notice:</strong> AI narrative refinement was temporarily
             unavailable; recommendations and feasibility scores were generated using our
             deterministic matching engine.
           </span>

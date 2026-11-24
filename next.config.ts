@@ -33,6 +33,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  devIndicators: false,
   output: process.env["DOCKER_BUILD"] === "true" ? "standalone" : undefined,
   eslint: {
     // Explicit strict ESLint (eslint . --max-warnings=0) runs as a dedicated CI gate

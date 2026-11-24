@@ -30,6 +30,11 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     ).toBeVisible();
     await expect(page.getByText(/Effective Effort Budget/i)).toBeVisible();
 
+    // Verify custom Select combobox opens cleanly without native scrollbar glitches and updates GPA Band
+    await page.getByRole("combobox", { name: "GPA Band" }).click();
+    await page.getByRole("option", { name: /3\.8 – 4\.0 CGPA/i }).click();
+    await expect(page.getByRole("combobox", { name: "GPA Band" })).toContainText("3.8 – 4.0 CGPA");
+
     await page.goto("/dashboard/recommendations");
     await expect(page.getByTestId("idea-card-CORE_SAFE")).toBeVisible();
     await expect(page.getByTestId("idea-card-CAREER_STRETCH")).toBeVisible();

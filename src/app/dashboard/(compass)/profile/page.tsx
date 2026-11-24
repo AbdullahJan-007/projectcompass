@@ -28,6 +28,8 @@ import {
 import {
   loadStoredStudentProfile,
   saveStoredStudentProfile,
+  saveStoredIdeas,
+  saveStoredShortlistedIds,
 } from "@/lib/workspace-store";
 
 type Proficiency = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
@@ -74,11 +76,13 @@ export default function StudentProfilePage() {
     "PRODUCT_SAAS" | "APPLIED_AI" | "RESEARCH" | "SYSTEMS"
   >("PRODUCT_SAAS");
   const [weeklyHours, setWeeklyHours] = useState(15);
+  const [weeklyHoursDraft, setWeeklyHoursDraft] = useState("15");
   const [durationWeeks, setDurationWeeks] = useState(24);
+  const [durationWeeksDraft, setDurationWeeksDraft] = useState("24");
   const [teamSize, setTeamSize] = useState(2);
   const [gpaBand, setGpaBand] = useState("3.4 - 3.8");
-
   const [departmentLabel, setDepartmentLabel] = useState("BSCS");
+  const hasUserEditedRef = useRef(false);
 
   useEffect(() => {
     const stored = loadStoredStudentProfile();
@@ -87,7 +91,9 @@ export default function StudentProfilePage() {
     setCareerGoal(stored.careerGoal);
     setPreferredType(stored.preferredType);
     setWeeklyHours(stored.weeklyHours);
+    setWeeklyHoursDraft(String(stored.weeklyHours));
     setDurationWeeks(stored.durationWeeks);
+    setDurationWeeksDraft(String(stored.durationWeeks));
     setTeamSize(stored.teamSize);
     setGpaBand(stored.gpaBand);
 
@@ -95,13 +101,15 @@ export default function StudentProfilePage() {
       .then((serverProfile) => {
         if (!serverProfile) return;
         setDepartmentLabel(serverProfile.departmentCode || "BSCS");
-        if (serverProfile.skills.length > 0) {
+        if (!hasUserEditedRef.current && serverProfile.skills.length > 0) {
           setSkills(serverProfile.skills);
           setInterests(serverProfile.interests);
           setCareerGoal(serverProfile.careerGoal);
           setPreferredType(serverProfile.preferredType);
           setWeeklyHours(serverProfile.weeklyHours);
+          setWeeklyHoursDraft(String(serverProfile.weeklyHours));
           setDurationWeeks(serverProfile.durationWeeks);
+          setDurationWeeksDraft(String(serverProfile.durationWeeks));
           setTeamSize(serverProfile.teamSize);
           setGpaBand(serverProfile.gpaBand);
         }
@@ -145,16 +153,28 @@ export default function StudentProfilePage() {
     durationWeeks >= 12 &&
     durationWeeks <= 36;
 
-  function persistCurrentProfileState(nextSkills = skills, nextInterests = interests) {
+  function persistCurrentProfileState(
+    overrides?: Partial<{
+      skills: SelectedSkill[];
+      interests: string[];
+      careerGoal: string;
+      preferredType: "PRODUCT_SAAS" | "APPLIED_AI" | "RESEARCH" | "SYSTEMS";
+      weeklyHours: number;
+      durationWeeks: number;
+      teamSize: number;
+      gpaBand: string;
+    }>
+  ) {
+    hasUserEditedRef.current = true;
     saveStoredStudentProfile({
-      skills: nextSkills,
-      interests: nextInterests,
-      careerGoal,
-      preferredType,
-      weeklyHours,
-      durationWeeks,
-      teamSize,
-      gpaBand,
+      skills: overrides?.skills ?? skills,
+      interests: overrides?.interests ?? interests,
+      careerGoal: overrides?.careerGoal ?? careerGoal,
+      preferredType: overrides?.preferredType ?? preferredType,
+      weeklyHours: overrides?.weeklyHours ?? weeklyHours,
+      durationWeeks: overrides?.durationWeeks ?? durationWeeks,
+      teamSize: overrides?.teamSize ?? teamSize,
+      gpaBand: overrides?.gpaBand ?? gpaBand,
       updatedAt: new Date().toISOString(),
     });
   }
@@ -179,7 +199,7 @@ export default function StudentProfilePage() {
       { skillSlug: slug, displayName, proficiency: selectedProficiency },
     ];
     setSkills(updated);
-    persistCurrentProfileState(updated, interests);
+    persistCurrentProfileState({ skills: updated });
     setSkillQuery("");
     setSkillFeedback({
       type: "info",
@@ -210,13 +230,13 @@ export default function StudentProfilePage() {
   function updateSkillProficiency(slug: string, proficiency: Proficiency) {
     const updated = skills.map((s) => (s.skillSlug === slug ? { ...s, proficiency } : s));
     setSkills(updated);
-    persistCurrentProfileState(updated, interests);
+    persistCurrentProfileState({ skills: updated });
   }
 
   function removeSkill(slug: string) {
     const updated = skills.filter((s) => s.skillSlug !== slug);
     setSkills(updated);
-    persistCurrentProfileState(updated, interests);
+    persistCurrentProfileState({ skills: updated });
   }
 
   function toggleInterest(domain: string) {
@@ -227,17 +247,16 @@ export default function StudentProfilePage() {
       } else if (prev.length < 6) {
         updated = [...prev, domain];
       }
-      persistCurrentProfileState(skills, updated);
+      persistCurrentProfileState({ interests: updated });
       return updated;
     });
   }
 
-  async function handleSaveProfile(e: React.FormEvent) {
-    e.preventDefault();
+  async function saveProfileToBackend(): Promise<boolean> {
     setIsSaving(true);
     setStatusBanner(null);
 
-    persistCurrentProfileState(skills, interests);
+    persistCurrentProfileState();
 
     const res = await upsertStudentProfile({
       skills,
@@ -257,18 +276,31 @@ export default function StudentProfilePage() {
         type: "error",
         text: res.error.message,
       });
-      return;
+      return false;
+    }
+
+    if (res.data.calibratedIdeas) {
+      saveStoredIdeas(res.data.calibratedIdeas);
+      saveStoredShortlistedIds([res.data.calibratedIdeas[0].id]);
     }
 
     setStatusBanner({
       type: "success",
-      text: `Skill profile saved to database. Semester capacity: ${res.data.totalEffortHours} total hours.`,
+      text: `Skill profile saved & proposals calibrated (${res.data.totalEffortHours} total semester hours).`,
     });
+    return true;
   }
 
-  function handleNavigateToRecommendations() {
-    persistCurrentProfileState(skills, interests);
-    router.push("/dashboard/recommendations");
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    await saveProfileToBackend();
+  }
+
+  async function handleNavigateToRecommendations() {
+    const ok = await saveProfileToBackend();
+    if (ok) {
+      router.push("/dashboard/recommendations");
+    }
   }
 
   return (
@@ -573,7 +605,10 @@ export default function StudentProfilePage() {
                     </label>
                     <Input
                       value={careerGoal}
-                      onChange={(e) => setCareerGoal(e.target.value)}
+                      onChange={(e) => {
+                        setCareerGoal(e.target.value);
+                        persistCurrentProfileState({ careerGoal: e.target.value });
+                      }}
                       placeholder="e.g., Backend & Distributed Systems Engineer"
                     />
                   </div>
@@ -583,15 +618,15 @@ export default function StudentProfilePage() {
                     </label>
                     <Select
                       value={preferredType}
-                      onChange={(e) =>
-                        setPreferredType(
-                          e.target.value as
-                            | "PRODUCT_SAAS"
-                            | "APPLIED_AI"
-                            | "RESEARCH"
-                            | "SYSTEMS"
-                        )
-                      }
+                      onChange={(e) => {
+                        const nextVal = e.target.value as
+                          | "PRODUCT_SAAS"
+                          | "APPLIED_AI"
+                          | "RESEARCH"
+                          | "SYSTEMS";
+                        setPreferredType(nextVal);
+                        persistCurrentProfileState({ preferredType: nextVal });
+                      }}
                       aria-label="Preferred Execution Style"
                     >
                       <option value="PRODUCT_SAAS">Product &amp; SaaS Engineering</option>
@@ -621,8 +656,26 @@ export default function StudentProfilePage() {
                     type="number"
                     min={5}
                     max={45}
-                    value={weeklyHours}
-                    onChange={(e) => setWeeklyHours(Number(e.target.value) || 5)}
+                    value={weeklyHoursDraft}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setWeeklyHoursDraft(raw);
+                      const num = Number(raw);
+                      if (raw !== "" && !Number.isNaN(num)) {
+                        const clamped = Math.max(5, Math.min(45, Math.round(num)));
+                        setWeeklyHours(clamped);
+                        persistCurrentProfileState({ weeklyHours: clamped });
+                      }
+                    }}
+                    onBlur={() => {
+                      const num = Number(weeklyHoursDraft);
+                      const clamped = Number.isNaN(num) || weeklyHoursDraft === ""
+                        ? 15
+                        : Math.max(5, Math.min(45, Math.round(num)));
+                      setWeeklyHours(clamped);
+                      setWeeklyHoursDraft(String(clamped));
+                      persistCurrentProfileState({ weeklyHours: clamped });
+                    }}
                     className="font-mono-tabular"
                   />
                 </div>
@@ -635,8 +688,26 @@ export default function StudentProfilePage() {
                     type="number"
                     min={12}
                     max={36}
-                    value={durationWeeks}
-                    onChange={(e) => setDurationWeeks(Number(e.target.value) || 24)}
+                    value={durationWeeksDraft}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setDurationWeeksDraft(raw);
+                      const num = Number(raw);
+                      if (raw !== "" && !Number.isNaN(num)) {
+                        const clamped = Math.max(12, Math.min(36, Math.round(num)));
+                        setDurationWeeks(clamped);
+                        persistCurrentProfileState({ durationWeeks: clamped });
+                      }
+                    }}
+                    onBlur={() => {
+                      const num = Number(durationWeeksDraft);
+                      const clamped = Number.isNaN(num) || durationWeeksDraft === ""
+                        ? 24
+                        : Math.max(12, Math.min(36, Math.round(num)));
+                      setDurationWeeks(clamped);
+                      setDurationWeeksDraft(String(clamped));
+                      persistCurrentProfileState({ durationWeeks: clamped });
+                    }}
                     className="font-mono-tabular"
                   />
                 </div>
@@ -647,7 +718,11 @@ export default function StudentProfilePage() {
                   </label>
                   <Select
                     value={String(teamSize)}
-                    onChange={(e) => setTeamSize(Number(e.target.value))}
+                    onChange={(e) => {
+                      const nextTeam = Number(e.target.value);
+                      setTeamSize(nextTeam);
+                      persistCurrentProfileState({ teamSize: nextTeam });
+                    }}
                     aria-label="Team Size"
                   >
                     <option value="1">1 Member (Solo · 1.0x)</option>
@@ -662,7 +737,10 @@ export default function StudentProfilePage() {
                   </label>
                   <Select
                     value={gpaBand}
-                    onChange={(e) => setGpaBand(e.target.value)}
+                    onChange={(e) => {
+                      setGpaBand(e.target.value);
+                      persistCurrentProfileState({ gpaBand: e.target.value });
+                    }}
                     aria-label="GPA Band"
                   >
                     <option value="3.4 - 3.8">3.4 – 3.8 CGPA</option>

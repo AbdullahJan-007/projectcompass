@@ -29,6 +29,9 @@ import {
 import {
   loadStoredIdeas,
   loadStoredStudentProfile,
+  loadStoredMilestoneStatuses,
+  saveStoredMilestoneStatuses,
+  formatTrackLabel,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 
@@ -204,6 +207,7 @@ export default function RoadmapDetailPage() {
     const profile = loadStoredStudentProfile();
     setDurationWeeks(profile.durationWeeks);
     setWeeklyHours(profile.weeklyHours);
+    setMilestoneStatusOverrides(loadStoredMilestoneStatuses());
 
     const matched = loadedIdeas.find((i) => i.id === ideaId) ?? loadedIdeas[0];
     if (matched) {
@@ -262,17 +266,21 @@ export default function RoadmapDetailPage() {
   const progressPercent = Math.round((completedCount / milestones.length) * 100);
 
   async function handleCycleStatus(ms: PlannedMilestoneItem) {
-    const nextStatus =
+    const nextStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" =
       ms.status === "NOT_STARTED"
         ? "IN_PROGRESS"
         : ms.status === "IN_PROGRESS"
           ? "COMPLETED"
           : "NOT_STARTED";
 
-    setMilestoneStatusOverrides((prev) => ({
-      ...prev,
-      [ms.id]: nextStatus,
-    }));
+    setMilestoneStatusOverrides((prev) => {
+      const updated = {
+        ...prev,
+        [ms.id]: nextStatus,
+      };
+      saveStoredMilestoneStatuses(updated);
+      return updated;
+    });
 
     await toggleMilestoneStatus({
       milestoneId: ms.id,
@@ -332,7 +340,7 @@ export default function RoadmapDetailPage() {
           <div className="max-w-3xl space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                Track: {activeIdea.track}
+                {formatTrackLabel(activeIdea.track)}
               </span>
               <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
                 {baseRoadmap.durationWeeks} Weeks Total
@@ -392,7 +400,7 @@ export default function RoadmapDetailPage() {
             >
               {storedIdeas.map((idea) => (
                 <option key={idea.id} value={idea.id}>
-                  {idea.track}: {idea.title}
+                  {formatTrackLabel(idea.track)} — {idea.title}
                 </option>
               ))}
             </Select>
@@ -406,8 +414,11 @@ export default function RoadmapDetailPage() {
               aria-label="Semester Length"
               value={String(durationWeeks)}
               onChange={(e) => setDurationWeeks(Number(e.target.value))}
-              className="w-36 font-mono-tabular"
+              className="w-40 font-mono-tabular"
             >
+              {![12, 16, 24, 36].includes(durationWeeks) && (
+                <option value={String(durationWeeks)}>{durationWeeks} Weeks</option>
+              )}
               <option value="12">12 Weeks</option>
               <option value="16">16 Weeks</option>
               <option value="24">24 Weeks</option>
@@ -423,8 +434,13 @@ export default function RoadmapDetailPage() {
               aria-label="Skill Gap Hours"
               value={String(totalSkillGapHours)}
               onChange={(e) => setTotalSkillGapHours(Number(e.target.value))}
-              className="w-48 font-mono-tabular"
+              className="w-52 font-mono-tabular"
             >
+              {![0, 14, 22, 32, 55].includes(totalSkillGapHours) && (
+                <option value={String(totalSkillGapHours)}>
+                  {totalSkillGapHours} hrs ({baseRoadmap.prepWeeksAllocated} wks prep)
+                </option>
+              )}
               <option value="0">0 hrs (1 wk prep)</option>
               <option value="14">14 hrs (2 wks prep)</option>
               <option value="22">22 hrs (3 wks prep)</option>
@@ -549,7 +565,11 @@ export default function RoadmapDetailPage() {
                               : "neutral"
                         }
                       >
-                        {ms.status}
+                        {ms.status === "COMPLETED"
+                          ? "Completed"
+                          : ms.status === "IN_PROGRESS"
+                            ? "In Progress"
+                            : "Not Started"}
                       </Badge>
                       <Button
                         size="sm"

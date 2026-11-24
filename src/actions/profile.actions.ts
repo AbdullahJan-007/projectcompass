@@ -12,6 +12,10 @@ import {
 } from "@/lib/ai/embeddings";
 import { slugifySkill } from "@/lib/utils";
 import {
+  executeHybridRecommendationEngine,
+  type GeneratedIdeaRecord,
+} from "@/lib/recommendation/engine";
+import {
   readInstitutionalDb,
   writeInstitutionalDb,
   type PersistedStudentProfile,
@@ -187,6 +191,7 @@ export async function upsertStudentProfile(
     profileId: string;
     status: "READY";
     totalEffortHours: number;
+    calibratedIdeas?: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord];
   }>
 > {
   try {
@@ -291,7 +296,28 @@ export async function upsertStudentProfile(
       // Resilient in-memory save when running without local PostgreSQL daemon
     }
 
-    // Persist to local institutional database so profile survives restarts and syncs across pages
+    let calibratedIdeas:
+      | [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]
+      | undefined;
+    try {
+      const calibratedRun = await executeHybridRecommendationEngine({
+        studentSkills: input.skills.map((s) => ({
+          skillSlug: s.skillSlug,
+          proficiency: s.proficiency,
+        })),
+        interests: input.interests,
+        careerGoal: input.careerGoal.trim(),
+        preferredType: input.preferredType,
+        weeklyHours: input.weeklyHours,
+        durationWeeks: input.durationWeeks,
+        teamSize: input.teamSize,
+      });
+      calibratedIdeas = calibratedRun.ideas;
+    } catch {
+      // Keep existing ideas if engine fails
+    }
+
+    // Persist to local institutional database so profile & calibrated ideas sync across pages
     try {
       const store = readInstitutionalDb();
       store.studentProfiles[user.id] = {
@@ -311,6 +337,17 @@ export async function upsertStudentProfile(
         totalEffortHours,
         updatedAt: new Date().toISOString(),
       };
+      if (calibratedIdeas) {
+        const prev = store.recommendationsByUser[user.id];
+        store.recommendationsByUser[user.id] = {
+          runId: `cm0run_${Date.now()}`,
+          usedFallback: false,
+          runsRemainingToday: prev?.runsRemainingToday ?? 4,
+          shortlistedIds: [calibratedIdeas[0].id],
+          ideas: calibratedIdeas,
+          updatedAt: new Date().toISOString(),
+        };
+      }
       writeInstitutionalDb(store);
     } catch {
       // Ignore write error in mocked test contexts
@@ -325,6 +362,7 @@ export async function upsertStudentProfile(
         profileId,
         status: "READY",
         totalEffortHours,
+        calibratedIdeas,
       },
     };
   } catch (err) {
