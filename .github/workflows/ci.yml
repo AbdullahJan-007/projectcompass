@@ -10,16 +10,39 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   verify:
-    name: Prisma Validate, Typecheck, ESLint, Vitest (27 Tests), Production Build & Playwright E2E
+    name: Prisma + pgvector, Typecheck, ESLint, Vitest, Production Build & Playwright E2E
     runs-on: ubuntu-latest
     timeout-minutes: 15
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: projectcompass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d projectcompass"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
     env:
       DATABASE_URL: "postgresql://postgres:password@localhost:5432/projectcompass"
       DIRECT_URL: "postgresql://postgres:password@localhost:5432/projectcompass"
+      AUTH_SECRET: "ci_hmac_verification_secret_key_32_chars_min_2026"
       NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+      NEXT_TELEMETRY_DISABLED: "1"
+      REQUIRE_LIVE_DB: "true"
       CI: "true"
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -38,10 +61,13 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate Prisma Schema & Generate Client
+      - name: Validate Prisma Schema, Push pgvector Schema & Seed Database
         run: |
           pnpm prisma validate
           pnpm prisma generate
+          pnpm exec tsx prisma/ensure-vector.ts
+          pnpm prisma db push --skip-generate
+          pnpm db:seed
 
       - name: Strict TypeScript Check (tsc --noEmit)
         run: pnpm typecheck
@@ -61,5 +87,13 @@ jobs:
       - name: Run Playwright E2E Golden-Path & RBAC Security Tests
         run: |
           pnpm start &
-          npx wait-on http://localhost:3000/api/health --timeout 30000 || sleep 5
+          SERVER_PID=$!
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health | grep -q '"db":"connected"'; then
+              echo "Next.js server & pgvector health check ready!"
+              break
+            fi
+            sleep 1
+          done
           pnpm test:e2e
+          kill $SERVER_PID 2>/dev/null || true

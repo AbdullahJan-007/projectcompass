@@ -57,7 +57,7 @@ export default function SupervisorPortalPage() {
   const [requests, setRequests] = useState<IncomingRequestItem[]>([
     {
       id: "cm0req01studentpitch00001",
-      studentName: "Abdullah Jan (BSCS-2026)",
+      studentName: "Areeba Noor (B23F0184CS042 · BSCS)",
       ideaTitle: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
       track: "CORE_SAFE",
       feasibilityScore: 86,
@@ -68,7 +68,7 @@ export default function SupervisorPortalPage() {
     },
     {
       id: "cm0req02studentpitch00002",
-      studentName: "Hamza Tariq &Zainab Ali (BSCS-2026)",
+      studentName: "Hamza Tariq & Zainab Ali (BSCS)",
       ideaTitle: "OpenTelemetry Distributed Trace Bottleneck & N+1 Query Root-Cause Analyzer",
       track: "CAREER_STRETCH",
       feasibilityScore: 78,
@@ -97,7 +97,7 @@ export default function SupervisorPortalPage() {
           .filter((s) => s.status !== "WITHDRAWN" && !existingIds.has(s.id))
           .map((s) => ({
             id: s.id,
-            studentName: "Abdullah Jan (BSCS-2026)",
+            studentName: s.studentName ?? "Final-Year Student (BSCS)",
             ideaTitle: s.ideaTitle,
             track: s.track,
             feasibilityScore: s.feasibilityScore,
@@ -129,7 +129,7 @@ export default function SupervisorPortalPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    await upsertSupervisorProfile({
+    const res = await upsertSupervisorProfile({
       title,
       bio,
       researchDomains: domains,
@@ -138,6 +138,11 @@ export default function SupervisorPortalPage() {
       maxSlots,
       isAccepting,
     });
+
+    if (!res.ok) {
+      setStatusMessage(res.error.message);
+      return;
+    }
 
     setStatusMessage(
       "Supervisor research profile and 1536-dim domain embedding updated."
@@ -156,11 +161,16 @@ export default function SupervisorPortalPage() {
       return;
     }
 
-    await respondToSupervisionRequest({
+    const res = await respondToSupervisionRequest({
       requestId,
       decision,
       supervisorNote: note,
     });
+
+    if (!res.ok) {
+      setStatusMessage(res.error.message);
+      return;
+    }
 
     if (decision === "ACCEPT") {
       setActiveSlots((prev) => Math.min(maxSlots, prev + 1));

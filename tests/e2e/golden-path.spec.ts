@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
-  test("Student golden path: landing -> account creation / sign-in -> skill profile -> 3-track recommendations -> roadmap & markdown export", async ({
+  test("Student golden path: landing -> clean sign-in -> skill profile -> 3-track recommendations -> roadmap & markdown export", async ({
     page,
   }) => {
     await page.goto("/");
@@ -12,7 +12,14 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     ).toBeVisible();
 
     await page.goto("/sign-in");
+    // Ensure credentials are NOT pre-filled on the public sign-in page
+    await expect(page.getByTestId("login-identifier-input")).toHaveValue("");
+    await expect(page.getByTestId("login-pin-input")).toHaveValue("");
+    await expect(page.getByTestId("submit-university-login-btn")).toBeDisabled();
+
+    await page.getByTestId("login-identifier-input").fill("B23F0184CS042");
     await expect(page.getByTestId("parsed-reg-badge")).toBeVisible();
+    await page.getByTestId("login-pin-input").fill("0184");
     await page.getByTestId("submit-university-login-btn").click();
     await page.waitForURL(/\/dashboard\/profile/);
 
@@ -41,7 +48,7 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     await expect(page.getByTestId("exported-markdown-card")).toBeVisible();
   });
 
-  test("Unauthenticated access to /dashboard/* redirects to /sign-in, STUDENT is blocked from /dashboard/admin, and Faculty Coordinator can sign in to view archives", async ({
+  test("Unauthenticated access to /dashboard/* redirects to /sign-in, forged cookies are rejected, and Coordinator RBAC boundaries hold", async ({
     page,
   }) => {
     // 1. Unauthenticated user attempting /dashboard/coordinator is redirected to /sign-in

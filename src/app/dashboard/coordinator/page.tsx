@@ -101,7 +101,12 @@ export default function CoordinatorDashboardPage() {
       techStack: stack.length > 0 ? stack : ["TypeScript"],
     });
 
-    const createdId = res.ok ? res.data.archiveId : `cm0arch_${Date.now()}`;
+    if (!res.ok) {
+      setFeedback(res.error.message);
+      return;
+    }
+
+    const createdId = res.data.archiveId;
     setArchives((prev) => [
       {
         id: createdId,
@@ -128,10 +133,15 @@ export default function CoordinatorDashboardPage() {
   }
 
   async function handleRetryOrPatch(archiveId: string) {
-    await retryArchiveEmbedding({
+    const res = await retryArchiveEmbedding({
       archiveId,
       updatedAbstract: manualAbstractPatch.length >= 100 ? manualAbstractPatch : undefined,
     });
+
+    if (!res.ok) {
+      setFeedback(res.error.message);
+      return;
+    }
 
     setArchives((prev) =>
       prev.map((row) =>
@@ -152,7 +162,11 @@ export default function CoordinatorDashboardPage() {
   }
 
   async function handleDelete(archiveId: string) {
-    await deleteArchiveRecord({ archiveId });
+    const res = await deleteArchiveRecord({ archiveId });
+    if (!res.ok) {
+      setFeedback(res.error.message);
+      return;
+    }
     setArchives((prev) => prev.filter((a) => a.id !== archiveId));
     setFeedback(`Archive record ${archiveId} removed and logged to AuditLog.`);
   }

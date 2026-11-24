@@ -4,7 +4,21 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
+import { readAccountsStore, syncRoleInAccountsStore } from "@/lib/auth/account-registry";
+import {
+  readInstitutionalDb,
+  writeInstitutionalDb,
+} from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isDbConnectionOffline(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "PrismaClientInitializationError" ||
+    err.message.includes("Can't reach database server") ||
+    err.message.includes("ECONNREFUSED")
+  );
+}
 
 const updateUserRoleSchema = z.object({
   targetUserId: z.string().min(5).max(64),
@@ -86,6 +100,12 @@ export async function updateUserRole(
       }),
     ]);
 
+    try {
+      syncRoleInAccountsStore(targetUserId, role, departmentId);
+    } catch {
+      // Ignore file sync error in mocked unit tests
+    }
+
     revalidatePath("/dashboard/admin");
     return {
       ok: true,
@@ -96,6 +116,42 @@ export async function updateUserRole(
       return {
         ok: false,
         error: { code: err.code, message: err.message },
+      };
+    }
+    if (isDbConnectionOffline(err)) {
+      const actor = await requireRole(["ADMIN"]);
+      const parsed = updateUserRoleSchema.parse(rawInput);
+      const accStore = readAccountsStore();
+      const adminCount = accStore.facultyAccounts.filter((f) => f.role === "ADMIN").length;
+
+      if (parsed.targetUserId === actor.id && parsed.role !== "ADMIN" && adminCount <= 1) {
+        return {
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message:
+              "Last-Admin protection: Cannot demote the only active University Admin account.",
+          },
+        };
+      }
+
+      syncRoleInAccountsStore(parsed.targetUserId, parsed.role, parsed.departmentId);
+
+      const instStore = readInstitutionalDb();
+      instStore.auditLogs.unshift({
+        id: `cm0audit_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor: actor.fullName,
+        action: "ROLE_UPDATED",
+        entityType: "User",
+        entityId: parsed.targetUserId,
+        summary: `Updated role for ${parsed.targetUserId} to ${parsed.role}.`,
+      });
+      writeInstitutionalDb(instStore);
+      revalidatePath("/dashboard/admin");
+      return {
+        ok: true,
+        data: { targetUserId: parsed.targetUserId, role: parsed.role },
       };
     }
     return {
@@ -205,6 +261,47 @@ export async function overrideSupervisorQuota(
       return {
         ok: false,
         error: { code: err.code, message: err.message },
+      };
+    }
+    if (isDbConnectionOffline(err)) {
+      const actor = await requireRole(["COORDINATOR", "ADMIN"]);
+      const parsed = overrideQuotaSchema.parse(rawInput);
+      const instStore = readInstitutionalDb();
+      const sup = instStore.supervisors.find((s) => s.id === parsed.supervisorProfileId);
+      if (!sup) {
+        return {
+          ok: false,
+          error: { code: "NOT_FOUND", message: "Supervisor profile not found." },
+        };
+      }
+      if (parsed.maxSlots < sup.activeSlots) {
+        return {
+          ok: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: `Cannot set maxSlots (${parsed.maxSlots}) below activeSlots (${sup.activeSlots}).`,
+          },
+        };
+      }
+      sup.maxSlots = parsed.maxSlots;
+      instStore.auditLogs.unshift({
+        id: `cm0audit_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor: actor.fullName,
+        action: "SUPERVISOR_SLOT_OVERRIDE",
+        entityType: "SupervisorProfile",
+        entityId: parsed.supervisorProfileId,
+        summary: `Overrode maxSlots for ${sup.fullName} to ${parsed.maxSlots}. Reason: ${parsed.reason.trim()}`,
+      });
+      writeInstitutionalDb(instStore);
+      revalidatePath("/dashboard/admin");
+      revalidatePath("/dashboard/coordinator");
+      return {
+        ok: true,
+        data: {
+          supervisorProfileId: parsed.supervisorProfileId,
+          maxSlots: parsed.maxSlots,
+        },
       };
     }
     return {

@@ -2,20 +2,42 @@ import crypto from "crypto";
 import { env } from "@/lib/env";
 import type { UniversitySessionPayload } from "@/lib/auth/university-id";
 
+const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const ALLOWED_ROLES = new Set(["STUDENT", "SUPERVISOR", "COORDINATOR", "ADMIN"]);
+
 function getSigningSecret(): string {
-  const baseSecret =
-    env.CLERK_SECRET_KEY && !env.CLERK_SECRET_KEY.includes("placeholder")
-      ? env.CLERK_SECRET_KEY
-      : "projectcompass_institutional_hmac_key_v1_9f8e7d6c5b4a3f2e1d";
-  return baseSecret;
+  if (
+    env.AUTH_SECRET &&
+    env.AUTH_SECRET.length >= 16 &&
+    !env.AUTH_SECRET.includes("replace_") &&
+    !env.AUTH_SECRET.includes("placeholder")
+  ) {
+    return env.AUTH_SECRET;
+  }
+
+  if (
+    env.CLERK_SECRET_KEY &&
+    !env.CLERK_SECRET_KEY.includes("placeholder") &&
+    !env.CLERK_SECRET_KEY.includes("replace_me")
+  ) {
+    return env.CLERK_SECRET_KEY;
+  }
+
+  return "projectcompass_institutional_hmac_key_v1_9f8e7d6c5b4a3f2e1d";
 }
 
 /**
  * Signs a UniversitySessionPayload using HMAC-SHA256 and encodes it as base64url(payload).base64url(sig).
- * Prevents client-side cookie forgery / privilege escalation.
+ * Embeds issued-at (iat) and 7-day expiry (exp) timestamps to prevent indefinite token replay.
  */
 export function signSessionToken(payload: UniversitySessionPayload): string {
-  const json = JSON.stringify(payload);
+  const now = Date.now();
+  const normalizedPayload: UniversitySessionPayload = {
+    ...payload,
+    iat: payload.iat ?? now,
+    exp: payload.exp ?? now + SESSION_MAX_AGE_MS,
+  };
+  const json = JSON.stringify(normalizedPayload);
   const encodedPayload = Buffer.from(json, "utf-8").toString("base64url");
   const signature = crypto
     .createHmac("sha256", getSigningSecret())
@@ -25,10 +47,12 @@ export function signSessionToken(payload: UniversitySessionPayload): string {
 }
 
 /**
- * Verifies an HMAC-SHA256 signed session cookie using constant-time comparison.
- * Returns null if the signature is missing, tampered, or malformed.
+ * Verifies an HMAC-SHA256 signed session cookie using constant-time comparison
+ * and enforces expiration & strict role-enum validation.
  */
-export function verifySessionToken(token: string | undefined | null): UniversitySessionPayload | null {
+export function verifySessionToken(
+  token: string | undefined | null
+): UniversitySessionPayload | null {
   if (!token || typeof token !== "string") {
     return null;
   }
@@ -60,11 +84,37 @@ export function verifySessionToken(token: string | undefined | null): University
 
   try {
     const decodedJson = Buffer.from(encodedPayload, "base64url").toString("utf-8");
-    const parsed = JSON.parse(decodedJson) as UniversitySessionPayload;
-    if (!parsed || !parsed.userId || !parsed.role || !parsed.identifier) {
+    const parsed = JSON.parse(decodedJson) as Partial<UniversitySessionPayload>;
+    if (
+      !parsed ||
+      typeof parsed.userId !== "string" ||
+      !parsed.userId ||
+      typeof parsed.identifier !== "string" ||
+      !parsed.identifier ||
+      typeof parsed.email !== "string" ||
+      typeof parsed.fullName !== "string" ||
+      typeof parsed.role !== "string" ||
+      !ALLOWED_ROLES.has(parsed.role)
+    ) {
       return null;
     }
-    return parsed;
+
+    if (typeof parsed.exp === "number" && Date.now() > parsed.exp) {
+      return null;
+    }
+
+    return {
+      userId: parsed.userId,
+      identifier: parsed.identifier,
+      email: parsed.email,
+      fullName: parsed.fullName,
+      role: parsed.role as UniversitySessionPayload["role"],
+      departmentId: parsed.departmentId || "cm0deptbscs00000000000001",
+      departmentCode: parsed.departmentCode || "BSCS",
+      batchLabel: parsed.batchLabel,
+      iat: parsed.iat,
+      exp: parsed.exp,
+    };
   } catch {
     return null;
   }

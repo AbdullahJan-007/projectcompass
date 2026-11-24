@@ -8,8 +8,8 @@ vi.mock("next/cache", () => ({
 const mockUser: User = {
   id: "cm0userstudent00000000001",
   clerkId: "user_clerk_student_1",
-  email: "student@university.edu",
-  fullName: "Abdullah Jan",
+  email: "b23f0184cs042@students.university.edu",
+  fullName: "Areeba Noor",
   avatarUrl: null,
   role: "STUDENT",
   departmentId: "cm0deptbscs00000000000001",

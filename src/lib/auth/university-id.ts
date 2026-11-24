@@ -10,7 +10,9 @@ export interface UniversitySessionPayload {
   role: "STUDENT" | "SUPERVISOR" | "COORDINATOR" | "ADMIN";
   departmentId: string;
   departmentCode: string;
-  batchLabel?: string; // e.g., "Fall 2024 · Roll #042"
+  batchLabel?: string; // e.g., "Fall 2023 · BSCS · Roll #042"
+  iat?: number;
+  exp?: number;
 }
 
 /**
@@ -41,17 +43,18 @@ export interface ParsedStudentRegNo {
   raw: string;
   normalized: string;
   program: "Bachelor";
-  batchYear: string; // e.g., "2024"
+  batchYear: string; // e.g., "2023"
   intakeTerm: "Fall" | "Spring";
   serialCode: string; // e.g., "0184"
   departmentShort: string; // e.g., "CS"
   departmentCode: string; // e.g., "BSCS"
   departmentName: string;
+  departmentId: string;
   rollNumber: string; // e.g., "042"
   universityEmail: string; // e.g., "b23f0184cs042@students.university.edu"
 }
 
-const DEPARTMENT_MAP: Record<string, { code: string; name: string; id: string }> = {
+export const DEPARTMENT_MAP: Record<string, { code: string; name: string; id: string }> = {
   CS: {
     code: "BSCS",
     name: "Department of Computer Science",
@@ -84,6 +87,28 @@ const DEPARTMENT_MAP: Record<string, { code: string; name: string; id: string }>
   },
 };
 
+export function resolveDepartmentByCode(codeOrShort: string): {
+  code: string;
+  name: string;
+  id: string;
+} {
+  const upper = codeOrShort.trim().toUpperCase();
+  const stripped = upper.startsWith("BS") && upper.length > 2 ? upper.slice(2) : upper;
+  return (
+    DEPARTMENT_MAP[stripped] ?? {
+      code: upper.startsWith("BS") ? upper : `BS${upper}`,
+      name: `Department of ${stripped}`,
+      id: "cm0deptbscs00000000000001",
+    }
+  );
+}
+
+export function resolveDepartmentCodeById(departmentId: string | null | undefined): string {
+  if (!departmentId) return "BSCS";
+  const match = Object.values(DEPARTMENT_MAP).find((d) => d.id === departmentId);
+  return match?.code ?? "BSCS";
+}
+
 export function parseStudentRegNo(input: string): ParsedStudentRegNo | null {
   const cleaned = input.trim().toUpperCase();
   const match = STUDENT_REG_NO_REGEX.exec(cleaned);
@@ -91,17 +116,13 @@ export function parseStudentRegNo(input: string): ParsedStudentRegNo | null {
     return null;
   }
 
-  const yearDigits = match[1] ?? "24";
+  const yearDigits = match[1] ?? "23";
   const termChar = (match[2] ?? "F").toUpperCase();
   const serialCode = match[3] ?? "0000";
   const deptShort = (match[4] ?? "CS").toUpperCase();
   const rollNumber = match[5] ?? "001";
 
-  const deptMeta = DEPARTMENT_MAP[deptShort] ?? {
-    code: `BS${deptShort}`,
-    name: `Department of ${deptShort}`,
-    id: "cm0deptbscs00000000000001",
-  };
+  const deptMeta = resolveDepartmentByCode(deptShort);
 
   return {
     raw: input.trim(),
@@ -113,6 +134,7 @@ export function parseStudentRegNo(input: string): ParsedStudentRegNo | null {
     departmentShort: deptShort,
     departmentCode: deptMeta.code,
     departmentName: deptMeta.name,
+    departmentId: deptMeta.id,
     rollNumber,
     universityEmail: `${cleaned.toLowerCase()}@students.university.edu`,
   };
@@ -133,7 +155,6 @@ export function parseFacultyIdentifier(input: string): ParsedFacultyIdentifier |
     return null;
   }
 
-  // Extract name portion before @ if email, or entire handle
   const localPart = (cleaned.split("@")[0] ?? cleaned)
     .replace(/^(?:dr\.|prof\.)/i, "")
     .trim();
@@ -149,12 +170,16 @@ export function parseFacultyIdentifier(input: string): ParsedFacultyIdentifier |
 
   const email = cleaned.includes("@")
     ? cleaned
-    : `${localPart}@faculty.university.edu`;
+    : `${localPart}@university.edu`;
 
   let role: Extract<UserRole, "SUPERVISOR" | "COORDINATOR" | "ADMIN"> = "SUPERVISOR";
   if (localPart.includes("coord") || localPart.includes("salman")) {
     role = "COORDINATOR";
-  } else if (localPart.includes("admin") || localPart.includes("naveed") || localPart.includes("dean")) {
+  } else if (
+    localPart.includes("admin") ||
+    localPart.includes("naveed") ||
+    localPart.includes("dean")
+  ) {
     role = "ADMIN";
   }
 
