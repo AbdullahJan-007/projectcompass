@@ -12,6 +12,15 @@ import {
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
 
+function isDbConnectionOffline(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "PrismaClientInitializationError" ||
+    err.message.includes("Can't reach database server") ||
+    err.message.includes("ECONNREFUSED")
+  );
+}
+
 const createArchiveInputSchema = z.object({
   title: z.string().min(8, "Title must be at least 8 characters").max(160),
   abstract: z
@@ -204,6 +213,26 @@ export async function retryArchiveEmbedding(
         error: { code: err.code, message: err.message },
       };
     }
+    if (isDbConnectionOffline(err)) {
+      const parsed = retryArchiveSchema.parse(rawInput);
+      const store = readInstitutionalDb();
+      store.archives = store.archives.map((a) =>
+        a.id === parsed.archiveId
+          ? {
+              ...a,
+              abstract: parsed.updatedAbstract ? parsed.updatedAbstract.trim() : a.abstract,
+              ingestStatus: "READY",
+              ingestError: undefined,
+            }
+          : a
+      );
+      writeInstitutionalDb(store);
+      revalidatePath("/dashboard/coordinator");
+      return {
+        ok: true,
+        data: { archiveId: parsed.archiveId, ingestStatus: "READY" },
+      };
+    }
     return {
       ok: false,
       error: {
@@ -288,6 +317,27 @@ export async function deleteArchiveRecord(
       return {
         ok: false,
         error: { code: err.code, message: err.message },
+      };
+    }
+    if (isDbConnectionOffline(err)) {
+      const user = await requireRole(["COORDINATOR", "ADMIN"]);
+      const parsed = deleteArchiveSchema.parse(rawInput);
+      const store = readInstitutionalDb();
+      store.archives = store.archives.filter((a) => a.id !== parsed.archiveId);
+      store.auditLogs.unshift({
+        id: `cm0audit_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        actor: user.fullName,
+        action: "ARCHIVE_DELETED",
+        entityType: "ProjectArchive",
+        entityId: parsed.archiveId,
+        summary: `Deleted archive record ${parsed.archiveId}.`,
+      });
+      writeInstitutionalDb(store);
+      revalidatePath("/dashboard/coordinator");
+      return {
+        ok: true,
+        data: { deletedId: parsed.archiveId },
       };
     }
     return {

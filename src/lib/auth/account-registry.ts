@@ -1,10 +1,13 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import {
   parseStudentRegNo,
   parseFacultyIdentifier,
+  resolveDepartmentByCode,
+  resolveDepartmentCodeById,
 } from "@/lib/auth/university-id";
 
 export interface StoredStudentAccountRecord {
@@ -72,14 +75,14 @@ const REGISTRY_FILE_PATH = path.join(
   "local-accounts-db.json"
 );
 
-function buildDefaultAccountsDb(): AccountsDatabaseStore {
+export function buildDefaultAccountsDb(): AccountsDatabaseStore {
   return {
     studentAccounts: [
       {
         id: "cm0stuacc_b23f0184cs042",
         userId: "cm0userstudent00000000001",
         registrationNo: "B23F0184CS042",
-        fullName: "Abdullah Jan",
+        fullName: "Areeba Noor",
         email: "b23f0184cs042@students.university.edu",
         program: "Bachelor",
         batchYear: 2023,
@@ -171,7 +174,12 @@ export function readAccountsStore(): AccountsDatabaseStore {
     const students = Array.isArray(parsed.studentAccounts)
       ? parsed.studentAccounts.map((s) =>
           s.registrationNo === "B23F0184CS042"
-            ? { ...s, batchYear: 2023, pinHash: hashFourDigitPin("0184") }
+            ? {
+                ...s,
+                fullName: s.fullName === "Abdullah Jan" ? "Areeba Noor" : s.fullName,
+                batchYear: 2023,
+                pinHash: hashFourDigitPin("0184"),
+              }
             : s
         )
       : defaults.studentAccounts;
@@ -193,7 +201,151 @@ function writeAccountsStore(store: AccountsDatabaseStore): void {
   try {
     fs.writeFileSync(REGISTRY_FILE_PATH, JSON.stringify(store, null, 2), "utf-8");
   } catch {
-    // Ignore file write errors in read-only environments
+    // Ignore file write errors in read-only serverless environments
+  }
+}
+
+let dbUnreachableUntilMs = 0;
+
+function isLiveDbTemporarilyUnreachable(): boolean {
+  return Date.now() < dbUnreachableUntilMs;
+}
+
+function markDbUnreachable(): void {
+  dbUnreachableUntilMs = Date.now() + 15_000;
+}
+
+/**
+ * Resolves a student account from PostgreSQL first (serverless production source of truth),
+ * falling back seamlessly to readAccountsStore() when local PostgreSQL is offline.
+ */
+export async function findStudentAccountForLogin(
+  normalizedRegNo: string
+): Promise<(StoredStudentAccountRecord & { isActive: boolean }) | null> {
+  if (!isLiveDbTemporarilyUnreachable()) {
+    try {
+      const dbRecord = await db.studentAccount.findUnique({
+        where: { registrationNo: normalizedRegNo },
+        include: { user: true },
+      });
+
+      if (dbRecord) {
+        const dept = resolveDepartmentByCode(dbRecord.departmentCode);
+        return {
+          id: dbRecord.id,
+          userId: dbRecord.userId,
+          registrationNo: dbRecord.registrationNo,
+          fullName: dbRecord.user.fullName,
+          email: dbRecord.user.email,
+          program: dbRecord.program,
+          batchYear: dbRecord.batchYear,
+          intakeTerm: dbRecord.intakeTerm === "Spring" ? "Spring" : "Fall",
+          serialCode: dbRecord.serialCode,
+          departmentCode: dbRecord.departmentCode,
+          departmentId: dbRecord.user.departmentId ?? dept.id,
+          rollNumber: dbRecord.rollNumber,
+          pinHash: dbRecord.pinHash,
+          createdAt: dbRecord.createdAt.toISOString(),
+          isActive: dbRecord.user.isActive,
+        };
+      }
+    } catch {
+      markDbUnreachable();
+    }
+  }
+
+  const store = readAccountsStore();
+  const found = store.studentAccounts.find(
+    (s) => s.registrationNo.toUpperCase() === normalizedRegNo.toUpperCase()
+  );
+  return found ? { ...found, isActive: true } : null;
+}
+
+/**
+ * Resolves a faculty account from PostgreSQL first, falling back to readAccountsStore() when offline.
+ */
+export async function findFacultyAccountForLogin(
+  email: string,
+  handle: string
+): Promise<(StoredFacultyAccountRecord & { isActive: boolean }) | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedHandle = handle.trim().toLowerCase();
+
+  if (!isLiveDbTemporarilyUnreachable()) {
+    try {
+      const dbRecord = await db.facultyAccount.findFirst({
+        where: {
+          OR: [
+            { universityEmail: normalizedEmail },
+            { facultyHandle: normalizedHandle },
+          ],
+        },
+        include: { user: true },
+      });
+
+      if (dbRecord && dbRecord.user.role !== "STUDENT") {
+        const dept = resolveDepartmentByCode(dbRecord.departmentCode);
+        return {
+          id: dbRecord.id,
+          userId: dbRecord.userId,
+          facultyHandle: dbRecord.facultyHandle,
+          universityEmail: dbRecord.universityEmail,
+          fullName: dbRecord.user.fullName,
+          designation: dbRecord.designation,
+          role: dbRecord.user.role,
+          departmentCode: dbRecord.departmentCode,
+          departmentId: dbRecord.user.departmentId ?? dept.id,
+          maxSlots: 5,
+          researchDomains: [],
+          pinHash: dbRecord.pinHash,
+          createdAt: dbRecord.createdAt.toISOString(),
+          isActive: dbRecord.user.isActive,
+        };
+      }
+    } catch {
+      markDbUnreachable();
+    }
+  }
+
+  const store = readAccountsStore();
+  const found = store.facultyAccounts.find(
+    (f) =>
+      f.facultyHandle.toLowerCase() === normalizedHandle ||
+      f.universityEmail.toLowerCase() === normalizedEmail
+  );
+  return found ? { ...found, isActive: true } : null;
+}
+
+/**
+ * Synchronizes role changes in local accounts store when an Admin updates a user's role.
+ */
+export function syncRoleInAccountsStore(
+  userId: string,
+  newRole: UserRole,
+  departmentId?: string
+): void {
+  const store = readAccountsStore();
+  let changed = false;
+
+  if (newRole !== "STUDENT") {
+    store.facultyAccounts = store.facultyAccounts.map((f) => {
+      if (f.userId !== userId) return f;
+      changed = true;
+      return {
+        ...f,
+        role: newRole,
+        ...(departmentId
+          ? {
+              departmentId,
+              departmentCode: resolveDepartmentCodeById(departmentId),
+            }
+          : {}),
+      };
+    });
+  }
+
+  if (changed) {
+    writeAccountsStore(store);
   }
 }
 
@@ -215,12 +367,8 @@ export async function registerStudentAccountInDb(params: {
     };
   }
 
-  const store = readAccountsStore();
-  const existing = store.studentAccounts.find(
-    (s) => s.registrationNo.toUpperCase() === regInfo.normalized
-  );
-
-  if (existing) {
+  const existingRecord = await findStudentAccountForLogin(regInfo.normalized);
+  if (existingRecord) {
     return {
       ok: false,
       code: "DUPLICATE_RECORD",
@@ -229,10 +377,7 @@ export async function registerStudentAccountInDb(params: {
   }
 
   const pinHash = hashFourDigitPin(params.pin);
-  const departmentId =
-    regInfo.departmentShort === "SE"
-      ? "cm0deptbsse00000000000002"
-      : "cm0deptbscs00000000000001";
+  const deptMeta = resolveDepartmentByCode(regInfo.departmentShort);
 
   const newAccount: StoredStudentAccountRecord = {
     id: `cm0stuacc_${regInfo.normalized.toLowerCase()}`,
@@ -244,24 +389,37 @@ export async function registerStudentAccountInDb(params: {
     batchYear: Number(regInfo.batchYear),
     intakeTerm: regInfo.intakeTerm,
     serialCode: regInfo.serialCode,
-    departmentCode: regInfo.departmentCode,
-    departmentId,
+    departmentCode: deptMeta.code,
+    departmentId: deptMeta.id,
     rollNumber: regInfo.rollNumber,
     pinHash,
     createdAt: new Date().toISOString(),
   };
 
+  const store = readAccountsStore();
   store.studentAccounts.unshift(newAccount);
   writeAccountsStore(store);
 
   try {
     await db.$transaction(async (tx) => {
-      await tx.user.upsert({
+      await tx.department.upsert({
+        where: { code: deptMeta.code },
+        update: {},
+        create: {
+          id: deptMeta.id,
+          code: deptMeta.code,
+          name: deptMeta.name,
+          university: "National University of Computing & Emerging Sciences",
+          defaultSlots: 5,
+        },
+      });
+
+      const userRow = await tx.user.upsert({
         where: { email: newAccount.email },
         update: {
           fullName: newAccount.fullName,
           role: "STUDENT",
-          departmentId: newAccount.departmentId,
+          departmentId: deptMeta.id,
         },
         create: {
           id: newAccount.userId,
@@ -269,28 +427,35 @@ export async function registerStudentAccountInDb(params: {
           email: newAccount.email,
           fullName: newAccount.fullName,
           role: "STUDENT",
-          departmentId: newAccount.departmentId,
+          departmentId: deptMeta.id,
+        },
+      });
+      newAccount.userId = userRow.id;
+
+      await tx.studentAccount.upsert({
+        where: { registrationNo: newAccount.registrationNo },
+        update: {
+          pinHash: newAccount.pinHash,
+        },
+        create: {
+          id: newAccount.id,
+          userId: userRow.id,
+          registrationNo: newAccount.registrationNo,
+          program: newAccount.program,
+          batchYear: newAccount.batchYear,
+          intakeTerm: newAccount.intakeTerm,
+          serialCode: newAccount.serialCode,
+          departmentCode: newAccount.departmentCode,
+          rollNumber: newAccount.rollNumber,
+          pinHash: newAccount.pinHash,
         },
       });
 
-      await tx.$executeRaw`
-        INSERT INTO "StudentAccount" (
-          "id", "userId", "registrationNo", "program", "batchYear",
-          "intakeTerm", "serialCode", "departmentCode", "rollNumber", "pinHash", "updatedAt"
-        ) VALUES (
-          ${newAccount.id}, ${newAccount.userId}, ${newAccount.registrationNo},
-          ${newAccount.program}, ${newAccount.batchYear}, ${newAccount.intakeTerm},
-          ${newAccount.serialCode}, ${newAccount.departmentCode}, ${newAccount.rollNumber},
-          ${newAccount.pinHash}, NOW()
-        )
-        ON CONFLICT ("registrationNo") DO UPDATE SET "pinHash" = EXCLUDED."pinHash", "updatedAt" = NOW()
-      `;
-
       await tx.studentProfile.upsert({
-        where: { userId: newAccount.userId },
+        where: { userId: userRow.id },
         update: {},
         create: {
-          userId: newAccount.userId,
+          userId: userRow.id,
           status: "DRAFT",
         },
       });
@@ -338,26 +503,18 @@ export async function registerFacultyAccountInDb(params: {
   }
 
   const handle = (facInfo.email.split("@")[0] ?? facInfo.identifier).toLowerCase();
-  const store = readAccountsStore();
-  const existing = store.facultyAccounts.find(
-    (f) =>
-      f.facultyHandle.toLowerCase() === handle ||
-      f.universityEmail.toLowerCase() === facInfo.email.toLowerCase()
-  );
+  const existingRecord = await findFacultyAccountForLogin(facInfo.email, handle);
 
-  if (existing) {
+  if (existingRecord) {
     return {
       ok: false,
       code: "DUPLICATE_RECORD",
-      message: `A faculty account for "${existing.universityEmail}" is already registered. Please sign in directly.`,
+      message: `A faculty account for "${existingRecord.universityEmail}" is already registered. Please sign in directly.`,
     };
   }
 
   const pinHash = hashFourDigitPin(params.pin);
-  const departmentId =
-    params.departmentCode === "BSSE"
-      ? "cm0deptbsse00000000000002"
-      : "cm0deptbscs00000000000001";
+  const deptMeta = resolveDepartmentByCode(params.departmentCode);
 
   const newAccount: StoredFacultyAccountRecord = {
     id: `cm0facacc_${handle.replace(/[^a-z0-9]/g, "_")}`,
@@ -367,8 +524,8 @@ export async function registerFacultyAccountInDb(params: {
     fullName: params.fullName.trim(),
     designation: params.designation.trim() || "Assistant Professor",
     role: "SUPERVISOR",
-    departmentCode: params.departmentCode,
-    departmentId,
+    departmentCode: deptMeta.code,
+    departmentId: deptMeta.id,
     maxSlots: params.maxSlots,
     researchDomains:
       params.researchDomains.length > 0 ? params.researchDomains : ["Computer Science"],
@@ -376,17 +533,30 @@ export async function registerFacultyAccountInDb(params: {
     createdAt: new Date().toISOString(),
   };
 
+  const store = readAccountsStore();
   store.facultyAccounts.unshift(newAccount);
   writeAccountsStore(store);
 
   try {
     await db.$transaction(async (tx) => {
-      await tx.user.upsert({
+      await tx.department.upsert({
+        where: { code: deptMeta.code },
+        update: {},
+        create: {
+          id: deptMeta.id,
+          code: deptMeta.code,
+          name: deptMeta.name,
+          university: "National University of Computing & Emerging Sciences",
+          defaultSlots: 5,
+        },
+      });
+
+      const userRow = await tx.user.upsert({
         where: { email: newAccount.universityEmail },
         update: {
           fullName: newAccount.fullName,
           role: "SUPERVISOR",
-          departmentId: newAccount.departmentId,
+          departmentId: deptMeta.id,
         },
         create: {
           id: newAccount.userId,
@@ -394,32 +564,39 @@ export async function registerFacultyAccountInDb(params: {
           email: newAccount.universityEmail,
           fullName: newAccount.fullName,
           role: "SUPERVISOR",
-          departmentId: newAccount.departmentId,
+          departmentId: deptMeta.id,
+        },
+      });
+      newAccount.userId = userRow.id;
+
+      await tx.facultyAccount.upsert({
+        where: { universityEmail: newAccount.universityEmail },
+        update: {
+          pinHash: newAccount.pinHash,
+          designation: newAccount.designation,
+          departmentCode: newAccount.departmentCode,
+        },
+        create: {
+          id: newAccount.id,
+          userId: userRow.id,
+          facultyHandle: newAccount.facultyHandle,
+          universityEmail: newAccount.universityEmail,
+          designation: newAccount.designation,
+          departmentCode: newAccount.departmentCode,
+          pinHash: newAccount.pinHash,
         },
       });
 
-      await tx.$executeRaw`
-        INSERT INTO "FacultyAccount" (
-          "id", "userId", "facultyHandle", "universityEmail",
-          "designation", "departmentCode", "pinHash", "updatedAt"
-        ) VALUES (
-          ${newAccount.id}, ${newAccount.userId}, ${newAccount.facultyHandle},
-          ${newAccount.universityEmail}, ${newAccount.designation},
-          ${newAccount.departmentCode}, ${newAccount.pinHash}, NOW()
-        )
-        ON CONFLICT ("universityEmail") DO UPDATE SET "pinHash" = EXCLUDED."pinHash", "updatedAt" = NOW()
-      `;
-
       await tx.supervisorProfile.upsert({
-        where: { userId: newAccount.userId },
+        where: { userId: userRow.id },
         update: {
           title: newAccount.designation,
           maxSlots: newAccount.maxSlots,
           researchDomains: newAccount.researchDomains,
         },
         create: {
-          userId: newAccount.userId,
-          departmentId: newAccount.departmentId,
+          userId: userRow.id,
+          departmentId: deptMeta.id,
           title: newAccount.designation,
           bio: `${newAccount.designation} in ${newAccount.departmentCode} supervising ${newAccount.researchDomains.join(", ")}.`,
           researchDomains: newAccount.researchDomains,

@@ -1,38 +1,78 @@
 import { z } from "zod";
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
+const emptyToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(
+    (val) => (typeof val === "string" && val.trim() === "" ? undefined : val),
+    schema
+  );
 
-  DATABASE_URL: z.string().min(1).default("postgresql://postgres:password@localhost:5432/projectcompass"),
-  DIRECT_URL: z.string().min(1).default("postgresql://postgres:password@localhost:5432/projectcompass"),
+const envSchema = z.object({
+  NODE_ENV: emptyToUndefined(
+    z.enum(["development", "test", "production"]).default("development")
+  ),
+  NEXT_PUBLIC_APP_URL: emptyToUndefined(
+    z.string().url().default("http://localhost:3000")
+  ),
+
+  DATABASE_URL: emptyToUndefined(
+    z
+      .string()
+      .min(1)
+      .default("postgresql://postgres:password@localhost:5432/projectcompass")
+  ),
+  DIRECT_URL: emptyToUndefined(
+    z
+      .string()
+      .min(1)
+      .default("postgresql://postgres:password@localhost:5432/projectcompass")
+  ),
+
+  AUTH_SECRET: z.string().default(""),
 
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string().default("pk_test_placeholder"),
   CLERK_SECRET_KEY: z.string().default("sk_test_placeholder"),
   CLERK_WEBHOOK_SIGNING_SECRET: z.string().default("whsec_placeholder"),
-  NEXT_PUBLIC_CLERK_SIGN_IN_URL: z.string().default("/sign-in"),
-  NEXT_PUBLIC_CLERK_SIGN_UP_URL: z.string().default("/sign-up"),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: z.string().default("/dashboard"),
-  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: z.string().default("/onboarding"),
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: emptyToUndefined(z.string().default("/sign-in")),
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: emptyToUndefined(z.string().default("/sign-up")),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: emptyToUndefined(
+    z.string().default("/dashboard")
+  ),
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: emptyToUndefined(
+    z.string().default("/onboarding")
+  ),
 
-  AI_PROVIDER_BASE_URL: z.string().url().default("https://api.openai.com/v1"),
+  AI_PROVIDER_BASE_URL: emptyToUndefined(
+    z.string().url().default("https://api.openai.com/v1")
+  ),
   AI_API_KEY: z.string().default(""),
-  AI_CHAT_MODEL: z.string().default("gpt-4o-mini"),
-  AI_EMBEDDING_MODEL: z.string().default("text-embedding-3-small"),
-  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().positive().default(2500),
-  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(25000),
+  AI_CHAT_MODEL: emptyToUndefined(z.string().default("gpt-4o-mini")),
+  AI_EMBEDDING_MODEL: emptyToUndefined(
+    z.string().default("text-embedding-3-small")
+  ),
+  AI_MAX_OUTPUT_TOKENS: emptyToUndefined(
+    z.coerce.number().int().positive().default(2500)
+  ),
+  AI_REQUEST_TIMEOUT_MS: emptyToUndefined(
+    z.coerce.number().int().positive().default(25000)
+  ),
 
-  INNGEST_EVENT_KEY: z.string().default("local-dev-key"),
-  INNGEST_SIGNING_KEY: z.string().default("signkey-local-dev"),
+  INNGEST_EVENT_KEY: emptyToUndefined(z.string().default("local-dev-key")),
+  INNGEST_SIGNING_KEY: emptyToUndefined(z.string().default("signkey-local-dev")),
 
   UPLOADTHING_TOKEN: z.string().default(""),
 
   RESEND_API_KEY: z.string().default(""),
-  RESEND_FROM_EMAIL: z.string().default("ProjectCompass <notifications@projectcompass.edu>"),
-  RESEND_WEBHOOK_SECRET: z.string().default("whsec_resend_placeholder"),
+  RESEND_FROM_EMAIL: emptyToUndefined(
+    z.string().default("ProjectCompass <notifications@projectcompass.edu>")
+  ),
+  RESEND_WEBHOOK_SECRET: emptyToUndefined(
+    z.string().default("whsec_resend_placeholder")
+  ),
 
   NEXT_PUBLIC_POSTHOG_KEY: z.string().default(""),
-  NEXT_PUBLIC_POSTHOG_HOST: z.string().url().default("https://us.i.posthog.com"),
+  NEXT_PUBLIC_POSTHOG_HOST: emptyToUndefined(
+    z.string().url().default("https://us.i.posthog.com")
+  ),
 
   SENTRY_DSN: z.string().default(""),
   NEXT_PUBLIC_SENTRY_DSN: z.string().default(""),

@@ -12,7 +12,8 @@ import {
   type UniversitySessionPayload,
 } from "@/lib/auth/university-id";
 import {
-  readAccountsStore,
+  findStudentAccountForLogin,
+  findFacultyAccountForLogin,
   registerStudentAccountInDb,
   registerFacultyAccountInDb,
   verifyFourDigitPinHash,
@@ -203,20 +204,6 @@ export async function signInWithUniversityCredentials(
     };
   }
 
-  // Brute-force rate-limit check (5 attempts -> 15 min lockout)
-  const rateCheck = checkPinRateLimit(identifier);
-  if (!rateCheck.allowed) {
-    return {
-      ok: false,
-      error: {
-        code: "RATE_LIMITED",
-        message:
-          "Too many failed PIN attempts for this account. Temporarily locked for 15 minutes to prevent brute-force guessing.",
-      },
-    };
-  }
-
-  const store = readAccountsStore();
   let sessionPayload: UniversitySessionPayload;
   let redirectTo = "/dashboard/recommendations";
 
@@ -233,12 +220,27 @@ export async function signInWithUniversityCredentials(
       };
     }
 
-    const foundStudent = store.studentAccounts.find(
-      (s) => s.registrationNo.toUpperCase() === regInfo.normalized
-    );
+    const rateLimitKey = `student:${regInfo.normalized}`;
+    const rateCheck = checkPinRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      return {
+        ok: false,
+        error: {
+          code: "RATE_LIMITED",
+          message:
+            "Too many failed PIN attempts for this account. Temporarily locked for 15 minutes to prevent brute-force guessing.",
+        },
+      };
+    }
 
-    if (!foundStudent || !verifyFourDigitPinHash(pin, foundStudent.pinHash)) {
-      const failure = recordFailedPinAttempt(regInfo.normalized);
+    const foundStudent = await findStudentAccountForLogin(regInfo.normalized);
+
+    if (
+      !foundStudent ||
+      !foundStudent.isActive ||
+      !verifyFourDigitPinHash(pin, foundStudent.pinHash)
+    ) {
+      const failure = recordFailedPinAttempt(rateLimitKey);
       return {
         ok: false,
         error: {
@@ -250,7 +252,7 @@ export async function signInWithUniversityCredentials(
       };
     }
 
-    clearPinAttempts(regInfo.normalized);
+    clearPinAttempts(rateLimitKey);
 
     sessionPayload = {
       userId: foundStudent.userId,
@@ -288,14 +290,29 @@ export async function signInWithUniversityCredentials(
     }
 
     const handle = (facInfo.email.split("@")[0] ?? facInfo.identifier).toLowerCase();
-    const foundFaculty = store.facultyAccounts.find(
-      (f) =>
-        f.facultyHandle.toLowerCase() === handle ||
-        f.universityEmail.toLowerCase() === facInfo.email.toLowerCase()
-    );
+    const rateLimitKey = `faculty:${handle}`;
 
-    if (!foundFaculty || !verifyFourDigitPinHash(pin, foundFaculty.pinHash)) {
-      const failure = recordFailedPinAttempt(facInfo.email);
+    // Check rate-limit BEFORE querying PostgreSQL to protect the DB connection pool against brute-force floods
+    const rateCheck = checkPinRateLimit(rateLimitKey);
+    if (!rateCheck.allowed) {
+      return {
+        ok: false,
+        error: {
+          code: "RATE_LIMITED",
+          message:
+            "Too many failed PIN attempts for this account. Temporarily locked for 15 minutes to prevent brute-force guessing.",
+        },
+      };
+    }
+
+    const foundFaculty = await findFacultyAccountForLogin(facInfo.email, handle);
+
+    if (
+      !foundFaculty ||
+      !foundFaculty.isActive ||
+      !verifyFourDigitPinHash(pin, foundFaculty.pinHash)
+    ) {
+      const failure = recordFailedPinAttempt(rateLimitKey);
       return {
         ok: false,
         error: {
@@ -307,7 +324,7 @@ export async function signInWithUniversityCredentials(
       };
     }
 
-    clearPinAttempts(facInfo.email);
+    clearPinAttempts(rateLimitKey);
 
     // Role is bound strictly from the database record — never from client payload
     const verifiedRole = foundFaculty.role;

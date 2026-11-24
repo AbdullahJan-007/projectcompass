@@ -63,8 +63,8 @@ export default function AdminDashboardPage() {
     },
     {
       id: "cm0userstudent00000000001",
-      fullName: "Abdullah Jan",
-      email: "abdullah.jan@university.edu",
+      fullName: "Areeba Noor",
+      email: "b23f0184cs042@students.university.edu",
       role: "STUDENT",
       departmentCode: "BSCS",
     },
@@ -122,10 +122,18 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    await updateUserRole({
+    const res = await updateUserRole({
       targetUserId: userId,
       role: newRole,
     });
+
+    if (!res.ok) {
+      setBanner({
+        type: "error",
+        text: res.error.message,
+      });
+      return;
+    }
 
     setUsers((prev) =>
       prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
@@ -160,11 +168,19 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    await overrideSupervisorQuota({
+    const res = await overrideSupervisorQuota({
       supervisorProfileId: selectedSupervisorId,
       maxSlots: overrideMaxSlots,
       reason: overrideReason,
     });
+
+    if (!res.ok) {
+      setBanner({
+        type: "error",
+        text: res.error.message,
+      });
+      return;
+    }
 
     const sup = DEMO_SUPERVISORS.find((s) => s.id === selectedSupervisorId);
     setAuditLogs((prev) => [

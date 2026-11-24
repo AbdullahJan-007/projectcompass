@@ -65,7 +65,8 @@ export async function generateRecommendations(
 
     const instDb = readInstitutionalDb();
     const savedProfile =
-      instDb.studentProfiles[user.id] ?? instDb.studentProfiles["stu_b23f0184cs042"];
+      instDb.studentProfiles[user.id] ??
+      instDb.studentProfiles["cm0userstudent00000000001"];
 
     let studentSkills: Array<{
       skillSlug: string;
@@ -201,9 +202,7 @@ export async function generateRecommendations(
     const runId = `cm0run_${Date.now()}`;
     try {
       const store = readInstitutionalDb();
-      const prev =
-        store.recommendationsByUser[user.id] ??
-        store.recommendationsByUser["stu_b23f0184cs042"];
+      const prev = store.recommendationsByUser[user.id];
       const nextRemaining = Math.max(0, (prev?.runsRemainingToday ?? 5) - 1);
 
       store.recommendationsByUser[user.id] = {
@@ -214,8 +213,6 @@ export async function generateRecommendations(
         ideas: engineResult.ideas,
         updatedAt: new Date().toISOString(),
       };
-      store.recommendationsByUser["stu_b23f0184cs042"] =
-        store.recommendationsByUser[user.id]!;
       writeInstitutionalDb(store);
     } catch {
       // Ignore write error in unit tests
@@ -315,17 +312,26 @@ export async function updateIdeaStatus(
 
     try {
       const store = readInstitutionalDb();
-      for (const key of Object.keys(store.recommendationsByUser)) {
-        const entry = store.recommendationsByUser[key];
-        if (!entry) continue;
+      const defaultEntry = store.recommendationsByUser["cm0userstudent00000000001"];
+      const entry =
+        store.recommendationsByUser[user.id] ??
+        (defaultEntry
+          ? {
+              ...defaultEntry,
+              shortlistedIds: [...defaultEntry.shortlistedIds],
+            }
+          : undefined);
+
+      if (entry) {
         const hasId = entry.shortlistedIds.includes(ideaId);
         if (status === "SHORTLISTED" && !hasId) {
           entry.shortlistedIds.push(ideaId);
         } else if (status !== "SHORTLISTED" && hasId) {
           entry.shortlistedIds = entry.shortlistedIds.filter((id) => id !== ideaId);
         }
+        store.recommendationsByUser[user.id] = entry;
+        writeInstitutionalDb(store);
       }
-      writeInstitutionalDb(store);
     } catch {
       // Ignore write error in unit tests
     }
@@ -365,10 +371,11 @@ export async function getActiveRecommendationsSnapshot(): Promise<{
   const user = await requireRole(["STUDENT", "COORDINATOR", "ADMIN"]);
   const store = readInstitutionalDb();
   const profile =
-    store.studentProfiles[user.id] ?? store.studentProfiles["stu_b23f0184cs042"];
+    store.studentProfiles[user.id] ??
+    store.studentProfiles["cm0userstudent00000000001"];
   const rec =
     store.recommendationsByUser[user.id] ??
-    store.recommendationsByUser["stu_b23f0184cs042"]!;
+    store.recommendationsByUser["cm0userstudent00000000001"]!;
   return {
     ideas: rec.ideas,
     shortlistedIds: rec.shortlistedIds,

@@ -275,14 +275,23 @@ function StudentSupervisorsWorkspace() {
       return;
     }
 
-    await createSupervisionRequest({
+    const res = await createSupervisionRequest({
       recommendedIdeaId: selectedIdeaId,
       supervisorProfileId: modalSupervisor.id,
       studentPitch: pitchText.trim(),
     });
 
+    if (!res.ok) {
+      setBannerMessage({
+        type: "error",
+        text: res.error.message,
+      });
+      setModalSupervisor(null);
+      return;
+    }
+
     const newReq: StoredSupervisionRequest = {
-      id: `cm0req_${Date.now()}`,
+      id: res.data.requestId,
       supervisorProfileId: modalSupervisor.id,
       supervisorName: modalSupervisor.fullName,
       ideaId: selectedIdeaId,
@@ -309,7 +318,14 @@ function StudentSupervisorsWorkspace() {
   }
 
   async function handleWithdraw(reqId: string) {
-    await withdrawSupervisionRequest({ requestId: reqId });
+    const res = await withdrawSupervisionRequest({ requestId: reqId });
+    if (!res.ok) {
+      setBannerMessage({
+        type: "error",
+        text: res.error.message,
+      });
+      return;
+    }
     const nextRequests = sentRequests.map((r) =>
       r.id === reqId ? { ...r, status: "WITHDRAWN" as const } : r
     );

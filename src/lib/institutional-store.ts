@@ -392,37 +392,39 @@ const INITIAL_IDEAS_SEED: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedId
 ];
 
 function createDefaultInstitutionalState(): InstitutionalDatabaseState {
+  const defaultProfile: PersistedStudentProfile = {
+    userId: "cm0userstudent00000000001",
+    registrationNo: "B23F0184CS042",
+    fullName: "Areeba Noor",
+    departmentCode: "BSCS",
+    status: "READY",
+    skills: [
+      { skillSlug: "typescript", displayName: "TypeScript", proficiency: "ADVANCED" },
+      { skillSlug: "nextjs", displayName: "Next.js", proficiency: "INTERMEDIATE" },
+      { skillSlug: "postgresql", displayName: "PostgreSQL", proficiency: "INTERMEDIATE" },
+      {
+        skillSlug: "pgvector",
+        displayName: "pgvector Semantic Search",
+        proficiency: "BEGINNER",
+      },
+    ],
+    interests: ["DevTools", "Applied AI"],
+    careerGoal: "Full-Stack & AI Systems Engineer",
+    preferredType: "PRODUCT_SAAS",
+    weeklyHours: 15,
+    durationWeeks: 24,
+    teamSize: 2,
+    gpaBand: "3.4 - 3.8",
+    totalEffortHours: 594,
+    updatedAt: "2026-11-23T09:00:00.000Z",
+  };
+
   return {
     studentProfiles: {
-      stu_b23f0184cs042: {
-        userId: "stu_b23f0184cs042",
-        registrationNo: "B23F0184CS042",
-        fullName: "Abdullah Jan",
-        departmentCode: "BSCS",
-        status: "READY",
-        skills: [
-          { skillSlug: "typescript", displayName: "TypeScript", proficiency: "ADVANCED" },
-          { skillSlug: "nextjs", displayName: "Next.js", proficiency: "INTERMEDIATE" },
-          { skillSlug: "postgresql", displayName: "PostgreSQL", proficiency: "INTERMEDIATE" },
-          {
-            skillSlug: "pgvector",
-            displayName: "pgvector Semantic Search",
-            proficiency: "BEGINNER",
-          },
-        ],
-        interests: ["DevTools", "Applied AI"],
-        careerGoal: "Full-Stack & AI Systems Engineer",
-        preferredType: "PRODUCT_SAAS",
-        weeklyHours: 15,
-        durationWeeks: 24,
-        teamSize: 2,
-        gpaBand: "3.4 - 3.8",
-        totalEffortHours: 594,
-        updatedAt: "2026-11-23T09:00:00.000Z",
-      },
+      cm0userstudent00000000001: defaultProfile,
     },
     recommendationsByUser: {
-      stu_b23f0184cs042: {
+      cm0userstudent00000000001: {
         runId: "cm0run_initial_01",
         usedFallback: false,
         runsRemainingToday: 4,
@@ -444,8 +446,8 @@ function createDefaultInstitutionalState(): InstitutionalDatabaseState {
     supervisionRequests: [
       {
         id: "cm0req01studentpitch00001",
-        studentUserId: "stu_b23f0184cs042",
-        studentName: "Abdullah Jan",
+        studentUserId: "cm0userstudent00000000001",
+        studentName: "Areeba Noor",
         studentRegNo: "B23F0184CS042",
         supervisorProfileId: "cm0sup01kamransiddiqui001",
         supervisorName: "Dr. Kamran Siddiqui",

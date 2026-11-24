@@ -24,6 +24,7 @@ export interface StoredStudentProfile {
 
 export interface StoredSupervisionRequest {
   id: string;
+  studentName?: string;
   supervisorProfileId: string;
   supervisorName: string;
   ideaId: string;

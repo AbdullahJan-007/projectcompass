@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole, requireUser } from "@/lib/auth/session";
+import { resolveDepartmentCodeById } from "@/lib/auth/university-id";
 import {
   generateDeterministicEmbedding,
   generateTextEmbedding,
@@ -105,15 +106,52 @@ export async function completeOnboarding(
 export async function getActiveStudentProfile(): Promise<PersistedStudentProfile | null> {
   try {
     const user = await requireUser();
+    try {
+      const dbProfile = await db.studentProfile.findUnique({
+        where: { userId: user.id },
+        include: {
+          skills: { include: { skill: true } },
+        },
+      });
+      if (dbProfile && dbProfile.skills.length > 0) {
+        const teamFactor =
+          dbProfile.teamSize === 1 ? 1.0 : dbProfile.teamSize === 2 ? 1.65 : 2.2;
+        return {
+          userId: user.id,
+          registrationNo: user.clerkId ?? "B23F0184CS042",
+          fullName: user.fullName,
+          departmentCode: resolveDepartmentCodeById(user.departmentId),
+          status: dbProfile.status,
+          skills: dbProfile.skills.map((s) => ({
+            skillSlug: s.skill.slug,
+            displayName: s.skill.displayName,
+            proficiency: s.proficiency,
+          })),
+          interests: dbProfile.interests,
+          careerGoal: dbProfile.careerGoal,
+          preferredType: (["PRODUCT_SAAS", "APPLIED_AI", "RESEARCH", "SYSTEMS"].includes(
+            dbProfile.preferredType
+          )
+            ? dbProfile.preferredType
+            : "PRODUCT_SAAS") as PersistedStudentProfile["preferredType"],
+          weeklyHours: dbProfile.weeklyHours,
+          durationWeeks: dbProfile.durationWeeks,
+          teamSize: dbProfile.teamSize,
+          gpaBand: dbProfile.gpaBand ?? "3.4 - 3.8",
+          totalEffortHours: Math.round(
+            dbProfile.weeklyHours * dbProfile.durationWeeks * teamFactor
+          ),
+          updatedAt: dbProfile.updatedAt.toISOString(),
+        };
+      }
+    } catch {
+      // Fallback to local institutional store
+    }
+
     const store = readInstitutionalDb();
-    return (
-      store.studentProfiles[user.id] ??
-      store.studentProfiles["stu_b23f0184cs042"] ??
-      null
-    );
+    return store.studentProfiles[user.id] ?? null;
   } catch {
-    const store = readInstitutionalDb();
-    return store.studentProfiles["stu_b23f0184cs042"] ?? null;
+    return null;
   }
 }
 
@@ -260,8 +298,7 @@ export async function upsertStudentProfile(
         userId: user.id,
         registrationNo: user.clerkId ?? "B23F0184CS042",
         fullName: user.fullName,
-        departmentCode:
-          user.departmentId === "cm0deptbsse00000000000002" ? "BSSE" : "BSCS",
+        departmentCode: resolveDepartmentCodeById(user.departmentId),
         status: "READY",
         skills: input.skills,
         interests: input.interests,

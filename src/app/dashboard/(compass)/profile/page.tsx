@@ -21,7 +21,10 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CANONICAL_SKILLS } from "@/lib/recommendation/seed-data";
-import { upsertStudentProfile } from "@/actions/profile.actions";
+import {
+  upsertStudentProfile,
+  getActiveStudentProfile,
+} from "@/actions/profile.actions";
 import {
   loadStoredStudentProfile,
   saveStoredStudentProfile,
@@ -75,6 +78,8 @@ export default function StudentProfilePage() {
   const [teamSize, setTeamSize] = useState(2);
   const [gpaBand, setGpaBand] = useState("3.4 - 3.8");
 
+  const [departmentLabel, setDepartmentLabel] = useState("BSCS");
+
   useEffect(() => {
     const stored = loadStoredStudentProfile();
     setSkills(stored.skills);
@@ -85,6 +90,25 @@ export default function StudentProfilePage() {
     setDurationWeeks(stored.durationWeeks);
     setTeamSize(stored.teamSize);
     setGpaBand(stored.gpaBand);
+
+    getActiveStudentProfile()
+      .then((serverProfile) => {
+        if (!serverProfile) return;
+        setDepartmentLabel(serverProfile.departmentCode || "BSCS");
+        if (serverProfile.skills.length > 0) {
+          setSkills(serverProfile.skills);
+          setInterests(serverProfile.interests);
+          setCareerGoal(serverProfile.careerGoal);
+          setPreferredType(serverProfile.preferredType);
+          setWeeklyHours(serverProfile.weeklyHours);
+          setDurationWeeks(serverProfile.durationWeeks);
+          setTeamSize(serverProfile.teamSize);
+          setGpaBand(serverProfile.gpaBand);
+        }
+      })
+      .catch(() => {
+        // Keep local snapshot
+      });
   }, []);
 
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
@@ -256,7 +280,7 @@ export default function StudentProfilePage() {
               {isReadyForRecommendations ? "Profile Status: Ready" : "Profile Status: Draft"}
             </Badge>
             <span className="text-xs text-text-muted font-mono-tabular">
-              Cohort: Fall 2026 – Spring 2027 (BSCS)
+              Cohort: Fall 2026 – Spring 2027 ({departmentLabel})
             </span>
           </div>
           <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">

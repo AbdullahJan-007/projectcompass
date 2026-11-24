@@ -30,11 +30,8 @@ import {
 export default function OnboardingPage() {
   const router = useRouter();
   const [role, setRole] = useState<"STUDENT" | "FACULTY">("STUDENT");
-  const [identifier, setIdentifier] = useState("B23F0184CS042");
-  const [pin, setPin] = useState("0184");
-  const [facultyRole, setFacultyRole] = useState<"SUPERVISOR" | "COORDINATOR" | "ADMIN">(
-    "SUPERVISOR"
-  );
+  const [identifier, setIdentifier] = useState("");
+  const [pin, setPin] = useState("");
   const [cohortId, setCohortId] = useState("cm0cohort2627000000000001");
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -60,7 +57,6 @@ export default function OnboardingPage() {
       loginMode: role,
       identifier,
       pin,
-      facultyRole: role === "FACULTY" ? facultyRole : undefined,
     });
 
     setIsPending(false);
@@ -92,7 +88,7 @@ export default function OnboardingPage() {
             </div>
             <Button variant="ghost" size="sm" onClick={handleSignOut}>
               <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Go to Full Sign-In Page
+              Go to Sign-In Page
             </Button>
           </div>
           <h1 className="mt-3 text-[24px] font-semibold tracking-tight text-text-primary">
@@ -109,11 +105,7 @@ export default function OnboardingPage() {
           <CardHeader>
             <CardTitle>Institutional Identity &amp; 4-Digit PIN Verification</CardTitle>
             <CardDescription>
-              Switch between Student Registration Number login (e.g.,{" "}
-              <code className="font-mono-tabular font-semibold text-text-primary">
-                B23F0184CS042
-              </code>
-              ) and Faculty Name / Email login.
+              Choose your academic account type and enter your registered credentials.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -123,8 +115,8 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={() => {
                     setRole("STUDENT");
-                    setIdentifier("B23F0184CS042");
-                    setPin("0184");
+                    setIdentifier("");
+                    setPin("");
                     setErrorMessage(null);
                   }}
                   className={`flex flex-col items-start rounded-[8px] border p-4 text-left transition-colors ${
@@ -138,9 +130,7 @@ export default function OnboardingPage() {
                     Final-Year Student (Reg No)
                   </span>
                   <span className="mt-1 text-xs text-text-secondary">
-                    Sign in with pattern{" "}
-                    <code className="font-mono-tabular font-semibold">B23F0184CS042</code> +
-                    4-digit PIN (<code className="font-mono-tabular">XXXX</code>).
+                    Sign in with University Registration Number + 4-digit PIN.
                   </span>
                 </button>
 
@@ -148,8 +138,8 @@ export default function OnboardingPage() {
                   type="button"
                   onClick={() => {
                     setRole("FACULTY");
-                    setIdentifier("kamran.siddiqui@university.edu");
-                    setPin("2026");
+                    setIdentifier("");
+                    setPin("");
                     setErrorMessage(null);
                   }}
                   className={`flex flex-col items-start rounded-[8px] border p-4 text-left transition-colors ${
@@ -160,11 +150,11 @@ export default function OnboardingPage() {
                 >
                   <Briefcase className="h-5 w-5 text-brand-primary" strokeWidth={1.75} />
                   <span className="mt-2 text-sm font-semibold text-text-primary">
-                    Faculty Teacher / Coordinator
+                    Faculty Supervisor / Coordinator
                   </span>
                   <span className="mt-1 text-xs text-text-secondary">
-                    Sign in with Teacher Name / University Email + 4-digit PIN (
-                    <code className="font-mono-tabular">XXXX</code>).
+                    Sign in with official University Email + 4-digit PIN. Role is resolved from the
+                    institutional directory.
                   </span>
                 </button>
               </div>
@@ -178,13 +168,13 @@ export default function OnboardingPage() {
                     <Input
                       value={identifier}
                       onChange={(e) => setIdentifier(e.target.value.toUpperCase())}
-                      placeholder="B23F0184CS042"
+                      placeholder="e.g., B23F0184CS042"
                       className="font-mono-tabular text-base uppercase"
                       required
                     />
                   </div>
 
-                  {parsedReg ? (
+                  {parsedReg && (
                     <div className="rounded-[8px] border border-brand-primary/30 bg-brand-tint/30 p-3.5 text-xs space-y-1.5">
                       <div className="flex items-center justify-between">
                         <span className="font-semibold text-brand-primary-hover">
@@ -204,11 +194,6 @@ export default function OnboardingPage() {
                         <code className="font-mono-tabular">#{parsedReg.rollNumber}</code>
                       </p>
                     </div>
-                  ) : (
-                    <p className="text-xs text-status-error-text">
-                      Invalid Reg No pattern. Example:{" "}
-                      <code className="font-mono-tabular font-semibold">B23F0184CS042</code>
-                    </p>
                   )}
 
                   <div className="space-y-1.5">
@@ -227,49 +212,22 @@ export default function OnboardingPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Faculty Teacher Name or University Email
-                    </label>
-                    <Input
-                      value={identifier}
-                      onChange={(e) => setIdentifier(e.target.value)}
-                      placeholder="kamran.siddiqui@university.edu"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Faculty Workspace Role
-                    </label>
-                    <Select
-                      value={facultyRole}
-                      onChange={(e) =>
-                        setFacultyRole(
-                          e.target.value as "SUPERVISOR" | "COORDINATOR" | "ADMIN"
-                        )
-                      }
-                      aria-label="Faculty Workspace Role"
-                    >
-                      <option value="SUPERVISOR">
-                        Faculty Supervisor (Quotas &amp; Student Proposals)
-                      </option>
-                      <option value="COORDINATOR">
-                        FYP Coordinator (Archive Ingestion &amp; Dept Quotas)
-                      </option>
-                      <option value="ADMIN">
-                        University Admin (Departments &amp; Audit Logs)
-                      </option>
-                    </Select>
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                    Official University Email
+                  </label>
+                  <Input
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="firstname.lastname@university.edu"
+                    required
+                  />
                 </div>
               )}
 
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  4-Digit Portal Password / PIN (XXXX)
+                  4-Digit Portal PIN (XXXX)
                 </label>
                 <Input
                   type="password"
@@ -277,7 +235,7 @@ export default function OnboardingPage() {
                   maxLength={4}
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  placeholder="0184"
+                  placeholder="••••"
                   className="font-mono-tabular tracking-[0.3em]"
                   required
                 />
@@ -293,11 +251,11 @@ export default function OnboardingPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border-default pt-4">
                 <div className="flex items-center gap-2 text-xs text-text-muted">
                   <CheckCircle2 className="h-4 w-4 text-status-success" strokeWidth={1.75} />
-                  <span>4-Digit PIN &amp; Department RBAC Verified</span>
+                  <span>HMAC Session &amp; Department RBAC Enforced</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" asChild>
-                    <Link href="/sign-in">Full Login Page</Link>
+                    <Link href="/sign-up">Create Account</Link>
                   </Button>
                   <Button
                     type="submit"

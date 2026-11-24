@@ -27,8 +27,8 @@ import { signInWithUniversityCredentials } from "@/actions/auth.actions";
 export default function SignInPage() {
   const router = useRouter();
   const [loginMode, setLoginMode] = useState<"STUDENT" | "FACULTY">("STUDENT");
-  const [identifier, setIdentifier] = useState("B23F0184CS042");
-  const [pin, setPin] = useState("0184");
+  const [identifier, setIdentifier] = useState("");
+  const [pin, setPin] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 

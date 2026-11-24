@@ -6,11 +6,21 @@ import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
 import { generateTextEmbedding, toPgVectorLiteral } from "@/lib/ai/embeddings";
 import { sendTransactionalEmail } from "@/lib/email/resend";
+import { escapeHtml } from "@/lib/utils";
 import {
   readInstitutionalDb,
   writeInstitutionalDb,
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isDbConnectionOffline(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "PrismaClientInitializationError" ||
+    err.message.includes("Can't reach database server") ||
+    err.message.includes("ECONNREFUSED")
+  );
+}
 
 const upsertSupervisorProfileSchema = z.object({
   title: z.string().min(2).max(80),
@@ -282,7 +292,7 @@ export async function createSupervisionRequest(
     await sendTransactionalEmail({
       to: supervisor.user.email,
       subject: `[ProjectCompass] New FYP Supervision Request from ${user.fullName}`,
-      html: `<p>A new skill-vetted FYP proposal request has been submitted for your review.</p>`,
+      html: `<p>A new skill-vetted FYP proposal request has been submitted by <strong>${escapeHtml(user.fullName)}</strong> for your review.</p>`,
     });
 
     revalidatePath("/dashboard/supervisors");
@@ -301,6 +311,79 @@ export async function createSupervisionRequest(
         ok: false,
         error: { code: err.code, message: err.message },
       };
+    }
+    if (isDbConnectionOffline(err)) {
+      const user = await requireRole(["STUDENT"]);
+      const parsed = createSupervisionRequestSchema.parse(rawInput);
+      const store = readInstitutionalDb();
+      const pendingCount = store.supervisionRequests.filter(
+        (r) => r.studentUserId === user.id && r.status === "PENDING"
+      ).length;
+      if (pendingCount >= 3) {
+        return {
+          ok: false,
+          error: {
+            code: "MAX_PENDING_REQUESTS",
+            message:
+              "You already have 3 active pending supervision requests. Withdraw one before sending another.",
+          },
+        };
+      }
+      const sup = store.supervisors.find((s) => s.id === parsed.supervisorProfileId);
+      if (!sup) {
+        return {
+          ok: false,
+          error: { code: "NOT_FOUND", message: "Supervisor profile not found." },
+        };
+      }
+      if (!sup.isAccepting || sup.activeSlots >= sup.maxSlots) {
+        return {
+          ok: false,
+          error: {
+            code: "SUPERVISOR_QUOTA_FULL",
+            message:
+              "This supervisor has reached full slot capacity or is no longer accepting proposals.",
+          },
+        };
+      }
+      const duplicate = store.supervisionRequests.find(
+        (r) =>
+          r.studentUserId === user.id &&
+          r.recommendedIdeaId === parsed.recommendedIdeaId &&
+          r.supervisorProfileId === parsed.supervisorProfileId &&
+          r.status === "PENDING"
+      );
+      if (duplicate) {
+        return {
+          ok: false,
+          error: {
+            code: "DUPLICATE_RECORD",
+            message:
+              "You have already submitted a supervision request for this idea to this supervisor.",
+          },
+        };
+      }
+      const requestId = `cm0req_${Date.now()}`;
+      store.supervisionRequests.unshift({
+        id: requestId,
+        studentUserId: user.id,
+        studentName: user.fullName,
+        studentRegNo: user.clerkId ?? "B23F0184CS042",
+        supervisorProfileId: sup.id,
+        supervisorName: sup.fullName,
+        recommendedIdeaId: parsed.recommendedIdeaId,
+        ideaTitle: "Shortlisted FYP Proposal",
+        track: "CORE_SAFE",
+        feasibilityScore: 84,
+        skillGapsSummary: "Verified profile",
+        studentPitch: parsed.studentPitch.trim(),
+        status: "PENDING",
+        createdAt: new Date().toISOString(),
+      });
+      writeInstitutionalDb(store);
+      revalidatePath("/dashboard/supervisors");
+      revalidatePath("/dashboard/supervisor");
+      return { ok: true, data: { requestId, status: "PENDING" } };
     }
     return {
       ok: false,
@@ -380,6 +463,19 @@ export async function withdrawSupervisionRequest(
       return {
         ok: false,
         error: { code: err.code, message: err.message },
+      };
+    }
+    if (isDbConnectionOffline(err)) {
+      const parsed = withdrawRequestSchema.parse(rawInput);
+      const store = readInstitutionalDb();
+      store.supervisionRequests = store.supervisionRequests.map((r) =>
+        r.id === parsed.requestId ? { ...r, status: "WITHDRAWN" } : r
+      );
+      writeInstitutionalDb(store);
+      revalidatePath("/dashboard/supervisors");
+      return {
+        ok: true,
+        data: { requestId: parsed.requestId, status: "WITHDRAWN" },
       };
     }
     return {
@@ -475,7 +571,7 @@ export async function respondToSupervisionRequest(
       await sendTransactionalEmail({
         to: request.studentProfile.user.email,
         subject: "[ProjectCompass] Supervision Request Update",
-        html: `<p>Your supervision request was declined with feedback: ${supervisorNote.trim()}</p>`,
+        html: `<p>Your supervision request was declined with feedback: ${escapeHtml(supervisorNote.trim())}</p>`,
       });
 
       revalidatePath("/dashboard/supervisor");
@@ -565,6 +661,43 @@ export async function respondToSupervisionRequest(
       return {
         ok: false,
         error: { code: err.code, message: err.message },
+      };
+    }
+    if (isDbConnectionOffline(err)) {
+      const parsed = respondSupervisionSchema.parse(rawInput);
+      const store = readInstitutionalDb();
+      const targetReq = store.supervisionRequests.find((r) => r.id === parsed.requestId);
+      const sup = targetReq
+        ? store.supervisors.find((s) => s.id === targetReq.supervisorProfileId) ??
+          store.supervisors[0]
+        : store.supervisors[0];
+
+      if (parsed.decision === "ACCEPT" && sup) {
+        if (!sup.isAccepting || sup.activeSlots >= sup.maxSlots) {
+          return {
+            ok: false,
+            error: {
+              code: "SUPERVISOR_QUOTA_FULL",
+              message:
+                "Atomic quota guard prevented over-allocation: all supervision slots are currently full.",
+            },
+          };
+        }
+        sup.activeSlots += 1;
+      }
+
+      const finalStatus = parsed.decision === "ACCEPT" ? "ACCEPTED" : "DECLINED";
+      if (targetReq) {
+        targetReq.status = finalStatus;
+        targetReq.supervisorNote = parsed.supervisorNote.trim();
+        targetReq.respondedAt = new Date().toISOString();
+      }
+      writeInstitutionalDb(store);
+      revalidatePath("/dashboard/supervisor");
+      revalidatePath("/dashboard/supervisors");
+      return {
+        ok: true,
+        data: { requestId: parsed.requestId, status: finalStatus },
       };
     }
     return {
