@@ -22,29 +22,29 @@ export default function MarketTrendsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <Badge variant="info">Versioned Snapshot: 2026-Q4</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="info">IT &amp; Computing Industry Benchmarks</Badge>
             <span className="text-xs text-text-muted">
-              Refreshed weekly via scheduled Inngest cron job
+              Updated across all computing &amp; IT specializations
             </span>
           </div>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
-            CS Market-Trend &amp; Portfolio Signal Insights
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+            IT &amp; Computing Industry Demand &amp; Portfolio Signals
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
             Curated industry demand indicators, high-signal stack pairings, and graduate hiring
-            differentiators linked directly to FYP recommendations.
+            differentiators across BSIT, BSCS, BSSE, BSAI, BSCY, and BSDS tracks.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="w-full sm:w-auto">
           <Select
             aria-label="Filter Demand Tier"
             value={demandFilter}
             onChange={(e) => setDemandFilter(e.target.value)}
-            className="w-48"
+            className="w-full sm:w-52"
           >
             <option value="ALL">All Demand Tiers</option>
             <option value="HIGH">HIGH Demand</option>

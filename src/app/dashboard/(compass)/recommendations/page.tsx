@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import {
   generateRecommendations,
   updateIdeaStatus,
@@ -332,6 +333,7 @@ const LOADING_STAGES = [
 
 export default function RecommendationsPage() {
   const router = useRouter();
+  const portalSession = usePortalSession();
   const [ideas, setIdeas] = useState<[GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]>(
     INITIAL_IDEAS
   );
@@ -594,13 +596,13 @@ export default function RecommendationsPage() {
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl space-y-1.5">
-              <CardTitle className="text-[20px] leading-[1.3]">{idea.title}</CardTitle>
+              <CardTitle className="text-[18px] sm:text-[20px] leading-[1.3]">{idea.title}</CardTitle>
               <CardDescription>{idea.problemStatement}</CardDescription>
             </div>
 
-            <div className="flex flex-col items-end rounded-[8px] border border-brand-primary/30 bg-brand-tint/40 px-4 py-2.5">
+            <div className="flex w-full sm:w-auto flex-row sm:flex-col items-center sm:items-end justify-between rounded-[8px] border border-brand-primary/30 bg-brand-tint/40 px-4 py-2.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary-hover">
                 Explainable Feasibility
               </span>
@@ -660,7 +662,7 @@ export default function RecommendationsPage() {
             <p className="mt-1 text-xs text-text-secondary">{idea.feasibilityExplanation}</p>
 
             {isExpanded && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-4">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-medium text-text-secondary">Skill Overlap (40%)</span>
@@ -846,11 +848,13 @@ export default function RecommendationsPage() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-[8px] border border-border-default bg-grad-ambient p-6">
+      <section className="rounded-[8px] border border-border-default bg-grad-ambient p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">Fall 2026 – Spring 2027 Proposals</Badge>
+              <Badge variant="default">
+                {portalSession.batchLabel || "Department of IT & Computing"}
+              </Badge>
               <span className="font-mono-tabular text-xs text-text-secondary">
                 Semester Capacity:{" "}
                 {studentProfile
@@ -871,7 +875,7 @@ export default function RecommendationsPage() {
                 · {runsLeftToday} of 5 daily evaluations left
               </span>
             </div>
-            <h1 className="text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+            <h1 className="text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
               FYP Proposal Recommendations &amp; Feasibility Breakdown
             </h1>
             <p className="text-sm text-text-secondary">

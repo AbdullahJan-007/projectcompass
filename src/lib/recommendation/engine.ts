@@ -340,8 +340,8 @@ export async function executeHybridRecommendationEngine(
       (m) => m.domainName.toLowerCase() === sel.candidate.domain.toLowerCase()
     );
     const marketDemandTag = trend
-      ? `${trend.domainName} · ${trend.demandLevel} Demand (${trend.versionLabel})`
-      : `${sel.candidate.domain} · HIGH Demand (2026-Q4)`;
+      ? `${trend.domainName} · ${trend.demandLevel} Demand`
+      : `${sel.candidate.domain} · HIGH Demand`;
 
     return {
       track: sel.track,

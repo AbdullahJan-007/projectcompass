@@ -38,16 +38,27 @@ interface ArchiveRow {
   title: string;
   abstract: string;
   academicYear: number;
+  programCode: "BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS";
   domain: string;
   techStack: string[];
   ingestStatus: IngestStatus;
   ingestError?: string;
 }
 
+const ARCHIVE_PROGRAMS: Array<"BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS"> = [
+  "BSIT",
+  "BSCS",
+  "BSSE",
+  "BSAI",
+  "BSCY",
+  "BSDS",
+];
+
 export default function CoordinatorDashboardPage() {
   const [archives, setArchives] = useState<ArchiveRow[]>(() => [
-    ...DEMO_PROJECT_ARCHIVES.map((a) => ({
+    ...DEMO_PROJECT_ARCHIVES.map((a, idx) => ({
       ...a,
+      programCode: a.programCode ?? ARCHIVE_PROGRAMS[idx % ARCHIVE_PROGRAMS.length]!,
       ingestStatus: "READY" as IngestStatus,
     })),
     {
@@ -55,6 +66,7 @@ export default function CoordinatorDashboardPage() {
       title: "Legacy Scanned Thesis: Campus Wi-Fi Rogue AP Monitor",
       abstract: "Scanned PDF upload without OCR text layer.",
       academicYear: 2022,
+      programCode: "BSIT",
       domain: "Cybersecurity",
       techStack: ["Python", "Wireshark", "Linux"],
       ingestStatus: "NEEDS_MANUAL_ABSTRACT",
@@ -66,6 +78,10 @@ export default function CoordinatorDashboardPage() {
   const [title, setTitle] = useState("");
   const [abstractText, setAbstractText] = useState("");
   const [academicYear, setAcademicYear] = useState(2025);
+  const [programCode, setProgramCode] = useState<
+    "BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS"
+  >("BSIT");
+  const [filterProgram, setFilterProgram] = useState<string>("ALL");
   const [domain, setDomain] = useState("DevTools");
   const [techStackText, setTechStackText] = useState("Next.js, TypeScript, PostgreSQL, pgvector");
   const [editingArchiveId, setEditingArchiveId] = useState<string | null>(null);
@@ -113,6 +129,7 @@ export default function CoordinatorDashboardPage() {
         title: title.trim(),
         abstract: abstractText.trim(),
         academicYear,
+        programCode,
         domain,
         techStack: stack.length > 0 ? stack : ["TypeScript"],
         ingestStatus: newStatus,
@@ -186,22 +203,46 @@ export default function CoordinatorDashboardPage() {
     }
   }
 
+  const visibleArchives =
+    filterProgram === "ALL"
+      ? archives
+      : archives.filter((a) => a.programCode === filterProgram);
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <Badge variant="default">FYP Coordinator Portal · BSCS</Badge>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+          <Badge variant="default">
+            FYP Coordinator Portal · Department of IT &amp; Computing
+          </Badge>
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
             Past Project Archives &amp; Department Supervision Capacity
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Maintain archived department final-year project abstracts for duplicate similarity
-            checks and monitor faculty supervision quotas.
+            Manage historical FYP archives across all IT &amp; Computing degree programs (BSIT,
+            BSCS, BSSE, BSAI, BSCY, BSDS) and all graduating batches.
           </p>
+        </div>
+
+        <div className="w-full sm:w-auto">
+          <Select
+            aria-label="Filter Archive Program"
+            value={filterProgram}
+            onChange={(e) => setFilterProgram(e.target.value)}
+            className="w-full sm:w-52"
+          >
+            <option value="ALL">All IT &amp; Computing Programs</option>
+            <option value="BSIT">BSIT Archives</option>
+            <option value="BSCS">BSCS Archives</option>
+            <option value="BSSE">BSSE Archives</option>
+            <option value="BSAI">BSAI Archives</option>
+            <option value="BSCY">BSCY Archives</option>
+            <option value="BSDS">BSDS Archives</option>
+          </Select>
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-5">
             <div className="flex items-center justify-between">
@@ -343,15 +384,15 @@ export default function CoordinatorDashboardPage() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Academic Year
+                        Batch / Academic Year
                       </label>
                       <Input
                         type="number"
                         min={2015}
-                        max={2030}
+                        max={2035}
                         value={academicYear}
                         onChange={(e) => setAcademicYear(Number(e.target.value) || 2025)}
                         className="font-mono-tabular"
@@ -359,20 +400,50 @@ export default function CoordinatorDashboardPage() {
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Primary Domain
+                        Degree Program
                       </label>
-                      <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
-                        <option value="DevTools">DevTools</option>
-                        <option value="Cybersecurity">Cybersecurity</option>
-                        <option value="Applied AI">Applied AI</option>
-                        <option value="EdTech">EdTech</option>
-                        <option value="HealthTech">HealthTech</option>
-                        <option value="FinTech">FinTech</option>
-                        <option value="Cloud & Distributed Systems">
-                          Cloud &amp; Distributed Systems
-                        </option>
+                      <Select
+                        aria-label="Degree Program"
+                        value={programCode}
+                        onChange={(e) =>
+                          setProgramCode(
+                            e.target.value as
+                              | "BSIT"
+                              | "BSCS"
+                              | "BSSE"
+                              | "BSAI"
+                              | "BSCY"
+                              | "BSDS"
+                          )
+                        }
+                      >
+                        <option value="BSIT">BSIT</option>
+                        <option value="BSCS">BSCS</option>
+                        <option value="BSSE">BSSE</option>
+                        <option value="BSAI">BSAI</option>
+                        <option value="BSCY">BSCY</option>
+                        <option value="BSDS">BSDS</option>
                       </Select>
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                      Primary Technical Domain
+                    </label>
+                    <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
+                      <option value="DevTools">DevTools</option>
+                      <option value="Cybersecurity">Cybersecurity</option>
+                      <option value="Applied AI">Applied AI</option>
+                      <option value="EdTech">EdTech</option>
+                      <option value="HealthTech">HealthTech</option>
+                      <option value="FinTech">FinTech</option>
+                      <option value="Cloud & Distributed Systems">
+                        Cloud &amp; Distributed Systems
+                      </option>
+                      <option value="Data Engineering">Data Engineering</option>
+                      <option value="IoT & Embedded">IoT &amp; Embedded</option>
+                    </Select>
                   </div>
 
                   <div className="space-y-1.5">
@@ -417,16 +488,16 @@ export default function CoordinatorDashboardPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {archives.map((item) => (
+                {visibleArchives.map((item) => (
                   <div
                     key={item.id}
                     className="rounded-[8px] border border-border-default bg-bg-surface p-4 space-y-2.5"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
-                            {item.academicYear}
+                            {item.programCode} · {item.academicYear}
                           </span>
                           <Badge variant="neutral">{item.domain}</Badge>
                           {renderStatusBadge(item.ingestStatus)}

@@ -87,13 +87,23 @@ function createPrismaClient() {
     log: env.NODE_ENV === "production" ? ["error"] : [],
   });
 
-  return baseClient.$extends({
+  const extended = baseClient.$extends({
     query: {
       async $allOperations({ args, query }) {
         await ensureDatabaseReachable();
         return query(args);
       },
     },
+  });
+
+  const origTransaction = extended.$transaction.bind(extended);
+  const wrappedTransaction = async (...txArgs: Parameters<typeof origTransaction>) => {
+    await ensureDatabaseReachable();
+    return origTransaction(...txArgs);
+  };
+
+  return Object.assign(extended, {
+    $transaction: wrappedTransaction,
   }) as unknown as PrismaClient;
 }
 

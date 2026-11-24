@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import {
   DEMO_SUPERVISORS,
@@ -108,7 +109,10 @@ export interface InstitutionalDatabaseState {
   auditLogs: PersistedAuditLogRecord[];
 }
 
-const DB_FILE_PATH = path.join(process.cwd(), "prisma", "local-institutional-db.json");
+const DB_FILE_PATH = path.join(
+  os.tmpdir(),
+  "projectcompass-local-institutional-db-v2.json"
+);
 
 const INITIAL_IDEAS_SEED: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord] = [
   {

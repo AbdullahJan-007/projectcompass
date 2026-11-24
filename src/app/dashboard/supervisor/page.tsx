@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import { upsertSupervisorProfile, respondToSupervisionRequest } from "@/actions/supervisor.actions";
 import {
   loadStoredSupervisionRequests,
@@ -36,6 +37,7 @@ interface IncomingRequestItem {
 }
 
 export default function SupervisorPortalPage() {
+  const portalSession = usePortalSession();
   const [title, setTitle] = useState("Associate Professor");
   const [bio, setBio] = useState(
     "Leads the Distributed Systems & Automated Software Testing Lab. Focuses on CI log anomaly triage, OpenTelemetry root-cause analysis, and PostgreSQL query optimization."
@@ -57,7 +59,7 @@ export default function SupervisorPortalPage() {
   const [requests, setRequests] = useState<IncomingRequestItem[]>([
     {
       id: "cm0req01studentpitch00001",
-      studentName: "Areeba Noor (B23F0184CS042 · BSCS)",
+      studentName: "Areeba Noor (Fall 2023 · BSCS)",
       ideaTitle: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
       track: "CORE_SAFE",
       feasibilityScore: 86,
@@ -68,7 +70,7 @@ export default function SupervisorPortalPage() {
     },
     {
       id: "cm0req02studentpitch00002",
-      studentName: "Hamza Tariq & Zainab Ali (BSCS)",
+      studentName: "Hamza Tariq & Zainab Ali (Spring 2023 · BSIT)",
       ideaTitle: "OpenTelemetry Distributed Trace Bottleneck & N+1 Query Root-Cause Analyzer",
       track: "CAREER_STRETCH",
       feasibilityScore: 78,
@@ -214,13 +216,15 @@ export default function SupervisorPortalPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={activeSlots < maxSlots && isAccepting ? "success" : "error"}>
               {activeSlots} of {maxSlots} Supervision Slots Filled
             </Badge>
-            <Badge variant="neutral">Dr. Kamran Siddiqui · BSCS</Badge>
+            <Badge variant="neutral">
+              {portalSession.userName} · {portalSession.departmentCode}
+            </Badge>
           </div>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
             Faculty Supervision Profile &amp; Slot Quotas
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
@@ -337,7 +341,7 @@ export default function SupervisorPortalPage() {
                     <Textarea value={bio} onChange={(e) => setBio(e.target.value)} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <div className="space-y-1.5">
                       <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
                         Max Supervision Slots

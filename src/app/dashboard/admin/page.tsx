@@ -206,13 +206,13 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <Badge variant="default">University Administration</Badge>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
-            Departments, Academic Cohorts &amp; Role Management
+          <Badge variant="default">Department of IT &amp; Computing Governance</Badge>
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+            IT Programs, Multi-Batch Cohorts &amp; Role Management
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Manage academic departments, user role assignments, supervisor quota overrides, and
-            institutional audit logs.
+            Manage all 6 IT &amp; Computing degree programs (BSIT, BSCS, BSSE, BSAI, BSCY, BSDS),
+            Fall/Spring batch cohorts, supervisor slot overrides, and institutional audit logs.
           </p>
         </div>
       </div>
@@ -292,37 +292,53 @@ export default function AdminDashboardPage() {
                     Tenant boundaries isolating supervisor quotas and past-FYP vector indexes.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="rounded-[8px] border border-border-default bg-bg-subtle p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
-                        BSCS · Default Quota: 5 Slots
-                      </span>
-                      <Badge variant="success">Active Cohort: FYP 2026-2027</Badge>
+                <CardContent className="grid gap-2.5 sm:grid-cols-2">
+                  {[
+                    {
+                      code: "BSIT",
+                      name: "BS Information Technology",
+                      note: "Enterprise Cloud, Networking & Infrastructure",
+                    },
+                    {
+                      code: "BSCS",
+                      name: "BS Computer Science",
+                      note: "Systems, Compilers & Distributed Computing",
+                    },
+                    {
+                      code: "BSSE",
+                      name: "BS Software Engineering",
+                      note: "Quality Engineering, SaaS & DevOps",
+                    },
+                    {
+                      code: "BSAI",
+                      name: "BS Artificial Intelligence",
+                      note: "Applied AI, RAG & Machine Learning",
+                    },
+                    {
+                      code: "BSCY",
+                      name: "BS Cybersecurity",
+                      note: "Zero-Trust, SBOM & Threat Analysis",
+                    },
+                    {
+                      code: "BSDS",
+                      name: "BS Data Science",
+                      note: "Data Engineering, Analytics & Forecasting",
+                    },
+                  ].map((prog) => (
+                    <div
+                      key={prog.code}
+                      className="rounded-[8px] border border-border-default bg-bg-subtle p-3.5 space-y-1"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-1.5">
+                        <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
+                          {prog.code} · 5 Slots/Faculty
+                        </span>
+                        <Badge variant="success">All Batches Active</Badge>
+                      </div>
+                      <h4 className="text-sm font-semibold text-text-primary">{prog.name}</h4>
+                      <p className="text-xs text-text-secondary">{prog.note}</p>
                     </div>
-                    <h4 className="mt-1 text-sm font-semibold text-text-primary">
-                      Department of Computer Science
-                    </h4>
-                    <p className="text-xs text-text-secondary">
-                      5 Onboarded Faculty · 10 Indexed Archive Vectors · 42 Cold-Start Seed
-                      Archetypes
-                    </p>
-                  </div>
-
-                  <div className="rounded-[8px] border border-border-default bg-bg-surface p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono-tabular text-xs font-semibold text-text-muted">
-                        BSSE · Default Quota: 5 Slots
-                      </span>
-                      <Badge variant="neutral">Cohort: FYP 2026-2027</Badge>
-                    </div>
-                    <h4 className="mt-1 text-sm font-semibold text-text-primary">
-                      Department of Software Engineering
-                    </h4>
-                    <p className="text-xs text-text-secondary">
-                      Cold-Start Seed Catalog Ready · Awaiting Historical PDF Batch Upload
-                    </p>
-                  </div>
+                  ))}
                 </CardContent>
               </Card>
             </div>
@@ -423,7 +439,7 @@ export default function AdminDashboardPage() {
                       <p className="font-mono-tabular text-xs text-text-muted">{u.email}</p>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="w-full sm:w-auto flex items-center gap-2">
                       <Select
                         aria-label={`Role for ${u.fullName}`}
                         value={u.role}
@@ -437,7 +453,7 @@ export default function AdminDashboardPage() {
                               | "ADMIN"
                           )
                         }
-                        className="h-9 w-40 text-xs"
+                        className="w-full sm:w-44 text-xs"
                       >
                         <option value="STUDENT">STUDENT</option>
                         <option value="SUPERVISOR">SUPERVISOR</option>

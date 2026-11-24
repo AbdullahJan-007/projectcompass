@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CANONICAL_SKILLS } from "@/lib/recommendation/seed-data";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import {
   upsertStudentProfile,
   getActiveStudentProfile,
@@ -57,6 +58,7 @@ const DOMAIN_INTEREST_OPTIONS = [
 
 export default function StudentProfilePage() {
   const router = useRouter();
+  const portalSession = usePortalSession();
   const skillInputRef = useRef<HTMLInputElement | null>(null);
   const [skills, setSkills] = useState<SelectedSkill[]>([
     { skillSlug: "typescript", displayName: "TypeScript", proficiency: "ADVANCED" },
@@ -307,15 +309,15 @@ export default function StudentProfilePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant={isReadyForRecommendations ? "success" : "warning"}>
               {isReadyForRecommendations ? "Profile Status: Ready" : "Profile Status: Draft"}
             </Badge>
             <span className="text-xs text-text-muted font-mono-tabular">
-              Cohort: Fall 2026 – Spring 2027 ({departmentLabel})
+              {portalSession.batchLabel || `${departmentLabel} · All Active Batches`}
             </span>
           </div>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
             Student Skill &amp; Time Capacity Profile
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
@@ -754,7 +756,7 @@ export default function StudentProfilePage() {
           </div>
 
           <div className="space-y-6 lg:col-span-4">
-            <Card className="sticky top-6 border-brand-primary/30">
+            <Card className="lg:sticky lg:top-6 border-brand-primary/30">
               <CardHeader className="bg-grad-ambient rounded-t-[8px] border-b border-border-default">
                 <Badge variant="default" className="w-fit">
                   Semester Capacity Summary

@@ -18,62 +18,63 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-bg-canvas">
       <header className="border-b border-border-default bg-bg-surface">
-        <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-brand-primary text-bg-surface">
+        <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-2 px-4 sm:px-6">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] bg-brand-primary text-bg-surface">
               <Compass className="h-5 w-5" strokeWidth={1.75} />
             </div>
-            <div>
+            <div className="min-w-0">
               <span className="text-base font-semibold tracking-tight text-text-primary">
                 ProjectCompass
               </span>
-              <span className="ml-2.5 rounded-[6px] border border-border-default bg-bg-subtle px-2 py-0.5 text-xs font-medium text-text-secondary">
-                University FYP Portal
+              <span className="ml-2.5 hidden rounded-[6px] border border-border-default bg-bg-subtle px-2 py-0.5 text-xs font-medium text-text-secondary md:inline-block">
+                Department of IT &amp; Computing
               </span>
             </div>
           </div>
 
-          <nav className="flex items-center gap-2.5">
-            <Button variant="ghost" asChild>
+          <nav className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            <Button variant="ghost" size="sm" className="sm:h-10 sm:px-4 sm:text-sm" asChild>
               <Link href="/sign-in">
                 <KeyRound className="h-4 w-4" strokeWidth={1.75} />
-                Sign In
+                <span>Sign In</span>
               </Link>
             </Button>
-            <Button asChild>
+            <Button size="sm" className="sm:h-10 sm:px-4 sm:text-sm" asChild>
               <Link href="/sign-up">
                 <UserPlus className="h-4 w-4" strokeWidth={1.75} />
-                Create Account
+                <span>Create Account</span>
               </Link>
             </Button>
           </nav>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-6 py-10 space-y-10">
-        <section className="rounded-[8px] border border-border-default bg-grad-ambient p-8 md:p-10">
+      <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 sm:py-10 space-y-8 sm:space-y-10">
+        <section className="rounded-[8px] border border-border-default bg-grad-ambient p-5 sm:p-8 md:p-10">
           <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
             <div className="space-y-4 lg:col-span-7">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="default">Fall 2026 – Spring 2027 Cohort</Badge>
-                <Badge variant="neutral">BSCS · BSSE · BSAI · BSCY</Badge>
+                <Badge variant="default">All Academic Batches (Fall &amp; Spring Intakes)</Badge>
+                <Badge variant="neutral">BSIT · BSCS · BSSE · BSAI · BSCY · BSDS</Badge>
               </div>
-              <h1 className="text-[28px] md:text-[34px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+              <h1 className="text-[24px] sm:text-[30px] md:text-[34px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
                 Final-Year Project Evaluation, Archive Verification &amp; Faculty Supervision Portal
               </h1>
-              <p className="text-[15px] leading-[1.6] text-text-secondary">
-                Evaluate project scope against your weekly schedule, check similarity against
-                archived department projects, connect with faculty supervisors who have available
-                supervision slots, and plan your 24-week semester milestones.
+              <p className="text-[14px] sm:text-[15px] leading-[1.6] text-text-secondary">
+                Built for the entire Department of Information Technology &amp; Computing across all
+                undergraduate batches—evaluate project feasibility against your weekly schedule,
+                check similarity against archived department projects, connect with supervisors who
+                have open slots, and plan your semester milestones.
               </p>
-              <div className="flex flex-wrap items-center gap-3 pt-2">
-                <Button size="lg" asChild>
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 pt-2">
+                <Button size="lg" className="w-full sm:w-auto" asChild>
                   <Link href="/sign-in">
                     Sign In to Portal
                     <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
                   </Link>
                 </Button>
-                <Button variant="outline" size="lg" asChild>
+                <Button variant="outline" size="lg" className="w-full sm:w-auto" asChild>
                   <Link href="/sign-up">Create University Account</Link>
                 </Button>
               </div>

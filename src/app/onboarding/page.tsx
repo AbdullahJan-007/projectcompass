@@ -206,8 +206,12 @@ export default function OnboardingPage() {
                       aria-label="Active FYP Cohort"
                     >
                       <option value="cm0cohort2627000000000001">
-                        FYP 2026-2027 (Fall 2026 – Spring 2027 · 24 Weeks)
+                        All Active Batches — Department of IT &amp; Computing (Fall &amp; Spring)
                       </option>
+                      <option value="batch_2021_2025">Batch 2021 (Fall / Spring Intake)</option>
+                      <option value="batch_2022_2026">Batch 2022 (Fall / Spring Intake)</option>
+                      <option value="batch_2023_2027">Batch 2023 (Fall / Spring Intake)</option>
+                      <option value="batch_2024_2028">Batch 2024 (Fall / Spring Intake)</option>
                     </Select>
                   </div>
                 </div>

@@ -386,9 +386,9 @@ export default function RoadmapDetailPage() {
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
             <label className="text-xs font-semibold text-text-secondary shrink-0">
               Switch Idea:
             </label>
@@ -396,7 +396,7 @@ export default function RoadmapDetailPage() {
               aria-label="Switch Idea Roadmap"
               value={activeIdea.id}
               onChange={(e) => router.push(`/dashboard/roadmaps/${e.target.value}`)}
-              className="w-64"
+              className="w-full sm:w-64"
             >
               {storedIdeas.map((idea) => (
                 <option key={idea.id} value={idea.id}>
@@ -406,7 +406,7 @@ export default function RoadmapDetailPage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
             <label className="text-xs font-semibold text-text-secondary shrink-0">
               Semester Length:
             </label>
@@ -414,7 +414,7 @@ export default function RoadmapDetailPage() {
               aria-label="Semester Length"
               value={String(durationWeeks)}
               onChange={(e) => setDurationWeeks(Number(e.target.value))}
-              className="w-40 font-mono-tabular"
+              className="w-full sm:w-40 font-mono-tabular"
             >
               {![12, 16, 24, 36].includes(durationWeeks) && (
                 <option value={String(durationWeeks)}>{durationWeeks} Weeks</option>
@@ -426,7 +426,7 @@ export default function RoadmapDetailPage() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 sm:col-span-2 lg:col-span-1">
             <label className="text-xs font-semibold text-text-secondary shrink-0">
               Skill-Gap Hours:
             </label>
@@ -434,7 +434,7 @@ export default function RoadmapDetailPage() {
               aria-label="Skill Gap Hours"
               value={String(totalSkillGapHours)}
               onChange={(e) => setTotalSkillGapHours(Number(e.target.value))}
-              className="w-52 font-mono-tabular"
+              className="w-full sm:w-52 font-mono-tabular"
             >
               {![0, 14, 22, 32, 55].includes(totalSkillGapHours) && (
                 <option value={String(totalSkillGapHours)}>

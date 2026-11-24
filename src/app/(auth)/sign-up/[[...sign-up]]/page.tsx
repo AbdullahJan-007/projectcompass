@@ -224,7 +224,7 @@ export default function SignUpPage() {
                       data-testid="register-student-regno"
                       value={studentRegNo}
                       onChange={(e) => setStudentRegNo(e.target.value.toUpperCase())}
-                      placeholder="e.g., B23F0184CS042"
+                      placeholder="e.g., B22F0418IT019 or B23F0184CS042"
                       className="font-mono-tabular text-sm uppercase"
                       required
                     />
@@ -330,10 +330,12 @@ export default function SignUpPage() {
                           )
                         }
                       >
-                        <option value="BSCS">BSCS</option>
-                        <option value="BSSE">BSSE</option>
-                        <option value="BSAI">BSAI</option>
-                        <option value="BSCY">BSCY</option>
+                        <option value="BSIT">BSIT — Information Technology</option>
+                        <option value="BSCS">BSCS — Computer Science</option>
+                        <option value="BSSE">BSSE — Software Engineering</option>
+                        <option value="BSAI">BSAI — Artificial Intelligence</option>
+                        <option value="BSCY">BSCY — Cybersecurity</option>
+                        <option value="BSDS">BSDS — Data Science</option>
                       </Select>
                     </div>
 

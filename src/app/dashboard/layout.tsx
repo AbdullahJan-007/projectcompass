@@ -21,7 +21,9 @@ export default async function DashboardLayout({
     <AppShell
       userRole={session.role}
       userName={session.fullName}
-      departmentCode={session.departmentCode || "BSCS"}
+      identifier={session.identifier}
+      departmentCode={session.departmentCode || "BSIT"}
+      batchLabel={session.batchLabel || `${session.departmentCode || "BSIT"} · IT & Computing`}
     >
       {children}
     </AppShell>

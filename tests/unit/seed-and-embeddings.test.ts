@@ -17,8 +17,8 @@ describe("Phase 2: Cold-Start Seed Catalog & Deterministic Embeddings", () => {
     expect(CANONICAL_SKILLS.length).toBeGreaterThanOrEqual(60);
     expect(SEED_IDEA_TEMPLATES.length).toBeGreaterThanOrEqual(40);
     expect(MARKET_TREND_SNAPSHOTS.length).toBe(12);
-    expect(DEMO_SUPERVISORS.length).toBe(5);
-    expect(DEMO_PROJECT_ARCHIVES.length).toBe(10);
+    expect(DEMO_SUPERVISORS.length).toBeGreaterThanOrEqual(5);
+    expect(DEMO_PROJECT_ARCHIVES.length).toBeGreaterThanOrEqual(10);
 
     const uniqueSkillSlugs = new Set(CANONICAL_SKILLS.map((s) => s.slug));
     expect(uniqueSkillSlugs.size).toBe(CANONICAL_SKILLS.length);

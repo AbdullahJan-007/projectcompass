@@ -890,7 +890,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Engineering managers strongly favor candidates who build deterministic developer tooling, CI analyzers, and migration safety verifiers over basic CRUD web apps.",
     sourceSummary: "2026 Developer Ecosystem & Platform Engineering Hiring Index",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend02cybersecurity02",
@@ -902,7 +902,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Supply-chain security (SBOM reachability) and automated auth-boundary verification rank among the highest-shortage graduate engineering specializations.",
     sourceSummary: "OWASP & Cloud Native Security Workforce Snapshot 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend03appliedai000003",
@@ -914,7 +914,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Hiring teams reject ungrounded chat wrappers; projects demonstrating deterministic guardrails, citation verification, and fallback resilience stand out immediately.",
     sourceSummary: "Production AI Engineering & Reliability Benchmark 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend04edtech000000004",
@@ -926,7 +926,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Academic platforms with auditable grading rubrics, citation grounding, and structural code analysis show strong institutional adoption.",
     sourceSummary: "Higher-Ed Digital Infrastructure Report 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend05healthtech00005",
@@ -938,7 +938,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Clinical decision-support tools that guarantee offline reliability, zero PII leakage, and deterministic protocol auditing carry high portfolio credibility.",
     sourceSummary: "Digital Health & Clinical Informatics Hiring Survey 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend06fintech00000006",
@@ -950,7 +950,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Demonstrating concurrency safety, idempotent webhook reconciliation, and explainable risk scoring directly matches core FinTech interview rubrics.",
     sourceSummary: "Global FinTech Payments & Ledger Engineering Report 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend07clouddist000007",
@@ -962,7 +962,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Observability, trace bottleneck analysis, and transactional outbox reliability remain top differentiators for backend and SRE roles.",
     sourceSummary: "CNCF Cloud Native Observability & Systems Survey 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend08dataeng00000008",
@@ -974,7 +974,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Automated SQL index advisors and privacy-preserving synthetic data tooling demonstrate rare database internals mastery.",
     sourceSummary: "Data Platform & DBRE Competency Report 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend09computervis0009",
@@ -986,7 +986,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Edge-quantized vision models running at low latency on standard CPU/browser hardware outperform heavy cloud-GPU-only demos.",
     sourceSummary: "Edge AI & Industrial Computer Vision Index 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend10iotembedded0010",
@@ -998,7 +998,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Industrial cold-chain and utility telemetry projects that handle intermittent connectivity and sensor drift prove end-to-end systems thinking.",
     sourceSummary: "Industrial IoT & Smart Infrastructure Report 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend11websaas00000011",
@@ -1010,7 +1010,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Standard CRUD SaaS is saturated; winning web projects focus on local-first CRDT sync, deterministic feature flags, or automated accessibility compliance.",
     sourceSummary: "Full-Stack Product Engineering Benchmark 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
   {
     id: "cm0trend12privacysec00012",
@@ -1022,7 +1022,7 @@ export const MARKET_TREND_SNAPSHOTS: readonly MarketTrendSeed[] = [
     portfolioSignal:
       "Client-side de-identification and differential privacy tooling position graduates for specialized compliance and security engineering roles.",
     sourceSummary: "Privacy Engineering & Data Governance Outlook 2026-Q4",
-    versionLabel: "2026-Q4",
+    versionLabel: "Current Benchmark",
   },
 ];
 
@@ -1032,6 +1032,7 @@ export interface DemoSupervisorSeed {
   fullName: string;
   email: string;
   title: string;
+  programCode: "BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS";
   researchDomains: string[];
   bio: string;
   preferredStacks: string[];
@@ -1048,6 +1049,7 @@ export const DEMO_SUPERVISORS: readonly DemoSupervisorSeed[] = [
     fullName: "Dr. Kamran Siddiqui",
     email: "kamran.siddiqui@university.edu",
     title: "Associate Professor",
+    programCode: "BSCS",
     researchDomains: ["DevTools", "Cloud & Distributed Systems", "Data Engineering"],
     bio: "Leads the Distributed Systems & Automated Software Testing Lab. Focuses on CI log anomaly triage, OpenTelemetry root-cause analysis, and PostgreSQL query optimization.",
     preferredStacks: ["TypeScript", "Next.js", "PostgreSQL", "Go", "Docker", "OpenTelemetry"],
@@ -1057,13 +1059,29 @@ export const DEMO_SUPERVISORS: readonly DemoSupervisorSeed[] = [
     isAccepting: true,
   },
   {
+    id: "cm0sup06usmantariq0000006",
+    userId: "cm0usersup06usman00000006",
+    fullName: "Dr. Usman Tariq",
+    email: "usman.tariq@university.edu",
+    title: "Associate Professor",
+    programCode: "BSIT",
+    researchDomains: ["Cloud & Distributed Systems", "Web & SaaS", "Cybersecurity"],
+    bio: "Coordinates BSIT Enterprise Infrastructure & Cloud Operations projects. Supervises container orchestration, network telemetry, webhook reliability, and campus IT platforms.",
+    preferredStacks: ["Next.js", "TypeScript", "Docker", "PostgreSQL", "Kubernetes"],
+    skillSlugs: ["typescript", "nextjs", "postgresql", "docker", "kubernetes", "event-driven"],
+    maxSlots: 5,
+    activeSlots: 1,
+    isAccepting: true,
+  },
+  {
     id: "cm0sup02ayesharehman00002",
     userId: "cm0usersup02ayesha0000002",
     fullName: "Dr. Ayesha Rehman",
     email: "ayesha.rehman@university.edu",
     title: "Associate Professor",
+    programCode: "BSAI",
     researchDomains: ["Applied AI", "EdTech", "HealthTech"],
-    bio: "Specializes in grounded RAG retrieval pipelines, pgvector citation verification,LLM evaluation guardrails, and clinical/educational decision-support workflows.",
+    bio: "Specializes in grounded RAG retrieval pipelines, pgvector citation verification, LLM evaluation guardrails, and clinical/educational decision-support workflows.",
     preferredStacks: ["Next.js", "TypeScript", "PostgreSQL + pgvector", "Python", "Vercel AI SDK"],
     skillSlugs: ["typescript", "nextjs", "postgresql", "pgvector", "rag-pipelines", "llm-evaluation"],
     maxSlots: 5,
@@ -1076,6 +1094,7 @@ export const DEMO_SUPERVISORS: readonly DemoSupervisorSeed[] = [
     fullName: "Dr. Farhan Qureshi",
     email: "farhan.qureshi@university.edu",
     title: "Assistant Professor",
+    programCode: "BSCY",
     researchDomains: ["Cybersecurity", "Privacy & Security", "DevTools"],
     bio: "Researches static AST code vulnerability analysis, SBOM dependency reachability, zero-trust RBAC policy engines, and network anomaly detection.",
     preferredStacks: ["TypeScript", "Rust", "Python", "PostgreSQL", "Next.js"],
@@ -1090,6 +1109,7 @@ export const DEMO_SUPERVISORS: readonly DemoSupervisorSeed[] = [
     fullName: "Dr. Sana Mirza",
     email: "sana.mirza@university.edu",
     title: "Assistant Professor",
+    programCode: "BSSE",
     researchDomains: ["FinTech", "Web & SaaS", "HealthTech"],
     bio: "Focuses on ACID double-entry financial ledgers, local-first offline web applications, WCAG accessibility automation, and high-reliability SaaS architectures.",
     preferredStacks: ["Next.js", "TypeScript", "PostgreSQL", "Prisma", "Playwright"],
@@ -1104,8 +1124,9 @@ export const DEMO_SUPERVISORS: readonly DemoSupervisorSeed[] = [
     fullName: "Prof. Dr. Tariq Mehmood",
     email: "tariq.mehmood@university.edu",
     title: "Professor",
-    researchDomains: ["Computer Vision", "IoT & Embedded", "Smart Grid & IoT"],
-    bio: "Directs the Edge Vision & Industrial IoT Lab. Supervises quantized ONNX inspection systems, MQTT cold-chain monitors, and campus microgrid forecasting.",
+    programCode: "BSDS",
+    researchDomains: ["Computer Vision", "IoT & Embedded", "Data Engineering"],
+    bio: "Directs the Edge Vision, Data Analytics & Industrial IoT Lab. Supervises quantized ONNX inspection systems, MQTT cold-chain monitors, and telemetry forecasting.",
     preferredStacks: ["Python", "ONNX Runtime", "PyTorch", "MQTT", "PostgreSQL"],
     skillSlugs: ["python", "computer-vision", "onnx-runtime", "mqtt-iot", "time-series-forecasting"],
     maxSlots: 5,
@@ -1119,6 +1140,7 @@ export interface DemoArchiveSeed {
   title: string;
   abstract: string;
   academicYear: number;
+  programCode?: "BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS";
   domain: string;
   techStack: string[];
 }

@@ -98,4 +98,60 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     await page.goto("/dashboard/admin");
     await page.waitForURL(/\/dashboard\/recommendations/);
   });
+
+  test("Multi-batch BSIT registration (Fall 2022 · BSIT) and Mobile (375px) & Tablet (768px) responsive layout without horizontal overflow", async ({
+    page,
+  }) => {
+    // 1. Mobile viewport (375x812)
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/");
+    const landingOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    expect(landingOverflow).toBe(false);
+
+    // 2. Register a Fall 2022 BSIT student (proving multi-batch & whole IT department support)
+    const uniqueRoll = String(Math.floor(100 + Math.random() * 899));
+    const bsitRegNo = `B22F0512IT${uniqueRoll}`;
+
+    await page.goto("/sign-up");
+    await page.getByTestId("register-student-name").fill("Zainab Malik");
+    await page.getByTestId("register-student-regno").fill(bsitRegNo);
+    await expect(page.getByText(/Fall 2022/i)).toBeVisible();
+    await expect(page.getByText(/Department of Information Technology/i)).toBeVisible();
+    await page.getByTestId("register-student-pin").fill("0512");
+    await page.getByTestId("register-submit-btn").click();
+
+    await page.waitForURL(/\/dashboard\/profile/);
+    await expect(
+      page.getByRole("main").getByText(new RegExp(`Fall 2022 · BSIT · Roll #${uniqueRoll}`))
+    ).toBeVisible();
+
+    const profileMobileOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    expect(profileMobileOverflow).toBe(false);
+
+    // Open mobile navigation drawer and navigate to Recommendations
+    await page.getByRole("button", { name: /Toggle workspace navigation/i }).click();
+    await page.getByRole("link", { name: "FYP Recommendations", exact: true }).click();
+    await page.waitForURL(/\/dashboard\/recommendations/);
+
+    const recsMobileOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    expect(recsMobileOverflow).toBe(false);
+
+    // 3. Tablet viewport (768x1024) on Supervisor Matching with BSIT filter
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await page.goto("/dashboard/supervisors");
+    await page.getByRole("combobox", { name: "Filter IT Program" }).click();
+    await page.getByRole("option", { name: "BSIT Faculty" }).click();
+    await expect(page.getByText(/Dr\. Usman Tariq/i)).toBeVisible();
+
+    const supTabletOverflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth
+    );
+    expect(supTabletOverflow).toBe(false);
+  });
 });

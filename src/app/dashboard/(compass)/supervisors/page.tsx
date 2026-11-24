@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import { DEMO_SUPERVISORS } from "@/lib/recommendation/seed-data";
 import { rankAvailableSupervisors } from "@/lib/recommendation/supervisor-ranker";
 import { generateDeterministicEmbedding } from "@/lib/ai/embeddings";
@@ -156,10 +157,12 @@ const INITIAL_SUPERVISION_REQUESTS: StoredSupervisionRequest[] = [];
 
 function StudentSupervisorsWorkspace() {
   const searchParams = useSearchParams();
+  const portalSession = usePortalSession();
   const [availableIdeas, setAvailableIdeas] = useState<
     [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]
   >(DEFAULT_IDEAS_FOR_SUPERVISORS);
   const [selectedIdeaId, setSelectedIdeaId] = useState("cm0idea_core_safe_1");
+  const [programFilter, setProgramFilter] = useState<string>("ALL");
   const [showFullCapacity, setShowFullCapacity] = useState(false);
   const [modalSupervisor, setModalSupervisor] = useState<{
     id: string;
@@ -167,7 +170,7 @@ function StudentSupervisorsWorkspace() {
     title: string;
   } | null>(null);
   const [pitchText, setPitchText] = useState(
-    "We have shortlisted the Deterministic CI Log Anomaly Triage Engine (Feasibility 84/100) and built an initial TypeScript + PostgreSQL pgvector log parser. We would like to request your supervision for the Fall 2026 - Spring 2027 cohort."
+    "We have shortlisted our FYP proposal with verified skill and timeline feasibility, built an initial vertical prototype, and would like to request your supervision within the Department of IT & Computing."
   );
   const [sentRequests, setSentRequests] = useState<StoredSupervisionRequest[]>(
     INITIAL_SUPERVISION_REQUESTS
@@ -216,7 +219,12 @@ function StudentSupervisorsWorkspace() {
     const ideaEmbedding = generateDeterministicEmbedding(
       `${ideaContext.title} ${ideaContext.domain} ${ideaContext.skills.join(" ")}`
     );
-    const supInputs = DEMO_SUPERVISORS.map((s) => ({
+    const filteredPool =
+      programFilter === "ALL"
+        ? DEMO_SUPERVISORS
+        : DEMO_SUPERVISORS.filter((s) => s.programCode === programFilter);
+
+    const supInputs = filteredPool.map((s) => ({
       id: s.id,
       fullName: s.fullName,
       title: s.title,
@@ -237,7 +245,7 @@ function StudentSupervisorsWorkspace() {
       ideaEmbedding,
       supInputs
     );
-  }, [ideaContext]);
+  }, [ideaContext, programFilter]);
 
   const activePendingCount = sentRequests.filter((r) => r.status === "PENDING").length;
 
@@ -325,29 +333,46 @@ function StudentSupervisorsWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-default pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 border-b border-border-default pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <Badge variant="default">Availability-Aware Faculty Ranker</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="default">
+              {portalSession.batchLabel || "Department of IT & Computing"}
+            </Badge>
             <Badge variant={activePendingCount < 3 ? "success" : "warning"}>
               Active Pending Requests: {activePendingCount} / 3 Max
             </Badge>
           </div>
-          <h1 className="mt-2 text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
             Supervisor Matching &amp; Supervision Requests
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Ranked by 70% research domain similarity, 20% skill overlap, and 10% remaining slot
-            capacity balance. Full-capacity faculty are excluded from primary rankings.
+            Matched across the Department of IT &amp; Computing (BSIT, BSCS, BSSE, BSAI, BSCY, BSDS)
+            by 70% domain similarity, 20% skill overlap, and 10% open slot capacity.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="grid gap-2.5 sm:flex sm:flex-wrap sm:items-center">
+          <Select
+            aria-label="Filter IT Program"
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+            className="w-full sm:w-48"
+          >
+            <option value="ALL">All IT &amp; Computing Faculty</option>
+            <option value="BSIT">BSIT Faculty</option>
+            <option value="BSCS">BSCS Faculty</option>
+            <option value="BSSE">BSSE Faculty</option>
+            <option value="BSAI">BSAI Faculty</option>
+            <option value="BSCY">BSCY Faculty</option>
+            <option value="BSDS">BSDS Faculty</option>
+          </Select>
+
           <Select
             aria-label="Shortlisted Idea Filter"
             value={selectedIdeaId}
             onChange={(e) => setSelectedIdeaId(e.target.value)}
-            className="w-80"
+            className="w-full sm:w-72"
           >
             {availableIdeas.map((idea) => (
               <option key={idea.id} value={idea.id}>
@@ -446,7 +471,9 @@ function StudentSupervisorsWorkspace() {
                       </div>
                     </div>
                     <CardTitle className="mt-2">{match.fullName}</CardTitle>
-                    <CardDescription>{match.title} · BSCS Department</CardDescription>
+                    <CardDescription>
+                      {match.title} · {rawSup?.programCode ?? "IT & Computing"} Track
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-xs text-text-secondary leading-relaxed">

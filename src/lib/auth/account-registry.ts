@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import type { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -70,9 +71,8 @@ export function verifyFourDigitPinHash(pin: string, expectedHash: string): boole
 }
 
 const REGISTRY_FILE_PATH = path.join(
-  process.cwd(),
-  "prisma",
-  "local-accounts-db.json"
+  os.tmpdir(),
+  "projectcompass-local-accounts-db-v2.json"
 );
 
 export function buildDefaultAccountsDb(): AccountsDatabaseStore {
