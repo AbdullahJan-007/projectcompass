@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Archive,
   UploadCloud,
@@ -19,12 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DEMO_PROJECT_ARCHIVES, DEMO_SUPERVISORS } from "@/lib/recommendation/seed-data";
 import {
   createArchiveRecord,
   retryArchiveEmbedding,
   deleteArchiveRecord,
 } from "@/actions/archive.actions";
+import { getCoordinatorWorkspaceData } from "@/actions/workspace.actions";
 
 type IngestStatus =
   | "READY"
@@ -55,25 +55,9 @@ const ARCHIVE_PROGRAMS: Array<"BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS
 ];
 
 export default function CoordinatorDashboardPage() {
-  const [archives, setArchives] = useState<ArchiveRow[]>(() => [
-    ...DEMO_PROJECT_ARCHIVES.map((a, idx) => ({
-      ...a,
-      programCode: a.programCode ?? ARCHIVE_PROGRAMS[idx % ARCHIVE_PROGRAMS.length]!,
-      ingestStatus: "READY" as IngestStatus,
-    })),
-    {
-      id: "cm0arch11scannedpdf000011",
-      title: "Legacy Scanned Thesis: Campus Wi-Fi Rogue AP Monitor",
-      abstract: "Scanned PDF upload without OCR text layer.",
-      academicYear: 2022,
-      programCode: "BSIT",
-      domain: "Cybersecurity",
-      techStack: ["Python", "Wireshark", "Linux"],
-      ingestStatus: "NEEDS_MANUAL_ABSTRACT",
-      ingestError:
-        "Extracted abstract has fewer than 100 characters (scanned image-only PDF). Paste abstract manually to embed.",
-    },
-  ]);
+  const [archives, setArchives] = useState<ArchiveRow[]>([]);
+  const [totalSupervisorsSlots, setTotalSupervisorsSlots] = useState(0);
+  const [filledSupervisorSlots, setFilledSupervisorSlots] = useState(0);
 
   const [title, setTitle] = useState("");
   const [abstractText, setAbstractText] = useState("");
@@ -83,17 +67,38 @@ export default function CoordinatorDashboardPage() {
   >("BSIT");
   const [filterProgram, setFilterProgram] = useState<string>("ALL");
   const [domain, setDomain] = useState("DevTools");
-  const [techStackText, setTechStackText] = useState("Next.js, TypeScript, PostgreSQL, pgvector");
+  const [techStackText, setTechStackText] = useState("");
   const [editingArchiveId, setEditingArchiveId] = useState<string | null>(null);
   const [manualAbstractPatch, setManualAbstractPatch] = useState("");
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
   void Select;
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const totalSupervisorsSlots = DEMO_SUPERVISORS.reduce((acc, s) => acc + s.maxSlots, 0);
-  const filledSupervisorSlots = DEMO_SUPERVISORS.reduce((acc, s) => acc + s.activeSlots, 0);
+  useEffect(() => {
+    getCoordinatorWorkspaceData()
+      .then((data) => {
+        setArchives(
+          data.archives.map((a) => ({
+            ...a,
+            programCode: (ARCHIVE_PROGRAMS.includes(
+              a.programCode as ArchiveRow["programCode"]
+            )
+              ? a.programCode
+              : "BSCS") as ArchiveRow["programCode"],
+          }))
+        );
+        setTotalSupervisorsSlots(data.totalSupervisorsSlots);
+        setFilledSupervisorSlots(data.filledSupervisorSlots);
+        setViewState("POPULATED");
+      })
+      .catch(() => {
+        setArchives([]);
+        setViewState("POPULATED");
+      });
+  }, []);
+
   const readyCount = archives.filter((a) => a.ingestStatus === "READY").length;
   const attentionCount = archives.filter((a) => a.ingestStatus !== "READY").length;
 

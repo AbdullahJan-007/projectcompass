@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShieldAlert,
   Building2,
@@ -17,8 +17,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DEMO_SUPERVISORS } from "@/lib/recommendation/seed-data";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import { updateUserRole, overrideSupervisorQuota } from "@/actions/admin.actions";
+import { getAdminWorkspaceData } from "@/actions/workspace.actions";
 
 interface UserDirectoryRow {
   id: string;
@@ -26,6 +27,14 @@ interface UserDirectoryRow {
   email: string;
   role: "STUDENT" | "SUPERVISOR" | "COORDINATOR" | "ADMIN";
   departmentCode: string;
+}
+
+interface SupervisorQuotaRow {
+  id: string;
+  fullName: string;
+  programCode: string;
+  activeSlots: number;
+  maxSlots: number;
 }
 
 interface AuditLogEntry {
@@ -39,73 +48,37 @@ interface AuditLogEntry {
 }
 
 export default function AdminDashboardPage() {
-  const [users, setUsers] = useState<UserDirectoryRow[]>([
-    {
-      id: "cm0useradmin0000000000001",
-      fullName: "Prof. Dr. Naveed Ahmad (University Admin)",
-      email: "admin@university.edu",
-      role: "ADMIN",
-      departmentCode: "BSCS",
-    },
-    {
-      id: "cm0usercoord0000000000001",
-      fullName: "Dr. Salman Raza (FYP Coordinator)",
-      email: "coordinator.bscs@university.edu",
-      role: "COORDINATOR",
-      departmentCode: "BSCS",
-    },
-    {
-      id: "cm0usersup01kamran0000001",
-      fullName: "Dr. Kamran Siddiqui",
-      email: "kamran.siddiqui@university.edu",
-      role: "SUPERVISOR",
-      departmentCode: "BSCS",
-    },
-    {
-      id: "cm0userstudent00000000001",
-      fullName: "Areeba Noor",
-      email: "b23f0184cs042@students.university.edu",
-      role: "STUDENT",
-      departmentCode: "BSCS",
-    },
-  ]);
-
-  const [selectedSupervisorId, setSelectedSupervisorId] = useState(
-    DEMO_SUPERVISORS[0]?.id ?? "cm0sup01kamransiddiqui001"
-  );
-  const [overrideMaxSlots, setOverrideMaxSlots] = useState(7);
-  const [overrideReason, setOverrideReason] = useState(
-    "Approved 2 additional research lab slots for Spring 2027 Systems cohort."
-  );
-
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([
-    {
-      id: "cm0audit_1",
-      timestamp: "2026-11-23T09:15:00Z",
-      actor: "Prof. Dr. Naveed Ahmad",
-      action: "COHORT_ACTIVATED",
-      entityType: "Cohort",
-      entityId: "cm0cohort2627000000000001",
-      summary: "Activated cohort FYP 2026-2027 for Department of Computer Science (BSCS).",
-    },
-    {
-      id: "cm0audit_2",
-      timestamp: "2026-11-23T11:42:00Z",
-      actor: "Dr. Salman Raza",
-      action: "ARCHIVE_BATCH_INGESTED",
-      entityType: "ProjectArchive",
-      entityId: "cm0arch01logvisualizer001",
-      summary: "Indexed 10 historical BSCS FYP abstracts into pgvector HNSW cosine index.",
-    },
-  ]);
+  const portalSession = usePortalSession();
+  const [users, setUsers] = useState<UserDirectoryRow[]>([]);
+  const [supervisors, setSupervisors] = useState<SupervisorQuotaRow[]>([]);
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState("");
+  const [overrideMaxSlots, setOverrideMaxSlots] = useState(5);
+  const [overrideReason, setOverrideReason] = useState("");
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
 
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
   void Select;
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
+
+  useEffect(() => {
+    getAdminWorkspaceData()
+      .then((data) => {
+        setUsers(data.users);
+        setSupervisors(data.supervisors);
+        if (data.supervisors[0]) {
+          setSelectedSupervisorId(data.supervisors[0].id);
+        }
+        setAuditLogs(data.auditLogs);
+        setViewState("POPULATED");
+      })
+      .catch(() => {
+        setViewState("POPULATED");
+      });
+  }, []);
 
   async function handleRoleChange(
     userId: string,
@@ -143,7 +116,7 @@ export default function AdminDashboardPage() {
       {
         id: `cm0audit_${Date.now()}`,
         timestamp: new Date().toISOString(),
-        actor: "Prof. Dr. Naveed Ahmad",
+        actor: portalSession.userName,
         action: "ROLE_UPDATED",
         entityType: "User",
         entityId: userId,
@@ -182,12 +155,12 @@ export default function AdminDashboardPage() {
       return;
     }
 
-    const sup = DEMO_SUPERVISORS.find((s) => s.id === selectedSupervisorId);
+    const sup = supervisors.find((s) => s.id === selectedSupervisorId);
     setAuditLogs((prev) => [
       {
         id: `cm0audit_${Date.now()}`,
         timestamp: new Date().toISOString(),
-        actor: "Prof. Dr. Naveed Ahmad",
+        actor: portalSession.userName,
         action: "SUPERVISOR_SLOT_OVERRIDE",
         entityType: "SupervisorProfile",
         entityId: selectedSupervisorId,
@@ -366,11 +339,15 @@ export default function AdminDashboardPage() {
                         value={selectedSupervisorId}
                         onChange={(e) => setSelectedSupervisorId(e.target.value)}
                       >
-                        {DEMO_SUPERVISORS.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.fullName} (Active: {s.activeSlots}/{s.maxSlots} slots)
-                          </option>
-                        ))}
+                        {supervisors.length === 0 ? (
+                          <option value="">No faculty supervisors registered yet</option>
+                        ) : (
+                          supervisors.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.fullName} ({s.programCode} · Active: {s.activeSlots}/{s.maxSlots} slots)
+                            </option>
+                          ))
+                        )}
                       </Select>
                     </div>
 

@@ -7,8 +7,13 @@ import { AuthError, requireRole } from "@/lib/auth/session";
 import {
   executeHybridRecommendationEngine,
   type EngineExecutionResult,
-  type GeneratedIdeaRecord,
 } from "@/lib/recommendation/engine";
+import {
+  loadLatestRecommendationRunFromDb,
+  loadLiveEngineContext,
+  persistRecommendationRunToDb,
+  type ActiveRecommendationsSnapshot,
+} from "@/lib/recommendation/live-context";
 import {
   readInstitutionalDb,
   writeInstitutionalDb,
@@ -100,6 +105,7 @@ export async function generateRecommendations(
     let teamSize =
       parsed.data.profileOverride?.teamSize ?? savedProfile?.teamSize ?? 2;
 
+    let studentProfileId: string | null = null;
     try {
       const profile = await db.studentProfile.findUnique({
         where: { userId: user.id },
@@ -110,7 +116,19 @@ export async function generateRecommendations(
         },
       });
 
+      if (!profile) {
+        return {
+          ok: false,
+          error: {
+            code: "PROFILE_INCOMPLETE",
+            message:
+              "Complete your skill profile (minimum 3 skills and 1 interest domain) before running recommendations.",
+          },
+        };
+      }
+
       if (profile) {
+        studentProfileId = profile.id;
         if (profile.status !== "READY" || profile.skills.length < 3) {
           return {
             ok: false,
@@ -187,6 +205,7 @@ export async function generateRecommendations(
       // Fallback to verified in-memory profile snapshot when running without live DB connection
     }
 
+    const liveContext = await loadLiveEngineContext();
     const engineResult = await executeHybridRecommendationEngine({
       studentSkills,
       interests,
@@ -196,10 +215,29 @@ export async function generateRecommendations(
       durationWeeks,
       teamSize,
       focusNote: parsed.data.focusNote,
+      customSupervisors: liveContext.supervisors,
+      customArchives: liveContext.archives,
       forceLlmFailure: parsed.data.forceLlmFailure,
     });
 
-    const runId = `cm0run_${Date.now()}`;
+    let runId = `cm0run_${Date.now()}`;
+    let finalEngineResult: EngineExecutionResult = engineResult;
+
+    if (studentProfileId) {
+      const persisted = await persistRecommendationRunToDb({
+        studentProfileId,
+        profileSummary: `${studentSkills.map((s) => `${s.skillSlug}:${s.proficiency}`).join(",")}|${interests.join(",")}|${careerGoal}|${parsed.data.focusNote ?? ""}`,
+        engineResult,
+      });
+      if (persisted) {
+        runId = persisted.runId;
+        finalEngineResult = {
+          ...engineResult,
+          ideas: persisted.ideas,
+        };
+      }
+    }
+
     try {
       const store = readInstitutionalDb();
       const prev = store.recommendationsByUser[user.id];
@@ -207,10 +245,10 @@ export async function generateRecommendations(
 
       store.recommendationsByUser[user.id] = {
         runId,
-        usedFallback: engineResult.usedFallback,
+        usedFallback: finalEngineResult.usedFallback,
         runsRemainingToday: nextRemaining,
-        shortlistedIds: [engineResult.ideas[0].id],
-        ideas: engineResult.ideas,
+        shortlistedIds: [finalEngineResult.ideas[0].id],
+        ideas: finalEngineResult.ideas,
         updatedAt: new Date().toISOString(),
       };
       writeInstitutionalDb(store);
@@ -224,9 +262,9 @@ export async function generateRecommendations(
       ok: true,
       data: {
         runId,
-        status: engineResult.status,
-        usedFallback: engineResult.usedFallback,
-        engineResult,
+        status: finalEngineResult.status,
+        usedFallback: finalEngineResult.usedFallback,
+        engineResult: finalEngineResult,
       },
     };
   } catch (err) {
@@ -358,24 +396,33 @@ export async function updateIdeaStatus(
   }
 }
 
-export async function getActiveRecommendationsSnapshot(): Promise<{
-  ideas: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord];
-  shortlistedIds: string[];
-  runsRemainingToday: number;
-  usedFallback: boolean;
-  totalEffortHours: number;
-  durationWeeks: number;
-  weeklyHours: number;
-  teamSize: number;
-}> {
+export async function getActiveRecommendationsSnapshot(): Promise<ActiveRecommendationsSnapshot> {
   const user = await requireRole(["STUDENT", "COORDINATOR", "ADMIN"]);
+
+  const dbSnapshot = await loadLatestRecommendationRunFromDb(user.id);
+  if (dbSnapshot !== null) {
+    return dbSnapshot;
+  }
+
+  // Local offline fallback (never populated in production)
   const store = readInstitutionalDb();
-  const profile =
-    store.studentProfiles[user.id] ??
-    store.studentProfiles["cm0userstudent00000000001"];
-  const rec =
-    store.recommendationsByUser[user.id] ??
-    store.recommendationsByUser["cm0userstudent00000000001"]!;
+  const profile = store.studentProfiles[user.id];
+  const rec = store.recommendationsByUser[user.id];
+
+  if (!rec) {
+    return {
+      ideas: null,
+      shortlistedIds: [],
+      runsRemainingToday: 5,
+      usedFallback: false,
+      totalEffortHours: profile?.totalEffortHours ?? 0,
+      durationWeeks: profile?.durationWeeks ?? 24,
+      weeklyHours: profile?.weeklyHours ?? 15,
+      teamSize: profile?.teamSize ?? 2,
+      profileStatus: profile ? profile.status : "MISSING",
+    };
+  }
+
   return {
     ideas: rec.ideas,
     shortlistedIds: rec.shortlistedIds,
@@ -385,5 +432,6 @@ export async function getActiveRecommendationsSnapshot(): Promise<{
     durationWeeks: profile?.durationWeeks ?? 24,
     weeklyHours: profile?.weeklyHours ?? 15,
     teamSize: profile?.teamSize ?? 2,
+    profileStatus: "READY",
   };
 }

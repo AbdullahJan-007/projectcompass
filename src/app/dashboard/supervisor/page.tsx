@@ -19,10 +19,7 @@ import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortalSession } from "@/components/layout/portal-session-context";
 import { upsertSupervisorProfile, respondToSupervisionRequest } from "@/actions/supervisor.actions";
-import {
-  loadStoredSupervisionRequests,
-  saveStoredSupervisionRequests,
-} from "@/lib/workspace-store";
+import { getFacultySupervisorWorkspace } from "@/actions/workspace.actions";
 
 interface IncomingRequestItem {
   id: string;
@@ -38,79 +35,57 @@ interface IncomingRequestItem {
 
 export default function SupervisorPortalPage() {
   const portalSession = usePortalSession();
-  const [title, setTitle] = useState("Associate Professor");
-  const [bio, setBio] = useState(
-    "Leads the Distributed Systems & Automated Software Testing Lab. Focuses on CI log anomaly triage, OpenTelemetry root-cause analysis, and PostgreSQL query optimization."
-  );
-  const [researchDomains, setResearchDomains] = useState(
-    "DevTools, Cloud & Distributed Systems, Data Engineering"
-  );
-  const [preferredStacks, setPreferredStacks] = useState(
-    "TypeScript, Next.js, PostgreSQL, Go, Docker, OpenTelemetry"
-  );
+  const [title, setTitle] = useState("Assistant Professor");
+  const [bio, setBio] = useState("");
+  const [researchDomains, setResearchDomains] = useState("");
+  const [preferredStacks, setPreferredStacks] = useState("");
   const [maxSlots, setMaxSlots] = useState(5);
-  const [activeSlots, setActiveSlots] = useState(3);
+  const [activeSlots, setActiveSlots] = useState(0);
   const [isAccepting, setIsAccepting] = useState(true);
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
   void Select;
 
-  const [requests, setRequests] = useState<IncomingRequestItem[]>([
-    {
-      id: "cm0req01studentpitch00001",
-      studentName: "Areeba Noor (Fall 2023 · BSCS)",
-      ideaTitle: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
-      track: "CORE_SAFE",
-      feasibilityScore: 86,
-      skillGapsSummary: "pgvector Semantic Search (12h minor ramp-up)",
-      studentPitch:
-        "We have built a working TypeScript + PostgreSQL log parser prototype and want to evaluate vector failure clustering on open-source GitHub Actions traces under your lab.",
-      status: "PENDING",
-    },
-    {
-      id: "cm0req02studentpitch00002",
-      studentName: "Hamza Tariq & Zainab Ali (Spring 2023 · BSIT)",
-      ideaTitle: "OpenTelemetry Distributed Trace Bottleneck & N+1 Query Root-Cause Analyzer",
-      track: "CAREER_STRETCH",
-      feasibilityScore: 78,
-      skillGapsSummary: "OpenTelemetry Distributed Tracing (18h moderate ramp-up)",
-      studentPitch:
-        "Our pair team has 30 hrs/week combined capacity and strong PostgreSQL indexing background. We aim to benchmark critical-path N+1 detection on microservice traces.",
-      status: "PENDING",
-    },
-  ]);
-
-  const [noteByRequestId, setNoteByRequestId] = useState<Record<string, string>>({
-    cm0req01studentpitch00001:
-      "Strong alignment with our CI reliability benchmark track. Approved for Fall-Spring cohort.",
-    cm0req02studentpitch00002:
-      "Well-scoped proposal; let's review OTLP collector overhead during week 2.",
-  });
-
+  const [requests, setRequests] = useState<IncomingRequestItem[]>([]);
+  const [noteByRequestId, setNoteByRequestId] = useState<Record<string, string>>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    const shared = loadStoredSupervisionRequests([]);
-    if (shared.length > 0) {
-      setRequests((prev) => {
-        const existingIds = new Set(prev.map((p) => p.id));
-        const mappedFromStore: IncomingRequestItem[] = shared
-          .filter((s) => s.status !== "WITHDRAWN" && !existingIds.has(s.id))
-          .map((s) => ({
-            id: s.id,
-            studentName: s.studentName ?? "Final-Year Student (BSCS)",
-            ideaTitle: s.ideaTitle,
-            track: s.track,
-            feasibilityScore: s.feasibilityScore,
-            skillGapsSummary: s.skillGapsSummary,
-            studentPitch: s.pitch,
-            status: s.status === "WITHDRAWN" ? "DECLINED" : s.status,
-            supervisorNote: s.supervisorNote,
-          }));
-        return [...mappedFromStore, ...prev];
+    getFacultySupervisorWorkspace()
+      .then((ws) => {
+        if (ws.profile) {
+          setTitle(ws.profile.title);
+          setBio(ws.profile.bio);
+          setResearchDomains(ws.profile.researchDomains.join(", "));
+          setPreferredStacks(ws.profile.preferredStacks.join(", "));
+          setMaxSlots(ws.profile.maxSlots);
+          setActiveSlots(ws.profile.activeSlots);
+          setIsAccepting(ws.profile.isAccepting);
+        }
+        setRequests(
+          ws.incomingRequests
+            .filter((r) => r.status !== "WITHDRAWN" && r.status !== "RELEASED")
+            .map((r) => ({
+              id: r.id,
+              studentName: r.studentName,
+              ideaTitle: r.ideaTitle,
+              track: (["CORE_SAFE", "CAREER_STRETCH", "RESEARCH_NICHE"].includes(r.track)
+                ? r.track
+                : "CORE_SAFE") as IncomingRequestItem["track"],
+              feasibilityScore: r.feasibilityScore,
+              skillGapsSummary: r.skillGapsSummary,
+              studentPitch: r.studentPitch,
+              status: r.status as IncomingRequestItem["status"],
+              supervisorNote: r.supervisorNote,
+            }))
+        );
+        setViewState("POPULATED");
+      })
+      .catch(() => {
+        setRequests([]);
+        setViewState("POPULATED");
       });
-    }
   }, []);
 
   async function handleSaveSupervisorProfile(e: React.FormEvent) {
@@ -189,21 +164,6 @@ export default function SupervisorPortalPage() {
           : r
       )
     );
-
-    const shared = loadStoredSupervisionRequests([]);
-    if (shared.some((s) => s.id === requestId)) {
-      saveStoredSupervisionRequests(
-        shared.map((s) =>
-          s.id === requestId
-            ? {
-                ...s,
-                status: decision === "ACCEPT" ? "ACCEPTED" : "DECLINED",
-                supervisorNote: note,
-              }
-            : s
-        )
-      );
-    }
 
     setStatusMessage(
       decision === "ACCEPT"

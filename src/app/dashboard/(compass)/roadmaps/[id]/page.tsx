@@ -26,208 +26,70 @@ import {
   toggleMilestoneStatus,
   exportRoadmapMarkdown,
 } from "@/actions/roadmap.actions";
+import { getActiveRecommendationsSnapshot } from "@/actions/recommendation.actions";
 import {
-  loadStoredIdeas,
-  loadStoredStudentProfile,
   loadStoredMilestoneStatuses,
   saveStoredMilestoneStatuses,
   formatTrackLabel,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 
-const FALLBACK_IDEAS: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord] = [
-  {
-    id: "cm0idea_core_safe_1",
-    track: "CORE_SAFE",
-    seedTemplateId: "cm0seed01cilogtriage00001",
-    title: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
-    domain: "DevTools",
-    problemStatement:
-      "CI build failures generate thousands of lines of noisy console logs, forcing developers to manually grep stack traces.",
-    proposedSolution:
-      "GitHub Actions webhook service that parses build logs and clusters recurring failure signatures using vector embeddings.",
-    differentiationAngle: null,
-    difficulty: "MODERATE",
-    recommendedStack: [
-      { layer: "Frontend", tech: "Next.js + TypeScript", rationale: "Fast UI" },
-      { layer: "Backend", tech: "Node.js + Inngest", rationale: "Async workers" },
-      { layer: "Database", tech: "PostgreSQL + pgvector", rationale: "Vector search" },
-      { layer: "Testing", tech: "Vitest", rationale: "Unit verification" },
-    ],
-    feasibilityScore: 84,
-    skillOverlapScore: 34,
-    timeFitScore: 26,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "Feasibility 84/100",
-    duplicateRisk: "HIGH",
-    highestArchiveSimilarity: 0.84,
-    similarArchives: [],
-    marketDemandTag: "DevTools · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 340,
-    skillGaps: [
-      {
-        skillSlug: "pgvector",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: "BEGINNER",
-        severity: "MINOR",
-        estimatedLearnHours: 10,
-        learningAction: "Tune HNSW index queries.",
-      },
-      {
-        skillSlug: "github-actions",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 12,
-        learningAction: "Build webhook signature verifier.",
-      },
-    ],
-    supervisorMatches: [],
-  },
-  {
-    id: "cm0idea_career_stretch_2",
-    track: "CAREER_STRETCH",
-    seedTemplateId: "cm0seed35llmcostgateway35",
-    title: "Multi-Provider AI Gateway with pgvector Semantic Caching & Token Budget Quotas",
-    domain: "Applied AI",
-    problemStatement: "SaaS teams calling LLM APIs suffer runaway token bills on repetitive queries.",
-    proposedSolution:
-      "OpenAI-compatible proxy gateway featuring cosine-threshold semantic caching in pgvector.",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [
-      { layer: "Gateway", tech: "Next.js + Node.js", rationale: "Low-latency proxy" },
-      { layer: "Vector Cache", tech: "PostgreSQL + pgvector", rationale: "Semantic cache" },
-      { layer: "AI SDK", tech: "Vercel AI SDK + Zod", rationale: "Provider failover" },
-      { layer: "Ledger", tech: "Prisma ORM", rationale: "ACID token quotas" },
-    ],
-    feasibilityScore: 79,
-    skillOverlapScore: 31,
-    timeFitScore: 24,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "Feasibility 79/100",
-    duplicateRisk: "MODERATE",
-    highestArchiveSimilarity: 0.75,
-    similarArchives: [],
-    marketDemandTag: "Applied AI · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 385,
-    skillGaps: [
-      {
-        skillSlug: "llm-evaluation",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 14,
-        learningAction: "Benchmark semantic cache precision.",
-      },
-      {
-        skillSlug: "pgvector",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: "BEGINNER",
-        severity: "MINOR",
-        estimatedLearnHours: 10,
-        learningAction: "Tune cosine threshold.",
-      },
-    ],
-    supervisorMatches: [],
-  },
-  {
-    id: "cm0idea_research_niche_3",
-    track: "RESEARCH_NICHE",
-    seedTemplateId: "cm0seed08sbomguard0000008",
-    title: "Reachability-Aware SBOM & Transitive Dependency Exploitability Verifier",
-    domain: "Cybersecurity",
-    problemStatement:
-      "Standard npm/pip audit tools flood developers with hundreds of unreachable CVE alerts.",
-    proposedSolution:
-      "Call-graph reachability analyzer that cross-references CycloneDX SBOM advisories against imported symbols.",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [
-      { layer: "AST Engine", tech: "TypeScript Compiler API", rationale: "Call-graph tracing" },
-      { layer: "SBOM Parser", tech: "CycloneDX + OSV", rationale: "Advisory ingestion" },
-      { layer: "Database", tech: "PostgreSQL + Prisma", rationale: "Scan snapshots" },
-      { layer: "Dashboard", tech: "Next.js App Router", rationale: "Reachability UI" },
-    ],
-    feasibilityScore: 74,
-    skillOverlapScore: 24,
-    timeFitScore: 22,
-    resourceReadinessScore: 20,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "Feasibility 74/100",
-    duplicateRisk: "LOW",
-    highestArchiveSimilarity: 0.58,
-    similarArchives: [],
-    marketDemandTag: "Cybersecurity · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 410,
-    skillGaps: [
-      {
-        skillSlug: "sbom-supply-chain",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "CRITICAL",
-        estimatedLearnHours: 18,
-        learningAction: "Study CycloneDX 1.5 JSON spec.",
-      },
-      {
-        skillSlug: "ast-parsing",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 14,
-        learningAction: "Build TypeScript AST call-graph walker.",
-      },
-    ],
-    supervisorMatches: [],
-  },
-];
-
 export default function RoadmapDetailPage() {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
-  const ideaId = params?.id ?? "cm0idea_core_safe_1";
+  const ideaId = params?.id ?? "";
 
-  const [storedIdeas, setStoredIdeas] =
-    useState<[GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]>(FALLBACK_IDEAS);
+  const [storedIdeas, setStoredIdeas] = useState<GeneratedIdeaRecord[]>([]);
   const [durationWeeks, setDurationWeeks] = useState(24);
   const [weeklyHours, setWeeklyHours] = useState(15);
-  const [totalSkillGapHours, setTotalSkillGapHours] = useState(22);
+  const [totalSkillGapHours, setTotalSkillGapHours] = useState(0);
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
-  void setViewState;
   const [exportedMarkdown, setExportedMarkdown] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadedIdeas = loadStoredIdeas(FALLBACK_IDEAS);
-    setStoredIdeas(loadedIdeas);
-    const profile = loadStoredStudentProfile();
-    setDurationWeeks(profile.durationWeeks);
-    setWeeklyHours(profile.weeklyHours);
     setMilestoneStatusOverrides(loadStoredMilestoneStatuses());
-
-    const matched = loadedIdeas.find((i) => i.id === ideaId) ?? loadedIdeas[0];
-    if (matched) {
-      const gapSum = matched.skillGaps.reduce((acc, g) => acc + g.estimatedLearnHours, 0);
-      setTotalSkillGapHours(gapSum);
-    }
+    getActiveRecommendationsSnapshot()
+      .then((snap) => {
+        setDurationWeeks(snap.durationWeeks);
+        setWeeklyHours(snap.weeklyHours);
+        if (snap.ideas && snap.ideas.length > 0) {
+          setStoredIdeas(snap.ideas);
+          const matched = snap.ideas.find((i) => i.id === ideaId) ?? snap.ideas[0];
+          if (matched) {
+            const gapSum = matched.skillGaps.reduce(
+              (acc, g) => acc + g.estimatedLearnHours,
+              0
+            );
+            setTotalSkillGapHours(gapSum);
+          }
+          setViewState("POPULATED");
+        } else {
+          setStoredIdeas([]);
+          setViewState("EMPTY");
+        }
+      })
+      .catch(() => {
+        setStoredIdeas([]);
+        setViewState("EMPTY");
+      });
   }, [ideaId]);
 
   const activeIdea = useMemo(() => {
-    return (
-      storedIdeas.find((i) => i.id === ideaId) ??
-      (ideaId.includes("career_stretch")
-        ? storedIdeas[1]
-        : ideaId.includes("research_niche")
-          ? storedIdeas[2]
-          : storedIdeas[0])
-    );
+    return storedIdeas.find((i) => i.id === ideaId) ?? storedIdeas[0] ?? null;
   }, [storedIdeas, ideaId]);
 
   const ideaMetadata = useMemo(() => {
+    if (!activeIdea) {
+      return {
+        title: "No Proposal Selected",
+        domain: "Software Engineering",
+        skillGapSlugs: [] as string[],
+        stack: [] as string[],
+      };
+    }
     return {
       title: activeIdea.title,
       domain: activeIdea.domain,
@@ -314,7 +176,7 @@ export default function RoadmapDetailPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `ProjectCompass-Roadmap-${activeIdea.track.toLowerCase()}.md`;
+    link.download = `ProjectCompass-Roadmap-${(activeIdea?.track ?? "core_safe").toLowerCase()}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -340,7 +202,7 @@ export default function RoadmapDetailPage() {
           <div className="max-w-3xl space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                {formatTrackLabel(activeIdea.track)}
+                {formatTrackLabel(activeIdea?.track ?? "CORE_SAFE")}
               </span>
               <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
                 {baseRoadmap.durationWeeks} Weeks Total
@@ -394,13 +256,13 @@ export default function RoadmapDetailPage() {
             </label>
             <Select
               aria-label="Switch Idea Roadmap"
-              value={activeIdea.id}
+              value={activeIdea?.id ?? ""}
               onChange={(e) => router.push(`/dashboard/roadmaps/${e.target.value}`)}
               className="w-full sm:w-64"
             >
               {storedIdeas.map((idea) => (
                 <option key={idea.id} value={idea.id}>
-                  {formatTrackLabel(idea.track)} — {idea.title}
+                  {formatTrackLabel(idea.track)} â€” {idea.title}
                 </option>
               ))}
             </Select>
@@ -540,7 +402,7 @@ export default function RoadmapDetailPage() {
       {viewState === "POPULATED" && (
         <div className="space-y-4">
           {milestones.map((ms) => {
-            const weekBadge = `W${String(ms.weekStart).padStart(2, "0")}–W${String(ms.weekEnd).padStart(2, "0")}`;
+            const weekBadge = `W${String(ms.weekStart).padStart(2, "0")}â€“W${String(ms.weekEnd).padStart(2, "0")}`;
 
             return (
               <Card key={ms.id} data-testid={`milestone-card-${ms.phaseNumber}`}>

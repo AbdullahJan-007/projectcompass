@@ -16,6 +16,10 @@ import {
   type GeneratedIdeaRecord,
 } from "@/lib/recommendation/engine";
 import {
+  loadLiveEngineContext,
+  persistRecommendationRunToDb,
+} from "@/lib/recommendation/live-context";
+import {
   readInstitutionalDb,
   writeInstitutionalDb,
   type PersistedStudentProfile,
@@ -148,8 +152,10 @@ export async function getActiveStudentProfile(): Promise<PersistedStudentProfile
           updatedAt: dbProfile.updatedAt.toISOString(),
         };
       }
+      // Database is reachable and this student has not saved skills yet
+      return null;
     } catch {
-      // Fallback to local institutional store
+      // Fallback to local institutional store only when local PostgreSQL is offline
     }
 
     const store = readInstitutionalDb();
@@ -300,6 +306,7 @@ export async function upsertStudentProfile(
       | [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]
       | undefined;
     try {
+      const liveContext = await loadLiveEngineContext();
       const calibratedRun = await executeHybridRecommendationEngine({
         studentSkills: input.skills.map((s) => ({
           skillSlug: s.skillSlug,
@@ -311,8 +318,21 @@ export async function upsertStudentProfile(
         weeklyHours: input.weeklyHours,
         durationWeeks: input.durationWeeks,
         teamSize: input.teamSize,
+        customSupervisors: liveContext.supervisors,
+        customArchives: liveContext.archives,
       });
       calibratedIdeas = calibratedRun.ideas;
+
+      if (!profileId.startsWith("cm0profile_")) {
+        const persisted = await persistRecommendationRunToDb({
+          studentProfileId: profileId,
+          profileSummary: summaryText,
+          engineResult: calibratedRun,
+        });
+        if (persisted) {
+          calibratedIdeas = persisted.ideas;
+        }
+      }
     } catch {
       // Keep existing ideas if engine fails
     }

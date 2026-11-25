@@ -30,299 +30,13 @@ import {
   updateIdeaStatus,
   getActiveRecommendationsSnapshot,
 } from "@/actions/recommendation.actions";
+import { getActiveStudentProfile } from "@/actions/profile.actions";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 import {
-  loadStoredIdeas,
   saveStoredIdeas,
-  loadStoredShortlistedIds,
   saveStoredShortlistedIds,
-  loadStoredStudentProfile,
   type StoredStudentProfile,
 } from "@/lib/workspace-store";
-
-const INITIAL_IDEAS: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord] = [
-  {
-    id: "cm0idea_core_safe_1",
-    track: "CORE_SAFE",
-    seedTemplateId: "cm0seed01cilogtriage00001",
-    title: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
-    domain: "DevTools",
-    problemStatement:
-      "CI build failures generate thousands of lines of noisy console logs, forcing developers to manually grep stack traces and wasting hours on flaky test regressions.",
-    proposedSolution:
-      "GitHub Actions webhook service that parses build logs, clusters recurring failure signatures using vector embeddings, and posts root-cause PR diffs with benchmarked precision.",
-    differentiationAngle:
-      "Shifts from passive log visualization in Automated Server Log Visualizer (BSCS 2024 — 84% similarity) to real-time clustering of CI failure traces with GitHub PR root-cause attribution and benchmarked precision on open-source build logs.",
-    difficulty: "MODERATE",
-    recommendedStack: [
-      {
-        layer: "Frontend & Workspace",
-        tech: "Next.js App Router + TypeScript",
-        rationale: "Type-safe server components and fast diff visualization for CI failure clusters.",
-      },
-      {
-        layer: "Application & Ingestion",
-        tech: "Node.js + Inngest Webhooks",
-        rationale: "Handles asynchronous GitHub Actions log payloads without serverless timeouts.",
-      },
-      {
-        layer: "Data & Vector Persistence",
-        tech: "PostgreSQL 16 + pgvector (HNSW)",
-        rationale: "Single ACID store for build metadata and 1536-dim failure trace cosine search.",
-      },
-      {
-        layer: "Verification & Eval",
-        tech: "Vitest Precision Benchmark Suite",
-        rationale: "Measures root-cause clustering F1 score against labeled build failure corpora.",
-      },
-    ],
-    feasibilityScore: 84,
-    skillOverlapScore: 34,
-    timeFitScore: 26,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation:
-      "Feasibility 84/100: Skill overlap 34/40 (4/5 core skills present), Time fit 26/30 (572h net budget vs 340h target), Resource readiness 16/20, and Matched open-capacity faculty similarity 84% (8/10).",
-    duplicateRisk: "HIGH",
-    highestArchiveSimilarity: 0.84,
-    similarArchives: [
-      {
-        archiveId: "cm0arch01logvisualizer001",
-        title: "Automated Server Log Visualizer and CI Failure Dashboard",
-        academicYear: 2024,
-        similarity: 0.84,
-      },
-    ],
-    marketDemandTag: "DevTools · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 340,
-    skillGaps: [
-      {
-        skillSlug: "pgvector",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: "BEGINNER",
-        severity: "MINOR",
-        estimatedLearnHours: 10,
-        learningAction:
-          "Build a vertical prototype strengthening pgvector HNSW cosine distance queries and threshold tuning.",
-      },
-      {
-        skillSlug: "github-actions",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 12,
-        learningAction:
-          "Complete focused webhook signature verification labs and workflow artifact download scripts.",
-      },
-    ],
-    supervisorMatches: [
-      {
-        supervisorProfileId: "cm0sup01kamransiddiqui001",
-        fullName: "Dr. Kamran Siddiqui",
-        title: "Associate Professor",
-        rank: 1,
-        matchPercentage: 88,
-        sharedKeywords: ["DevTools", "typescript", "nodejs", "postgresql"],
-        availabilityAtMatch: 3,
-        maxSlots: 5,
-        activeSlots: 2,
-        rationale:
-          "Dr. Kamran Siddiqui aligns on DevTools, typescript, nodejs, postgresql with 3 of 5 supervision slots currently open.",
-      },
-      {
-        supervisorProfileId: "cm0sup03farhanqureshi0003",
-        fullName: "Dr. Farhan Qureshi",
-        title: "Assistant Professor",
-        rank: 2,
-        matchPercentage: 79,
-        sharedKeywords: ["DevTools", "typescript"],
-        availabilityAtMatch: 4,
-        maxSlots: 5,
-        activeSlots: 1,
-        rationale:
-          "Dr. Farhan Qureshi aligns on DevTools, typescript with 4 of 5 supervision slots currently open.",
-      },
-    ],
-  },
-  {
-    id: "cm0idea_career_stretch_2",
-    track: "CAREER_STRETCH",
-    seedTemplateId: "cm0seed35llmcostgateway35",
-    title: "Multi-Provider AI Gateway with pgvector Semantic Caching & Token Budget Quotas",
-    domain: "Applied AI",
-    problemStatement:
-      "SaaS teams calling LLM APIs suffer runaway token bills on repetitive queries and hard outages when a single model provider hits rate limits.",
-    proposedSolution:
-      "OpenAI-compatible proxy gateway featuring cosine-threshold semantic caching in pgvector, automatic provider fallback, and per-tenant budget circuit breakers.",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [
-      {
-        layer: "Gateway Proxy & Routing",
-        tech: "Next.js App Router + Node.js Streams",
-        rationale: "Low-overhead request interception with streaming token accounting.",
-      },
-      {
-        layer: "Semantic Cache Store",
-        tech: "PostgreSQL + pgvector HNSW",
-        rationale: "Sub-25ms cosine similarity lookup for semantically equivalent prompts.",
-      },
-      {
-        layer: "AI Provider Abstraction",
-        tech: "Vercel AI SDK + Zod Contracts",
-        rationale: "Seamless failover across OpenAI-compatible endpoints with typed responses.",
-      },
-      {
-        layer: "Telemetry & Quotas",
-        tech: "Prisma ACID Token Ledger",
-        rationale: "Enforces per-tenant daily spend caps and audit logging.",
-      },
-    ],
-    feasibilityScore: 79,
-    skillOverlapScore: 31,
-    timeFitScore: 24,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation:
-      "Feasibility 79/100: Skill overlap 31/40 (4/5 core skills present), Time fit 24/30 (570h net budget vs 385h target), Resource readiness 16/20, and Matched open-capacity faculty similarity 86% (8/10).",
-    duplicateRisk: "MODERATE",
-    highestArchiveSimilarity: 0.75,
-    similarArchives: [
-      {
-        archiveId: "cm0arch02examchatbot00002",
-        title: "University Course Material Q&A Assistant Using Vector Search",
-        academicYear: 2025,
-        similarity: 0.75,
-      },
-    ],
-    marketDemandTag: "Applied AI · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 385,
-    skillGaps: [
-      {
-        skillSlug: "llm-evaluation",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 14,
-        learningAction:
-          "Implement semantic cache hit/miss precision benchmarks and false-positive drift tests.",
-      },
-      {
-        skillSlug: "pgvector",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: "BEGINNER",
-        severity: "MINOR",
-        estimatedLearnHours: 10,
-        learningAction:
-          "Tune HNSW ef_search and cosine distance thresholds for cache hit latency < 20ms.",
-      },
-    ],
-    supervisorMatches: [
-      {
-        supervisorProfileId: "cm0sup02ayesharehman00002",
-        fullName: "Dr. Ayesha Rehman",
-        title: "Associate Professor",
-        rank: 1,
-        matchPercentage: 86,
-        sharedKeywords: ["Applied AI", "pgvector", "llm-evaluation", "nextjs"],
-        availabilityAtMatch: 2,
-        maxSlots: 5,
-        activeSlots: 3,
-        rationale:
-          "Dr. Ayesha Rehman aligns on Applied AI, pgvector, llm-evaluation with 2 of 5 supervision slots currently open.",
-      },
-    ],
-  },
-  {
-    id: "cm0idea_research_niche_3",
-    track: "RESEARCH_NICHE",
-    seedTemplateId: "cm0seed08sbomguard0000008",
-    title: "Reachability-Aware SBOM & Transitive Dependency Exploitability Verifier",
-    domain: "Cybersecurity",
-    problemStatement:
-      "Standard npm/pip audit tools flood developers with hundreds of CVE alerts even when the vulnerable function is never reachable in application code.",
-    proposedSolution:
-      "Call-graph reachability analyzer that cross-references CycloneDX SBOM advisories against actual imported symbols to prioritize truly exploitable CVEs.",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [
-      {
-        layer: "Static Call-Graph Engine",
-        tech: "TypeScript Compiler AST API",
-        rationale: "Traces symbol imports and function call paths across transitive packages.",
-      },
-      {
-        layer: "SBOM & Advisory Parser",
-        tech: "CycloneDX + OSV Schema Validator",
-        rationale: "Ingests standardized vulnerability feeds with exact affected symbol metadata.",
-      },
-      {
-        layer: "Persistence & Audit Trail",
-        tech: "PostgreSQL + Prisma ORM",
-        rationale: "Stores repository scan snapshots, reachability proofs, and remediation diffs.",
-      },
-      {
-        layer: "Security Dashboard",
-        tech: "Next.js App Router + Tailwind CSS",
-        rationale: "Renders interactive dependency call chains and false-positive reduction metrics.",
-      },
-    ],
-    feasibilityScore: 74,
-    skillOverlapScore: 24,
-    timeFitScore: 22,
-    resourceReadinessScore: 20,
-    supervisorFitScore: 8,
-    feasibilityExplanation:
-      "Feasibility 74/100: Skill overlap 24/40 (2/5 core skills present), Time fit 22/30 (552h net budget vs 410h target), Resource readiness 20/20, and Matched open-capacity faculty similarity 85% (8/10).",
-    duplicateRisk: "LOW",
-    highestArchiveSimilarity: 0.58,
-    similarArchives: [
-      {
-        archiveId: "cm0arch04vulnheaderscan04",
-        title: "Web Application HTTP Security Header and OWASP Checklist Scanner",
-        academicYear: 2023,
-        similarity: 0.58,
-      },
-    ],
-    marketDemandTag: "Cybersecurity · HIGH Demand (2026-Q4)",
-    estimatedTotalHours: 410,
-    skillGaps: [
-      {
-        skillSlug: "sbom-supply-chain",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "CRITICAL",
-        estimatedLearnHours: 18,
-        learningAction:
-          "Study CycloneDX 1.5 JSON specification and OSV vulnerability advisory matching.",
-      },
-      {
-        skillSlug: "ast-parsing",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 14,
-        learningAction:
-          "Build a TypeScript ts.createProgram call-graph walker over a sample monorepo.",
-      },
-    ],
-    supervisorMatches: [
-      {
-        supervisorProfileId: "cm0sup03farhanqureshi0003",
-        fullName: "Dr. Farhan Qureshi",
-        title: "Assistant Professor",
-        rank: 1,
-        matchPercentage: 87,
-        sharedKeywords: ["Cybersecurity", "sbom-supply-chain", "ast-parsing", "owasp-security"],
-        availabilityAtMatch: 4,
-        maxSlots: 5,
-        activeSlots: 1,
-        rationale:
-          "Dr. Farhan Qureshi aligns on Cybersecurity, sbom-supply-chain, ast-parsing with 4 of 5 supervision slots currently open.",
-      },
-    ],
-  },
-];
 
 const LOADING_STAGES = [
   "Stage 1: Filtering supervisor slot quotas (activeSlots < maxSlots) & effort ceiling...",
@@ -334,45 +48,53 @@ const LOADING_STAGES = [
 export default function RecommendationsPage() {
   const router = useRouter();
   const portalSession = usePortalSession();
-  const [ideas, setIdeas] = useState<[GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]>(
-    INITIAL_IDEAS
-  );
-  const [shortlistedIds, setShortlistedIds] = useState<string[]>(["cm0idea_core_safe_1"]);
+  const [ideas, setIdeas] = useState<GeneratedIdeaRecord[]>([]);
+  const [shortlistedIds, setShortlistedIds] = useState<string[]>([]);
   const [studentProfile, setStudentProfile] = useState<StoredStudentProfile | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
-  const [expandedScoreIds, setExpandedScoreIds] = useState<string[]>([
-    "cm0idea_core_safe_1",
-    "cm0idea_career_stretch_2",
-    "cm0idea_research_niche_3",
-  ]);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expandedScoreIds, setExpandedScoreIds] = useState<string[]>([]);
   const [focusNote, setFocusNote] = useState("");
   const [usedFallback, setUsedFallback] = useState(false);
-  const [runsLeftToday, setRunsLeftToday] = useState(4);
+  const [runsLeftToday, setRunsLeftToday] = useState(5);
   const [loadingStageIndex, setLoadingStageIndex] = useState(0);
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
 
   useEffect(() => {
-    const loadedIdeas = loadStoredIdeas(INITIAL_IDEAS);
-    setIdeas(loadedIdeas);
-    saveStoredIdeas(loadedIdeas);
-    setShortlistedIds(loadStoredShortlistedIds(["cm0idea_core_safe_1"]));
-    setStudentProfile(loadStoredStudentProfile());
-
-    getActiveRecommendationsSnapshot()
-      .then((snap) => {
-        if (snap && Array.isArray(snap.ideas) && snap.ideas.length === 3) {
+    Promise.all([getActiveRecommendationsSnapshot(), getActiveStudentProfile()])
+      .then(([snap, serverProfile]) => {
+        if (serverProfile) {
+          setStudentProfile({
+            skills: serverProfile.skills,
+            interests: serverProfile.interests,
+            careerGoal: serverProfile.careerGoal,
+            preferredType: serverProfile.preferredType,
+            weeklyHours: serverProfile.weeklyHours,
+            durationWeeks: serverProfile.durationWeeks,
+            teamSize: serverProfile.teamSize,
+            gpaBand: serverProfile.gpaBand,
+            updatedAt: serverProfile.updatedAt,
+          });
+        }
+        setRunsLeftToday(snap.runsRemainingToday);
+        setUsedFallback(snap.usedFallback);
+        if (snap.ideas && snap.ideas.length === 3) {
           setIdeas(snap.ideas);
-          saveStoredIdeas(snap.ideas);
+          setExpandedScoreIds(snap.ideas.map((i) => i.id));
           setShortlistedIds(snap.shortlistedIds);
+          saveStoredIdeas(snap.ideas);
           saveStoredShortlistedIds(snap.shortlistedIds);
-          setRunsLeftToday(snap.runsRemainingToday);
-          setUsedFallback(snap.usedFallback);
+          setViewState("POPULATED");
+        } else {
+          setIdeas([]);
+          setViewState("EMPTY");
         }
       })
       .catch(() => {
-        // Keep local snapshot
+        setIdeas([]);
+        setViewState("EMPTY");
       });
   }, []);
 
@@ -381,9 +103,7 @@ export default function RecommendationsPage() {
     setViewState("LOADING");
     setLoadingStageIndex(0);
     setActionToast(null);
-
-    const activeProfile = loadStoredStudentProfile();
-    setStudentProfile(activeProfile);
+    setErrorMessage(null);
 
     const interval = setInterval(() => {
       setLoadingStageIndex((prev) => (prev < LOADING_STAGES.length - 1 ? prev + 1 : prev));
@@ -392,23 +112,28 @@ export default function RecommendationsPage() {
     const res = await generateRecommendations({
       focusNote: focusNote.trim() || undefined,
       forceLlmFailure: simulateFallback,
-      profileOverride: {
-        skills: activeProfile.skills.map((s) => ({
-          skillSlug: s.skillSlug,
-          proficiency: s.proficiency,
-        })),
-        interests: activeProfile.interests,
-        careerGoal: activeProfile.careerGoal,
-        preferredType: activeProfile.preferredType,
-        weeklyHours: activeProfile.weeklyHours,
-        durationWeeks: activeProfile.durationWeeks,
-        teamSize: activeProfile.teamSize,
-      },
+      ...(studentProfile && studentProfile.skills.length >= 3
+        ? {
+            profileOverride: {
+              skills: studentProfile.skills.map((s) => ({
+                skillSlug: s.skillSlug,
+                proficiency: s.proficiency,
+              })),
+              interests: studentProfile.interests,
+              careerGoal: studentProfile.careerGoal,
+              preferredType: studentProfile.preferredType,
+              weeklyHours: studentProfile.weeklyHours,
+              durationWeeks: studentProfile.durationWeeks,
+              teamSize: studentProfile.teamSize,
+            },
+          }
+        : {}),
     });
 
     clearInterval(interval);
 
     if (!res.ok) {
+      setErrorMessage(res.error.message);
       setViewState("ERROR");
       return;
     }
@@ -420,7 +145,7 @@ export default function RecommendationsPage() {
     setRunsLeftToday((prev) => Math.max(0, prev - 1));
     setViewState("POPULATED");
     setActionToast(
-      `Generated 3 diversified FYP proposals calibrated to your ${activeProfile.skills.length} skills and ${res.data.engineResult.totalEffortHours}h effort budget.`
+      `Generated 3 diversified FYP proposals calibrated to your ${studentProfile?.skills.length ?? 3} skills and ${res.data.engineResult.totalEffortHours}h effort budget.`
     );
   }
 
@@ -434,7 +159,9 @@ export default function RecommendationsPage() {
 
     setShortlistedIds(nextIds);
     saveStoredShortlistedIds(nextIds);
-    saveStoredIdeas(ideas);
+    if (ideas.length === 3) {
+      saveStoredIdeas(ideas as [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]);
+    }
 
     setActionToast(
       isCurrentlyShortlisted
@@ -446,7 +173,9 @@ export default function RecommendationsPage() {
   }
 
   function handleOpenRoadmap(idea: GeneratedIdeaRecord) {
-    saveStoredIdeas(ideas);
+    if (ideas.length === 3) {
+      saveStoredIdeas(ideas as [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]);
+    }
     if (!shortlistedIds.includes(idea.id)) {
       const nextIds = [...shortlistedIds, idea.id];
       setShortlistedIds(nextIds);
@@ -473,7 +202,7 @@ export default function RecommendationsPage() {
             <div className="flex items-center gap-2 text-xs font-semibold text-status-error-text">
               <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
               <span>
-                High Similarity Detected (&gt;= 0.82) — Mandatory Differentiation Enforced
+                High Similarity Detected (&gt;= 0.82) â€” Mandatory Differentiation Enforced
               </span>
             </div>
             <Badge variant="error" className="font-mono-tabular">
@@ -507,7 +236,7 @@ export default function RecommendationsPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-xs font-semibold text-status-warning-text">
               <Info className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              <span>Related Past FYPs in Department Archive (0.72 – 0.81)</span>
+              <span>Related Past FYPs in Department Archive (0.72 â€“ 0.81)</span>
             </div>
             <Badge variant="warning" className="font-mono-tabular">
               Similarity: {idea.highestArchiveSimilarity.toFixed(2)}
@@ -529,7 +258,7 @@ export default function RecommendationsPage() {
       >
         <div className="flex items-center gap-2 text-xs font-semibold text-status-success-text">
           <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-          <span>Original Direction — Low Archive Overlap (&lt; 0.72)</span>
+          <span>Original Direction â€” Low Archive Overlap (&lt; 0.72)</span>
         </div>
         <Badge variant="success" className="font-mono-tabular">
           Max Archive Similarity: {idea.highestArchiveSimilarity.toFixed(2)}
@@ -544,11 +273,11 @@ export default function RecommendationsPage() {
 
     const trackBadge =
       idea.track === "CORE_SAFE" ? (
-        <Badge variant="default">Track 1 · Core &amp; Safe</Badge>
+        <Badge variant="default">Track 1 Â· Core &amp; Safe</Badge>
       ) : idea.track === "CAREER_STRETCH" ? (
-        <Badge variant="amber">Track 2 · Career Stretch</Badge>
+        <Badge variant="amber">Track 2 Â· Career Stretch</Badge>
       ) : (
-        <Badge variant="info">Track 3 · Research &amp; Niche</Badge>
+        <Badge variant="info">Track 3 Â· Research &amp; Niche</Badge>
       );
 
     return (
@@ -579,7 +308,7 @@ export default function RecommendationsPage() {
                   className={`h-3.5 w-3.5 shrink-0 ${isShortlisted ? "fill-current" : ""}`}
                   strokeWidth={1.75}
                 />
-                <span>{isShortlisted ? "Shortlisted ✓" : "Shortlist Idea"}</span>
+                <span>{isShortlisted ? "Shortlisted âœ“" : "Shortlist Idea"}</span>
               </Button>
               <Button
                 type="button"
@@ -736,7 +465,7 @@ export default function RecommendationsPage() {
               </h4>
               {idea.skillGaps.length === 0 ? (
                 <div className="rounded-[6px] border border-status-success/30 bg-status-success-tint p-3 text-xs text-status-success-text">
-                  Zero critical skill gaps — your current profile satisfies all required stack
+                  Zero critical skill gaps â€” your current profile satisfies all required stack
                   proficiencies.
                 </div>
               ) : (
@@ -811,7 +540,7 @@ export default function RecommendationsPage() {
                 href={`/dashboard/supervisors?ideaId=${encodeURIComponent(idea.id)}`}
                 className="text-xs font-medium text-brand-primary hover:underline"
               >
-                View All Ranked Faculty &amp; Send Request →
+                View All Ranked Faculty &amp; Send Request â†’
               </Link>
             </div>
 
@@ -868,11 +597,11 @@ export default function RecommendationsPage() {
                             : 2.2)
                     )
                   : 594}{" "}
-                hrs ({studentProfile?.weeklyHours ?? 15}h/wk ×{" "}
+                hrs ({studentProfile?.weeklyHours ?? 15}h/wk Ã—{" "}
                 {studentProfile?.durationWeeks ?? 24} wks)
               </span>
               <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
-                · {runsLeftToday} of 5 daily evaluations left
+                Â· {runsLeftToday} of 5 daily evaluations left
               </span>
             </div>
             <h1 className="text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
@@ -963,15 +692,22 @@ export default function RecommendationsPage() {
           <CardHeader>
             <CardTitle>No Recommendation Runs Executed Yet</CardTitle>
             <CardDescription>
-              Your skill profile is marked READY. Trigger your first hybrid analysis to receive 3
-              diversified FYP proposals (`CORE_SAFE`, `CAREER_STRETCH`, `RESEARCH_NICHE`).
+              {studentProfile && studentProfile.skills.length >= 3
+                ? "Your skill profile is ready. Run your first hybrid analysis to generate 3 personalized FYP proposals (Core/Safe, Career-Stretch, Research/Niche)."
+                : "Save at least 3 technical skills and 1 domain interest in your Skill Profile first, then generate personalized FYP recommendations."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button onClick={() => handleRunAnalysis(false)}>
-              <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-              Execute First Hybrid Run
-            </Button>
+          <CardContent className="flex flex-wrap gap-3">
+            {studentProfile && studentProfile.skills.length >= 3 ? (
+              <Button onClick={() => handleRunAnalysis(false)}>
+                <Sparkles className="h-4 w-4" strokeWidth={1.75} />
+                Execute First Hybrid Run
+              </Button>
+            ) : (
+              <Button asChild>
+                <Link href="/dashboard/profile">Complete Skill Profile</Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -983,17 +719,23 @@ export default function RecommendationsPage() {
         >
           <CardHeader>
             <CardTitle className="text-status-error-text">
-              Recommendation Run Interrupted
+              Unable to Run Recommendation Analysis
             </CardTitle>
             <CardDescription className="text-status-error-text">
-              Failed runs do not consume your 5/day student quota. You can retry immediately.
+              {errorMessage ??
+                "Failed runs do not consume your 5/day student quota. Please verify your skill profile and retry."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => setViewState("POPULATED")}>
-              <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-              Restore Last Verified Run
+          <CardContent className="flex flex-wrap gap-3">
+            <Button asChild variant="outline">
+              <Link href="/dashboard/profile">Update Skill Profile</Link>
             </Button>
+            {ideas.length > 0 && (
+              <Button variant="outline" onClick={() => setViewState("POPULATED")}>
+                <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
+                Restore Last Verified Run
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

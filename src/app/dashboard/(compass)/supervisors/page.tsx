@@ -28,140 +28,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { usePortalSession } from "@/components/layout/portal-session-context";
-import { DEMO_SUPERVISORS } from "@/lib/recommendation/seed-data";
 import { rankAvailableSupervisors } from "@/lib/recommendation/supervisor-ranker";
 import { generateDeterministicEmbedding } from "@/lib/ai/embeddings";
 import {
   createSupervisionRequest,
   withdrawSupervisionRequest,
 } from "@/actions/supervisor.actions";
+import { getActiveRecommendationsSnapshot } from "@/actions/recommendation.actions";
 import {
-  loadStoredIdeas,
-  loadStoredSupervisionRequests,
+  getStudentSupervisorsWorkspace,
+  type LiveSupervisorDirectoryItem,
+} from "@/actions/workspace.actions";
+import {
   saveStoredSupervisionRequests,
   formatTrackLabel,
   type StoredSupervisionRequest,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 
-const DEFAULT_IDEAS_FOR_SUPERVISORS: [
-  GeneratedIdeaRecord,
-  GeneratedIdeaRecord,
-  GeneratedIdeaRecord,
-] = [
-  {
-    id: "cm0idea_core_safe_1",
-    track: "CORE_SAFE",
-    seedTemplateId: "cm0seed01cilogtriage00001",
-    title: "Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams",
-    domain: "DevTools",
-    problemStatement: "",
-    proposedSolution: "",
-    differentiationAngle: null,
-    difficulty: "MODERATE",
-    recommendedStack: [],
-    feasibilityScore: 84,
-    skillOverlapScore: 34,
-    timeFitScore: 26,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "",
-    duplicateRisk: "HIGH",
-    highestArchiveSimilarity: 0.84,
-    similarArchives: [],
-    marketDemandTag: "DevTools · HIGH Demand",
-    estimatedTotalHours: 340,
-    skillGaps: [
-      {
-        skillSlug: "pgvector",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: "BEGINNER",
-        severity: "MINOR",
-        estimatedLearnHours: 10,
-        learningAction: "",
-      },
-    ],
-    supervisorMatches: [],
-  },
-  {
-    id: "cm0idea_career_stretch_2",
-    track: "CAREER_STRETCH",
-    seedTemplateId: "cm0seed35llmcostgateway35",
-    title: "Multi-Provider AI Gateway with pgvector Semantic Caching & Token Budget Quotas",
-    domain: "Applied AI",
-    problemStatement: "",
-    proposedSolution: "",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [],
-    feasibilityScore: 79,
-    skillOverlapScore: 31,
-    timeFitScore: 24,
-    resourceReadinessScore: 16,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "",
-    duplicateRisk: "MODERATE",
-    highestArchiveSimilarity: 0.75,
-    similarArchives: [],
-    marketDemandTag: "Applied AI · HIGH Demand",
-    estimatedTotalHours: 385,
-    skillGaps: [
-      {
-        skillSlug: "llm-evaluation",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "MODERATE",
-        estimatedLearnHours: 14,
-        learningAction: "",
-      },
-    ],
-    supervisorMatches: [],
-  },
-  {
-    id: "cm0idea_research_niche_3",
-    track: "RESEARCH_NICHE",
-    seedTemplateId: "cm0seed08sbomguard0000008",
-    title: "Reachability-Aware SBOM & Transitive Dependency Exploitability Verifier",
-    domain: "Cybersecurity",
-    problemStatement: "",
-    proposedSolution: "",
-    differentiationAngle: null,
-    difficulty: "CHALLENGING",
-    recommendedStack: [],
-    feasibilityScore: 74,
-    skillOverlapScore: 24,
-    timeFitScore: 22,
-    resourceReadinessScore: 20,
-    supervisorFitScore: 8,
-    feasibilityExplanation: "",
-    duplicateRisk: "LOW",
-    highestArchiveSimilarity: 0.58,
-    similarArchives: [],
-    marketDemandTag: "Cybersecurity · HIGH Demand",
-    estimatedTotalHours: 410,
-    skillGaps: [
-      {
-        skillSlug: "sbom-supply-chain",
-        requiredProficiency: "INTERMEDIATE",
-        currentProficiency: null,
-        severity: "CRITICAL",
-        estimatedLearnHours: 18,
-        learningAction: "",
-      },
-    ],
-    supervisorMatches: [],
-  },
-];
-
-const INITIAL_SUPERVISION_REQUESTS: StoredSupervisionRequest[] = [];
-
 function StudentSupervisorsWorkspace() {
   const searchParams = useSearchParams();
   const portalSession = usePortalSession();
-  const [availableIdeas, setAvailableIdeas] = useState<
-    [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord]
-  >(DEFAULT_IDEAS_FOR_SUPERVISORS);
-  const [selectedIdeaId, setSelectedIdeaId] = useState("cm0idea_core_safe_1");
+  const [supervisors, setSupervisors] = useState<LiveSupervisorDirectoryItem[]>([]);
+  const [availableIdeas, setAvailableIdeas] = useState<GeneratedIdeaRecord[]>([]);
+  const [selectedIdeaId, setSelectedIdeaId] = useState("");
   const [programFilter, setProgramFilter] = useState<string>("ALL");
   const [showFullCapacity, setShowFullCapacity] = useState(false);
   const [modalSupervisor, setModalSupervisor] = useState<{
@@ -170,37 +60,73 @@ function StudentSupervisorsWorkspace() {
     title: string;
   } | null>(null);
   const [pitchText, setPitchText] = useState(
-    "We have shortlisted our FYP proposal with verified skill and timeline feasibility, built an initial vertical prototype, and would like to request your supervision within the Department of IT & Computing."
+    "We have shortlisted our FYP proposal with verified skill and timeline feasibility and would like to request your supervision within the Department of IT & Computing."
   );
-  const [sentRequests, setSentRequests] = useState<StoredSupervisionRequest[]>(
-    INITIAL_SUPERVISION_REQUESTS
-  );
+  const [sentRequests, setSentRequests] = useState<StoredSupervisionRequest[]>([]);
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
+    "LOADING"
   );
-  void setViewState;
   const [bannerMessage, setBannerMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
   useEffect(() => {
-    const ideas = loadStoredIdeas(DEFAULT_IDEAS_FOR_SUPERVISORS);
-    setAvailableIdeas(ideas);
-    const paramIdeaId = searchParams?.get("ideaId");
-    if (paramIdeaId && ideas.some((i) => i.id === paramIdeaId)) {
-      setSelectedIdeaId(paramIdeaId);
-    } else if (ideas[0]) {
-      setSelectedIdeaId(ideas[0].id);
-    }
-    setSentRequests(loadStoredSupervisionRequests(INITIAL_SUPERVISION_REQUESTS));
+    Promise.all([getStudentSupervisorsWorkspace(), getActiveRecommendationsSnapshot()])
+      .then(([supData, recSnap]) => {
+        setSupervisors(supData.supervisors);
+        setSentRequests(
+          supData.sentRequests.map((r) => ({
+            id: r.id,
+            supervisorProfileId: r.supervisorProfileId,
+            supervisorName: r.supervisorName,
+            ideaId: r.recommendedIdeaId,
+            ideaTitle: r.ideaTitle,
+            track: (["CORE_SAFE", "CAREER_STRETCH", "RESEARCH_NICHE"].includes(r.track)
+              ? r.track
+              : "CORE_SAFE") as StoredSupervisionRequest["track"],
+            feasibilityScore: r.feasibilityScore,
+            skillGapsSummary: r.skillGapsSummary,
+            pitch: r.studentPitch,
+            status:
+              r.status === "RELEASED" ? "DECLINED" : r.status,
+            supervisorNote: r.supervisorNote,
+            createdAt: r.createdAt,
+          }))
+        );
+
+        const ideas = recSnap.ideas ?? [];
+        setAvailableIdeas(ideas);
+        const paramIdeaId = searchParams?.get("ideaId");
+        if (paramIdeaId && ideas.some((i) => i.id === paramIdeaId)) {
+          setSelectedIdeaId(paramIdeaId);
+        } else if (ideas[0]) {
+          setSelectedIdeaId(ideas[0].id);
+        }
+        setViewState(supData.supervisors.length > 0 ? "POPULATED" : "EMPTY");
+      })
+      .catch(() => {
+        setSupervisors([]);
+        setAvailableIdeas([]);
+        setViewState("EMPTY");
+      });
   }, [searchParams]);
 
   const activeIdea = useMemo(() => {
-    return availableIdeas.find((i) => i.id === selectedIdeaId) ?? availableIdeas[0];
+    return availableIdeas.find((i) => i.id === selectedIdeaId) ?? availableIdeas[0] ?? null;
   }, [availableIdeas, selectedIdeaId]);
 
   const ideaContext = useMemo(() => {
+    if (!activeIdea) {
+      return {
+        id: "",
+        track: "CORE_SAFE" as const,
+        feasibilityScore: 0,
+        title: "General IT & Computing FYP Supervision",
+        domain: "Software Engineering",
+        skills: ["typescript", "postgresql"],
+      };
+    }
     const gapSlugs = activeIdea.skillGaps.map((g) => g.skillSlug);
     return {
       id: activeIdea.id,
@@ -221,8 +147,8 @@ function StudentSupervisorsWorkspace() {
     );
     const filteredPool =
       programFilter === "ALL"
-        ? DEMO_SUPERVISORS
-        : DEMO_SUPERVISORS.filter((s) => s.programCode === programFilter);
+        ? supervisors
+        : supervisors.filter((s) => s.programCode === programFilter);
 
     const supInputs = filteredPool.map((s) => ({
       id: s.id,
@@ -245,7 +171,7 @@ function StudentSupervisorsWorkspace() {
       ideaEmbedding,
       supInputs
     );
-  }, [ideaContext, programFilter]);
+  }, [ideaContext, programFilter, supervisors]);
 
   const activePendingCount = sentRequests.filter((r) => r.status === "PENDING").length;
 
@@ -293,7 +219,7 @@ function StudentSupervisorsWorkspace() {
       track: ideaContext.track,
       feasibilityScore: ideaContext.feasibilityScore,
       skillGapsSummary:
-        activeIdea.skillGaps.map((g) => `${g.skillSlug} (${g.estimatedLearnHours}h)`).join(", ") ||
+        activeIdea?.skillGaps.map((g) => `${g.skillSlug} (${g.estimatedLearnHours}h)`).join(", ") ||
         "Zero critical skill gaps",
       pitch: pitchText.trim(),
       status: "PENDING",
@@ -376,7 +302,7 @@ function StudentSupervisorsWorkspace() {
           >
             {availableIdeas.map((idea) => (
               <option key={idea.id} value={idea.id}>
-                {formatTrackLabel(idea.track)} — {idea.title}
+                {formatTrackLabel(idea.track)} â€” {idea.title}
               </option>
             ))}
           </Select>
@@ -447,7 +373,7 @@ function StudentSupervisorsWorkspace() {
         <>
           <div className="grid gap-5 md:grid-cols-2">
             {availableMatches.map((match) => {
-              const rawSup = DEMO_SUPERVISORS.find(
+              const rawSup = supervisors.find(
                 (s) => s.id === match.supervisorProfileId
               );
               const alreadyRequested = sentRequests.some(
@@ -463,7 +389,7 @@ function StudentSupervisorsWorkspace() {
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
                         <Badge variant="default" className="font-mono-tabular">
-                          Rank #{match.rank} · {match.matchPercentage}% Match
+                          Rank #{match.rank} Â· {match.matchPercentage}% Match
                         </Badge>
                         <Badge variant="success" className="font-mono-tabular">
                           {match.availabilityAtMatch} of {match.maxSlots} slots open
@@ -472,7 +398,7 @@ function StudentSupervisorsWorkspace() {
                     </div>
                     <CardTitle className="mt-2">{match.fullName}</CardTitle>
                     <CardDescription>
-                      {match.title} · {rawSup?.programCode ?? "IT & Computing"} Track
+                      {match.title} Â· {rawSup?.programCode ?? "IT & Computing"} Track
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -630,7 +556,7 @@ function StudentSupervisorsWorkspace() {
                         <span className="text-sm font-semibold text-text-primary">
                           {req.supervisorName}
                         </span>
-                        <span className="text-xs text-text-muted">· {req.ideaTitle}</span>
+                        <span className="text-xs text-text-muted">Â· {req.ideaTitle}</span>
                       </div>
                       <p className="text-xs text-text-secondary">{req.pitch}</p>
                     </div>
@@ -665,7 +591,7 @@ function StudentSupervisorsWorkspace() {
               Submit Supervision Request to {modalSupervisor?.fullName}
             </DialogTitle>
             <DialogDescription>
-              Proposal: <strong>{ideaContext.title}</strong>. Your pitch (40–1000 chars) and
+              Proposal: <strong>{ideaContext.title}</strong>. Your pitch (40â€“1000 chars) and
               verified 4-factor Feasibility Score will be shared with the supervisor.
             </DialogDescription>
           </DialogHeader>

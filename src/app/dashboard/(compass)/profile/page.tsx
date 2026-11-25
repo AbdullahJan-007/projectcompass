@@ -27,7 +27,6 @@ import {
   getActiveStudentProfile,
 } from "@/actions/profile.actions";
 import {
-  loadStoredStudentProfile,
   saveStoredStudentProfile,
   saveStoredIdeas,
   saveStoredShortlistedIds,
@@ -60,20 +59,15 @@ export default function StudentProfilePage() {
   const router = useRouter();
   const portalSession = usePortalSession();
   const skillInputRef = useRef<HTMLInputElement | null>(null);
-  const [skills, setSkills] = useState<SelectedSkill[]>([
-    { skillSlug: "typescript", displayName: "TypeScript", proficiency: "ADVANCED" },
-    { skillSlug: "nextjs", displayName: "Next.js", proficiency: "INTERMEDIATE" },
-    { skillSlug: "postgresql", displayName: "PostgreSQL", proficiency: "INTERMEDIATE" },
-    { skillSlug: "pgvector", displayName: "pgvector Semantic Search", proficiency: "BEGINNER" },
-  ]);
+  const [skills, setSkills] = useState<SelectedSkill[]>([]);
   const [skillQuery, setSkillQuery] = useState("");
   const [skillFeedback, setSkillFeedback] = useState<{
     type: "info" | "warning";
     text: string;
   } | null>(null);
   const [selectedProficiency, setSelectedProficiency] = useState<Proficiency>("INTERMEDIATE");
-  const [interests, setInterests] = useState<string[]>(["DevTools", "Applied AI"]);
-  const [careerGoal, setCareerGoal] = useState("Full-Stack & AI Systems Engineer");
+  const [interests, setInterests] = useState<string[]>([]);
+  const [careerGoal, setCareerGoal] = useState("");
   const [preferredType, setPreferredType] = useState<
     "PRODUCT_SAAS" | "APPLIED_AI" | "RESEARCH" | "SYSTEMS"
   >("PRODUCT_SAAS");
@@ -82,27 +76,16 @@ export default function StudentProfilePage() {
   const [durationWeeks, setDurationWeeks] = useState(24);
   const [durationWeeksDraft, setDurationWeeksDraft] = useState("24");
   const [teamSize, setTeamSize] = useState(2);
-  const [gpaBand, setGpaBand] = useState("3.4 - 3.8");
-  const [departmentLabel, setDepartmentLabel] = useState("BSCS");
+  const [gpaBand, setGpaBand] = useState("3.0 - 3.4");
+  const [departmentLabel, setDepartmentLabel] = useState(portalSession.departmentCode || "BSCS");
   const hasUserEditedRef = useRef(false);
 
   useEffect(() => {
-    const stored = loadStoredStudentProfile();
-    setSkills(stored.skills);
-    setInterests(stored.interests);
-    setCareerGoal(stored.careerGoal);
-    setPreferredType(stored.preferredType);
-    setWeeklyHours(stored.weeklyHours);
-    setWeeklyHoursDraft(String(stored.weeklyHours));
-    setDurationWeeks(stored.durationWeeks);
-    setDurationWeeksDraft(String(stored.durationWeeks));
-    setTeamSize(stored.teamSize);
-    setGpaBand(stored.gpaBand);
-
+    setDepartmentLabel(portalSession.departmentCode || "BSCS");
     getActiveStudentProfile()
       .then((serverProfile) => {
         if (!serverProfile) return;
-        setDepartmentLabel(serverProfile.departmentCode || "BSCS");
+        setDepartmentLabel(serverProfile.departmentCode || portalSession.departmentCode || "BSCS");
         if (!hasUserEditedRef.current && serverProfile.skills.length > 0) {
           setSkills(serverProfile.skills);
           setInterests(serverProfile.interests);
@@ -117,9 +100,9 @@ export default function StudentProfilePage() {
         }
       })
       .catch(() => {
-        // Keep local snapshot
+        // Keep clean empty profile state
       });
-  }, []);
+  }, [portalSession.departmentCode]);
 
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
     "POPULATED"
