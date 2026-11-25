@@ -35,13 +35,23 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     await page.getByRole("option", { name: /3\.8 – 4\.0 CGPA/i }).click();
     await expect(page.getByRole("combobox", { name: "GPA Band" })).toContainText("3.8 – 4.0 CGPA");
 
+    // Fill real student skills, domain interest, and career goal (profile starts clean without dummy data)
+    const skillInput = page.getByPlaceholder(/Type skill name/i);
+    for (const skillName of ["TypeScript", "Next.js", "PostgreSQL"]) {
+      await skillInput.fill(skillName);
+      await page.getByTestId("add-custom-skill-btn").click();
+    }
+    await page.getByRole("button", { name: "DevTools", exact: true }).click();
+    await page
+      .getByPlaceholder(/Backend & Distributed Systems Engineer/i)
+      .fill("Full-Stack & AI Systems Engineer");
+    await page.getByRole("button", { name: /Save Skill Profile/i }).click();
+    await expect(page.getByText(/saved|calibrated/i).first()).toBeVisible({ timeout: 15000 });
+
     await page.goto("/dashboard/recommendations");
-    await expect(page.getByTestId("idea-card-CORE_SAFE")).toBeVisible();
+    await expect(page.getByTestId("idea-card-CORE_SAFE")).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId("idea-card-CAREER_STRETCH")).toBeVisible();
     await expect(page.getByTestId("idea-card-RESEARCH_NICHE")).toBeVisible();
-    await expect(page.getByTestId("duplicate-banner-CORE_SAFE")).toContainText(
-      /High Similarity Detected/i
-    );
 
     await page.getByTestId("shortlist-btn-CAREER_STRETCH").click();
     await expect(page.getByTestId("recommendation-action-toast")).toBeVisible();

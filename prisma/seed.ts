@@ -10,7 +10,10 @@ import {
   generateDeterministicEmbedding,
   toPgVectorLiteral,
 } from "../src/lib/ai/embeddings";
-import { DEPARTMENT_MAP } from "../src/lib/auth/university-id";
+import {
+  DEPARTMENT_MAP,
+  resolveDepartmentByCode,
+} from "../src/lib/auth/university-id";
 import { buildDefaultAccountsDb } from "../src/lib/auth/account-registry";
 
 const prisma = new PrismaClient();
@@ -337,27 +340,28 @@ async function main() {
       (f) => f.universityEmail.toLowerCase() === sup.email.toLowerCase()
     );
     const desiredRole = existingAccount?.role ?? "SUPERVISOR";
+    const supDepartmentId = resolveDepartmentByCode(sup.programCode).id;
 
     const supUser = await prisma.user.upsert({
       where: { email: sup.email },
       update: {
         fullName: sup.fullName,
         role: desiredRole,
-        departmentId,
+        departmentId: supDepartmentId,
       },
       create: {
         id: sup.userId,
         email: sup.email,
         fullName: sup.fullName,
         role: desiredRole,
-        departmentId,
+        departmentId: supDepartmentId,
       },
     });
 
     const supProfile = await prisma.supervisorProfile.upsert({
       where: { userId: supUser.id },
       update: {
-        departmentId,
+        departmentId: supDepartmentId,
         title: sup.title,
         researchDomains: sup.researchDomains,
         bio: sup.bio,
@@ -369,7 +373,7 @@ async function main() {
       create: {
         id: sup.id,
         userId: supUser.id,
-        departmentId,
+        departmentId: supDepartmentId,
         title: sup.title,
         researchDomains: sup.researchDomains,
         bio: sup.bio,
