@@ -76,42 +76,58 @@ export async function upsertSupervisorProfile(
       const embedding = await generateTextEmbedding(embeddingText);
       const vecLiteral = toPgVectorLiteral(embedding);
 
-      const saved = await db.$transaction(async (tx) => {
-        const profile = await tx.supervisorProfile.upsert({
-          where: { userId: user.id },
-          update: {
-            title: input.title.trim(),
-            bio: input.bio.trim(),
-            researchDomains: input.researchDomains,
-            preferredStacks: input.preferredStacks,
-            maxSlots: input.maxSlots,
-            isAccepting: input.isAccepting,
-          },
-          create: {
-            userId: user.id,
-            departmentId,
-            title: input.title.trim(),
-            bio: input.bio.trim(),
-            researchDomains: input.researchDomains,
-            preferredStacks: input.preferredStacks,
-            maxSlots: input.maxSlots,
-            activeSlots: 0,
-            isAccepting: input.isAccepting,
-          },
-        });
+      const saved = await db.$transaction(
+        async (tx) => {
+          const profile = await tx.supervisorProfile.upsert({
+            where: { userId: user.id },
+            update: {
+              title: input.title.trim(),
+              bio: input.bio.trim(),
+              researchDomains: input.researchDomains,
+              preferredStacks: input.preferredStacks,
+              maxSlots: input.maxSlots,
+              isAccepting: input.isAccepting,
+            },
+            create: {
+              userId: user.id,
+              departmentId,
+              title: input.title.trim(),
+              bio: input.bio.trim(),
+              researchDomains: input.researchDomains,
+              preferredStacks: input.preferredStacks,
+              maxSlots: input.maxSlots,
+              activeSlots: 0,
+              isAccepting: input.isAccepting,
+            },
+            select: { id: true, activeSlots: true },
+          });
 
-        await tx.$executeRaw`
-          UPDATE "SupervisorProfile"
-          SET "profileEmbedding" = ${vecLiteral}::vector
-          WHERE id = ${profile.id}
-        `;
+          await tx.$executeRaw`
+            UPDATE "SupervisorProfile"
+            SET "profileEmbedding" = ${vecLiteral}::vector
+            WHERE id = ${profile.id}
+          `;
 
-        return profile;
-      });
+          return profile;
+        },
+        { maxWait: 5000, timeout: 15000 }
+      );
       supervisorId = saved.id;
       activeSlots = saved.activeSlots;
-    } catch {
-      // Persist to institutional store when running without local PostgreSQL daemon
+    } catch (dbErr) {
+      const isProd = process.env.NODE_ENV === "production" && process.env.CI !== "true";
+      if (isProd || !isDbConnectionOffline(dbErr)) {
+        console.error("[upsertSupervisorProfile] Database write failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message:
+              "Could not save your faculty profile to the database. Please try again.",
+          },
+        };
+      }
+      // Persist to institutional store only when local PostgreSQL daemon is offline
       const store = readInstitutionalDb();
       const firstSup = store.supervisors[0];
       if (firstSup) {

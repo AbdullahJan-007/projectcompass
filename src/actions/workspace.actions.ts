@@ -269,6 +269,7 @@ export async function getCoordinatorWorkspaceData(): Promise<{
       db.projectArchive.findMany({
         include: { department: { select: { code: true } } },
         orderBy: [{ academicYear: "desc" }, { createdAt: "desc" }],
+        take: 200,
       }),
       db.supervisorProfile.findMany({
         select: { maxSlots: true, activeSlots: true },
@@ -352,6 +353,7 @@ export async function getAdminWorkspaceData(): Promise<{
       db.user.findMany({
         include: { department: { select: { code: true } } },
         orderBy: { createdAt: "desc" },
+        take: 200,
       }),
       db.supervisorProfile.findMany({
         include: {
@@ -409,7 +411,7 @@ export async function getRoadmapWorkspaceData(recommendedIdeaId: string): Promis
   roadmap: PlannedRoadmapResult | null;
   milestoneStatuses: Record<string, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">;
 }> {
-  const user = await requireRole(["STUDENT", "COORDINATOR", "ADMIN"]);
+  const user = await requireRole(["STUDENT"]);
 
   try {
     const idea = await db.recommendedIdea.findUnique({

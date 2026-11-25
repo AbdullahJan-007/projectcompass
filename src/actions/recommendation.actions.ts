@@ -154,12 +154,22 @@ export async function generateRecommendations(
           },
         });
 
-        const activeRunningCount = await db.recommendationRun.count({
-          where: {
-            studentProfileId: profile.id,
-            status: "RUNNING",
-          },
-        });
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [activeRunningCount, dailyRuns] = await Promise.all([
+          db.recommendationRun.count({
+            where: {
+              studentProfileId: profile.id,
+              status: "RUNNING",
+            },
+          }),
+          db.recommendationRun.count({
+            where: {
+              studentProfileId: profile.id,
+              createdAt: { gte: twentyFourHoursAgo },
+              status: { not: "FAILED" },
+            },
+          }),
+        ]);
 
         if (activeRunningCount > 0) {
           return {
@@ -170,15 +180,6 @@ export async function generateRecommendations(
             },
           };
         }
-
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const dailyRuns = await db.recommendationRun.count({
-          where: {
-            studentProfileId: profile.id,
-            createdAt: { gte: twentyFourHoursAgo },
-            status: { not: "FAILED" },
-          },
-        });
 
         if (dailyRuns >= 5) {
           return {

@@ -263,8 +263,6 @@ export default function StudentProfilePage() {
     setIsSaving(true);
     setStatusBanner(null);
 
-    persistCurrentProfileState();
-
     const res = await upsertStudentProfile({
       skills,
       interests,
@@ -285,6 +283,9 @@ export default function StudentProfilePage() {
       });
       return false;
     }
+
+    // Only update local cache AFTER database write is verified
+    persistCurrentProfileState();
 
     if (res.data.calibratedIdeas) {
       saveStoredIdeas(res.data.calibratedIdeas);

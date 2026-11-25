@@ -7,7 +7,6 @@ import { AuthError, requireRole, requireUser } from "@/lib/auth/session";
 import { resolveDepartmentCodeById } from "@/lib/auth/university-id";
 import {
   generateDeterministicEmbedding,
-  generateTextEmbedding,
   toPgVectorLiteral,
 } from "@/lib/ai/embeddings";
 import { slugifySkill } from "@/lib/utils";
@@ -226,80 +225,148 @@ export async function upsertStudentProfile(
       `Preferred Project Type: ${input.preferredType}`,
     ].join(" | ");
 
-    let embeddingVector: number[];
-    try {
-      embeddingVector = await generateTextEmbedding(summaryText);
-    } catch {
-      embeddingVector = generateDeterministicEmbedding(summaryText);
-    }
+    const embeddingVector = generateDeterministicEmbedding(summaryText);
+
+    const normalizedSkills = input.skills.map((s) => ({
+      slug: slugifySkill(s.skillSlug),
+      displayName: s.displayName.trim(),
+      proficiency: s.proficiency,
+    }));
+    const uniqueSlugs = Array.from(new Set(normalizedSkills.map((s) => s.slug)));
 
     let profileId = `cm0profile_${user.id}`;
+    const isProd = process.env.NODE_ENV === "production" && process.env.CI !== "true";
+
     try {
-      const profile = await db.$transaction(async (tx) => {
-        const upsertedProfile = await tx.studentProfile.upsert({
-          where: { userId: user.id },
-          update: {
-            status: "READY",
-            interests: input.interests,
-            careerGoal: input.careerGoal.trim(),
-            preferredType: input.preferredType,
-            weeklyHours: input.weeklyHours,
-            durationWeeks: input.durationWeeks,
-            teamSize: input.teamSize,
-            gpaBand: input.gpaBand ?? null,
-            profileSummaryTxt: summaryText,
-          },
-          create: {
-            userId: user.id,
-            status: "READY",
-            interests: input.interests,
-            careerGoal: input.careerGoal.trim(),
-            preferredType: input.preferredType,
-            weeklyHours: input.weeklyHours,
-            durationWeeks: input.durationWeeks,
-            teamSize: input.teamSize,
-            gpaBand: input.gpaBand ?? null,
-            profileSummaryTxt: summaryText,
-          },
-        });
-
-        await tx.studentSkill.deleteMany({
-          where: { studentProfileId: upsertedProfile.id },
-        });
-
-        for (const skillItem of input.skills) {
-          const canonicalSlug = slugifySkill(skillItem.skillSlug);
-          const skillRecord = await tx.skill.upsert({
-            where: { slug: canonicalSlug },
-            update: {},
+      const savedResult = await db.$transaction(
+        async (tx) => {
+          const upsertedProfile = await tx.studentProfile.upsert({
+            where: { userId: user.id },
+            update: {
+              status: "READY",
+              interests: input.interests,
+              careerGoal: input.careerGoal.trim(),
+              preferredType: input.preferredType,
+              weeklyHours: input.weeklyHours,
+              durationWeeks: input.durationWeeks,
+              teamSize: input.teamSize,
+              gpaBand: input.gpaBand ?? null,
+              profileSummaryTxt: summaryText,
+            },
             create: {
-              slug: canonicalSlug,
-              displayName: skillItem.displayName.trim(),
-              category: "Custom",
+              userId: user.id,
+              status: "READY",
+              interests: input.interests,
+              careerGoal: input.careerGoal.trim(),
+              preferredType: input.preferredType,
+              weeklyHours: input.weeklyHours,
+              durationWeeks: input.durationWeeks,
+              teamSize: input.teamSize,
+              gpaBand: input.gpaBand ?? null,
+              profileSummaryTxt: summaryText,
             },
+            select: { id: true },
           });
 
-          await tx.studentSkill.create({
-            data: {
-              studentProfileId: upsertedProfile.id,
-              skillId: skillRecord.id,
-              proficiency: skillItem.proficiency,
-            },
+          // Batched skill resolution (eliminates N+1 per-skill queries inside transaction)
+          const existingSkills = await tx.skill.findMany({
+            where: { slug: { in: uniqueSlugs } },
+            select: { id: true, slug: true },
           });
-        }
+          const existingSlugSet = new Set(existingSkills.map((s) => s.slug));
+          const missingSkills = normalizedSkills.filter(
+            (s) => !existingSlugSet.has(s.slug)
+          );
 
-        const vectorLiteral = toPgVectorLiteral(embeddingVector);
-        await tx.$executeRaw`
-          UPDATE "StudentProfile"
-          SET "profileEmbedding" = ${vectorLiteral}::vector
-          WHERE id = ${upsertedProfile.id}
-        `;
+          if (missingSkills.length > 0) {
+            await tx.skill.createMany({
+              data: missingSkills.map((s) => ({
+                slug: s.slug,
+                displayName: s.displayName,
+                category: "Custom",
+              })),
+              skipDuplicates: true,
+            });
+          }
 
-        return upsertedProfile;
-      });
-      profileId = profile.id;
-    } catch {
-      // Resilient in-memory save when running without local PostgreSQL daemon
+          const allSkills =
+            missingSkills.length > 0
+              ? await tx.skill.findMany({
+                  where: { slug: { in: uniqueSlugs } },
+                  select: { id: true, slug: true },
+                })
+              : existingSkills;
+          const skillIdBySlug = new Map(allSkills.map((s) => [s.slug, s.id]));
+
+          await tx.studentSkill.deleteMany({
+            where: { studentProfileId: upsertedProfile.id },
+          });
+
+          const skillRows = normalizedSkills
+            .map((s) => {
+              const skillId = skillIdBySlug.get(s.slug);
+              if (!skillId) return null;
+              return {
+                studentProfileId: upsertedProfile.id,
+                skillId,
+                proficiency: s.proficiency,
+              };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null);
+
+          const insertedSkills = await tx.studentSkill.createMany({
+            data: skillRows,
+            skipDuplicates: true,
+          });
+
+          if (insertedSkills.count === 0) {
+            throw new Error("Failed to persist student skills to database.");
+          }
+
+          const vectorLiteral = toPgVectorLiteral(embeddingVector);
+          await tx.$executeRaw`
+            UPDATE "StudentProfile"
+            SET "profileEmbedding" = ${vectorLiteral}::vector
+            WHERE id = ${upsertedProfile.id}
+          `;
+
+          return {
+            id: upsertedProfile.id,
+            savedSkillsCount: insertedSkills.count,
+          };
+        },
+        { maxWait: 5000, timeout: 15000 }
+      );
+
+      if (!savedResult.id || savedResult.savedSkillsCount < 1) {
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Database write verification failed. Please retry saving your profile.",
+          },
+        };
+      }
+      profileId = savedResult.id;
+    } catch (dbErr) {
+      const isOfflineLocal =
+        !isProd &&
+        dbErr instanceof Error &&
+        (dbErr.name === "PrismaClientInitializationError" ||
+          dbErr.message.includes("Can't reach database server") ||
+          dbErr.message.includes("ECONNREFUSED"));
+
+      if (!isOfflineLocal) {
+        console.error("[upsertStudentProfile] Database write failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message:
+              "Could not save your profile to the database. Please check your connection and try again.",
+          },
+        };
+      }
     }
 
     let calibratedIdeas:
@@ -307,6 +374,7 @@ export async function upsertStudentProfile(
       | undefined;
     try {
       const liveContext = await loadLiveEngineContext();
+      // Use deterministic calibration on profile save so Save responds in < 1s without blocking on external LLM latency
       const calibratedRun = await executeHybridRecommendationEngine({
         studentSkills: input.skills.map((s) => ({
           skillSlug: s.skillSlug,
@@ -320,6 +388,7 @@ export async function upsertStudentProfile(
         teamSize: input.teamSize,
         customSupervisors: liveContext.supervisors,
         customArchives: liveContext.archives,
+        forceLlmFailure: true,
       });
       calibratedIdeas = calibratedRun.ideas;
 
@@ -334,7 +403,7 @@ export async function upsertStudentProfile(
         }
       }
     } catch {
-      // Keep existing ideas if engine fails
+      // Keep profile saved even if optional background calibration fails
     }
 
     // Persist to local institutional database so profile & calibrated ideas sync across pages

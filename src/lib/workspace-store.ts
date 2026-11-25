@@ -44,6 +44,23 @@ const SHORTLIST_STORAGE_KEY = "projectcompass_shortlisted_ids_v1";
 const REQUESTS_STORAGE_KEY = "projectcompass_supervision_requests_v1";
 const MILESTONES_STORAGE_KEY = "projectcompass_milestone_statuses_v1";
 
+/**
+ * Clears all client-side cached workspace data on sign-out or role switch
+ * to prevent cross-account or Student -> Faculty state leakage on shared devices.
+ */
+export function clearWorkspaceStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(PROFILE_STORAGE_KEY);
+    window.localStorage.removeItem(IDEAS_STORAGE_KEY);
+    window.localStorage.removeItem(SHORTLIST_STORAGE_KEY);
+    window.localStorage.removeItem(REQUESTS_STORAGE_KEY);
+    window.localStorage.removeItem(MILESTONES_STORAGE_KEY);
+  } catch {
+    // Ignore storage access errors in private browsing modes
+  }
+}
+
 export const DEFAULT_STUDENT_PROFILE: StoredStudentProfile = {
   skills: [
     { skillSlug: "typescript", displayName: "TypeScript", proficiency: "ADVANCED" },

@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { PortalSessionProvider } from "@/components/layout/portal-session-context";
 import { signOutUniversitySession } from "@/actions/auth.actions";
+import { clearWorkspaceStorage } from "@/lib/workspace-store";
 
 interface NavItem {
   href: string;
@@ -35,25 +36,25 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/dashboard/profile",
     label: "Skill & Time Profile",
     icon: UserCircle,
-    roles: ["STUDENT", "COORDINATOR", "ADMIN"],
+    roles: ["STUDENT"],
   },
   {
     href: "/dashboard/recommendations",
     label: "FYP Recommendations",
     icon: Sparkles,
-    roles: ["STUDENT", "COORDINATOR", "ADMIN"],
+    roles: ["STUDENT"],
   },
   {
     href: "/dashboard/supervisors",
     label: "Supervisor Matching",
     icon: Users,
-    roles: ["STUDENT", "COORDINATOR", "ADMIN"],
+    roles: ["STUDENT"],
   },
   {
     href: "/dashboard/roadmaps",
     label: "Execution Roadmaps",
     icon: CalendarRange,
-    roles: ["STUDENT", "SUPERVISOR", "COORDINATOR", "ADMIN"],
+    roles: ["STUDENT"],
   },
   {
     href: "/dashboard/market-trends",
@@ -65,7 +66,7 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/dashboard/supervisor",
     label: "Supervisor Portal",
     icon: Briefcase,
-    roles: ["SUPERVISOR", "COORDINATOR", "ADMIN"],
+    roles: ["SUPERVISOR"],
   },
   {
     href: "/dashboard/coordinator",
@@ -112,6 +113,7 @@ export function AppShell({
   }
 
   async function handleSignOut() {
+    clearWorkspaceStorage();
     await signOutUniversitySession();
     router.push("/sign-in");
     router.refresh();

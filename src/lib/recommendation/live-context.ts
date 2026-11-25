@@ -155,15 +155,6 @@ export async function persistRecommendationRunToDb(params: {
         )
       )
     );
-    const dbSkills =
-      allSlugs.length > 0
-        ? await db.skill.findMany({
-            where: { slug: { in: allSlugs } },
-            select: { id: true, slug: true },
-          })
-        : [];
-    const skillIdBySlug = new Map(dbSkills.map((s) => [s.slug, s.id]));
-
     const allSupIds = Array.from(
       new Set(
         params.engineResult.ideas.flatMap((idea) =>
@@ -171,20 +162,29 @@ export async function persistRecommendationRunToDb(params: {
         )
       )
     );
-    const existingSups =
+    const allSeedIds = params.engineResult.ideas.map((i) => i.seedTemplateId);
+
+    const [dbSkills, existingSups, existingSeeds] = await Promise.all([
+      allSlugs.length > 0
+        ? db.skill.findMany({
+            where: { slug: { in: allSlugs } },
+            select: { id: true, slug: true },
+          })
+        : Promise.resolve([]),
       allSupIds.length > 0
-        ? await db.supervisorProfile.findMany({
+        ? db.supervisorProfile.findMany({
             where: { id: { in: allSupIds } },
             select: { id: true },
           })
-        : [];
-    const validSupIdSet = new Set(existingSups.map((s) => s.id));
+        : Promise.resolve([]),
+      db.seedIdeaTemplate.findMany({
+        where: { id: { in: allSeedIds } },
+        select: { id: true },
+      }),
+    ]);
 
-    const allSeedIds = params.engineResult.ideas.map((i) => i.seedTemplateId);
-    const existingSeeds = await db.seedIdeaTemplate.findMany({
-      where: { id: { in: allSeedIds } },
-      select: { id: true },
-    });
+    const skillIdBySlug = new Map(dbSkills.map((s) => [s.slug, s.id]));
+    const validSupIdSet = new Set(existingSups.map((s) => s.id));
     const validSeedSet = new Set(existingSeeds.map((s) => s.id));
 
     const run = await db.recommendationRun.create({
