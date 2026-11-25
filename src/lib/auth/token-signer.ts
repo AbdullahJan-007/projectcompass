@@ -5,25 +5,39 @@ import type { UniversitySessionPayload } from "@/lib/auth/university-id";
 const SESSION_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const ALLOWED_ROLES = new Set(["STUDENT", "SUPERVISOR", "COORDINATOR", "ADMIN"]);
 
+const DEV_FALLBACK_SIGNING_KEY =
+  "projectcompass_institutional_hmac_key_v1_9f8e7d6c5b4a3f2e1d";
+
+function isValidSecret(value: string | undefined, minLength = 16): value is string {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (trimmed.length < minLength) return false;
+  const lower = trimmed.toLowerCase();
+  return (
+    !lower.includes("replace_") &&
+    !lower.includes("replace_me") &&
+    !lower.includes("placeholder")
+  );
+}
+
 function getSigningSecret(): string {
-  if (
-    env.AUTH_SECRET &&
-    env.AUTH_SECRET.length >= 16 &&
-    !env.AUTH_SECRET.includes("replace_") &&
-    !env.AUTH_SECRET.includes("placeholder")
-  ) {
-    return env.AUTH_SECRET;
+  const authSecret = process.env.AUTH_SECRET ?? env.AUTH_SECRET;
+  if (isValidSecret(authSecret, 16)) {
+    return authSecret.trim();
   }
 
-  if (
-    env.CLERK_SECRET_KEY &&
-    !env.CLERK_SECRET_KEY.includes("placeholder") &&
-    !env.CLERK_SECRET_KEY.includes("replace_me")
-  ) {
-    return env.CLERK_SECRET_KEY;
+  const clerkSecret = process.env.CLERK_SECRET_KEY ?? env.CLERK_SECRET_KEY;
+  if (isValidSecret(clerkSecret, 16)) {
+    return clerkSecret.trim();
   }
 
-  return "projectcompass_institutional_hmac_key_v1_9f8e7d6c5b4a3f2e1d";
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "FATAL: AUTH_SECRET (minimum 16 characters, recommended 32+ random characters) is required in production. Refusing to use the development fallback signing key."
+    );
+  }
+
+  return DEV_FALLBACK_SIGNING_KEY;
 }
 
 /**

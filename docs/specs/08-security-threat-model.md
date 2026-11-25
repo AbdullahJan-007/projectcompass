@@ -21,7 +21,7 @@ Every trust boundary is verified server-side. Client UI hiding is treated strict
 
 ### Session & Authentication Hardening (Implemented)
 - **Signed, expiring sessions:** `projectcompass_uni_session` is HMAC-SHA256 signed with `AUTH_SECRET` (≥ 32 random chars) and embeds `iat` + a **7-day `exp`**; expired, unsigned, tampered, or unknown-role tokens are rejected (`src/lib/auth/token-signer.ts`).
-- **`AUTH_SECRET` is mandatory in production:** if it is missing or a placeholder, the signer falls back to a built-in development key, which would make sessions forgeable. Deployments MUST set a unique secret per environment (see `10-deployment-and-ops.md` checklist).
+- **`AUTH_SECRET` is enforced fail-closed in production:** when `NODE_ENV === "production"`, `src/lib/auth/token-signer.ts` throws a fatal error if `AUTH_SECRET` is missing, shorter than 16 characters, or still contains a placeholder — refusing to fall back to the development key. Deployments MUST set a unique 32+ char secret per environment.
 - **Brute-force protection before the database:** login attempts are rate-limited on a canonicalized identifier (email ⇄ handle ⇄ Reg No normalized) *before* any DB lookup, so attackers cannot bypass the 5-attempt / 15-minute lockout by switching identifier formats (`src/actions/auth.actions.ts`).
 - **No credential leakage in UI:** `/sign-in` and `/onboarding` ship with empty fields; no demo PINs or personal student names are rendered or embedded in client bundles.
 - **Self-registration cannot escalate:** faculty sign-up always creates `SUPERVISOR`; `COORDINATOR`/`ADMIN` are assigned only through audited admin governance with last-admin protection.

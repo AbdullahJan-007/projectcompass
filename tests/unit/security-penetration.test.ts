@@ -172,4 +172,38 @@ describe("Red-Team Security Penetration Suite", () => {
     expect(escaped).not.toContain("<script>");
     expect(escaped).toContain("&lt;script&gt;");
   });
+
+  it("Exploit 7 Defense: fails closed in production when AUTH_SECRET is missing or placeholder", () => {
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevAuthSecret = process.env.AUTH_SECRET;
+    const prevClerkSecret = process.env.CLERK_SECRET_KEY;
+
+    try {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.AUTH_SECRET = "";
+      process.env.CLERK_SECRET_KEY = "sk_test_placeholder";
+
+      expect(() => signSessionToken(validStudentPayload)).toThrow(/AUTH_SECRET/i);
+      expect(() => verifySessionToken("eyJ1c2VySWQiOiJ4In0.fake_sig")).toThrow(/AUTH_SECRET/i);
+
+      process.env.AUTH_SECRET = "replace_with_32_char_minimum_random_hmac_secret";
+      expect(() => signSessionToken(validStudentPayload)).toThrow(/AUTH_SECRET/i);
+
+      process.env.AUTH_SECRET = "prod_verified_random_hmac_secret_9876543210abcdef";
+      const token = signSessionToken(validStudentPayload);
+      expect(verifySessionToken(token)?.userId).toBe(validStudentPayload.userId);
+    } finally {
+      (process.env as Record<string, string | undefined>).NODE_ENV = prevNodeEnv;
+      if (prevAuthSecret === undefined) {
+        delete process.env.AUTH_SECRET;
+      } else {
+        process.env.AUTH_SECRET = prevAuthSecret;
+      }
+      if (prevClerkSecret === undefined) {
+        delete process.env.CLERK_SECRET_KEY;
+      } else {
+        process.env.CLERK_SECRET_KEY = prevClerkSecret;
+      }
+    }
+  });
 });

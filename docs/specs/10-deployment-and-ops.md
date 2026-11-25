@@ -41,7 +41,7 @@ Every push and Pull Request to `main` runs one job (`ubuntu-latest`, 15-minute t
 6. **Self-host alternative:** Multi-stage standalone `Dockerfile` (uses `pnpm-lock.yaml` with `--frozen-lockfile`) behind a TLS reverse proxy, with the same env variables and migration step.
 
 ### Production Readiness Checklist
-- [ ] `AUTH_SECRET` set in every deployed environment (the signer falls back to a built-in development key when it is missing — this must never happen in production).
+- [ ] `AUTH_SECRET` set in every deployed environment (`token-signer.ts` fails closed in production and throws if it is missing or a placeholder).
 - [ ] Demo accounts absent from the production database.
 - [ ] `DATABASE_URL` points at a reachable production database (the local temp-file fallback store is a development convenience and is not durable on serverless hosts).
 - [ ] Branch protection on `main` requires the CI check to pass.
