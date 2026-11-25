@@ -294,18 +294,20 @@ function StudentSupervisorsWorkspace() {
             <option value="BSDS">BSDS Faculty</option>
           </Select>
 
-          <Select
-            aria-label="Shortlisted Idea Filter"
-            value={selectedIdeaId}
-            onChange={(e) => setSelectedIdeaId(e.target.value)}
-            className="w-full sm:w-72"
-          >
-            {availableIdeas.map((idea) => (
-              <option key={idea.id} value={idea.id}>
-                {formatTrackLabel(idea.track)} â€” {idea.title}
-              </option>
-            ))}
-          </Select>
+          {availableIdeas.length > 0 && (
+            <Select
+              aria-label="Shortlisted Idea Filter"
+              value={selectedIdeaId}
+              onChange={(e) => setSelectedIdeaId(e.target.value)}
+              className="w-full sm:w-72"
+            >
+              {availableIdeas.map((idea) => (
+                <option key={idea.id} value={idea.id}>
+                  {formatTrackLabel(idea.track)} — {idea.title}
+                </option>
+              ))}
+            </Select>
+          )}
         </div>
       </div>
 
@@ -355,15 +357,16 @@ function StudentSupervisorsWorkspace() {
       {viewState === "EMPTY" && (
         <Card className="bg-grad-ambient">
           <CardHeader>
-            <CardTitle>No Supervisors Onboarded for Your Department Yet</CardTitle>
+            <CardTitle>No Faculty Supervisors Registered Yet</CardTitle>
             <CardDescription>
-              Your Feasibility Score defaulted to a neutral 6/10 Supervisor Fit baseline. Share the
-              recommended specialization profile below with your FYP Coordinator.
+              Once faculty supervisors from the Department of IT &amp; Computing register via{" "}
+              <code className="font-mono-tabular">/sign-up</code> and publish their research domains
+              and slot capacity, they will appear here ranked by alignment with your FYP proposal.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setViewState("POPULATED")}>
-              Load Demo BSCS Faculty Roster
+            <Button asChild>
+              <a href="/dashboard/recommendations">View FYP Recommendations</a>
             </Button>
           </CardContent>
         </Card>

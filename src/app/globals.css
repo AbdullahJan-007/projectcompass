@@ -66,20 +66,22 @@
   --font-mono: var(--font-jetbrains-mono), monospace;
 }
 
-* {
-  border-color: var(--border-default);
-}
+@layer base {
+  * {
+    border-color: var(--border-default);
+  }
 
-body {
-  background-color: var(--bg-canvas);
-  color: var(--text-primary);
-  font-family: var(--font-inter), sans-serif;
-  -webkit-font-smoothing: antialiased;
-}
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    font-family: var(--font-inter), sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-plus-jakarta), sans-serif;
-  color: var(--text-primary);
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-plus-jakarta), sans-serif;
+    color: var(--text-primary);
+  }
 }
 
 .font-mono-tabular {

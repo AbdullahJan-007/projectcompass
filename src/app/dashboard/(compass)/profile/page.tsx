@@ -238,6 +238,28 @@ export default function StudentProfilePage() {
   }
 
   async function saveProfileToBackend(): Promise<boolean> {
+    if (skills.length < 3) {
+      setStatusBanner({
+        type: "error",
+        text: "Please add at least 3 technical skills before saving your profile.",
+      });
+      return false;
+    }
+    if (interests.length < 1) {
+      setStatusBanner({
+        type: "error",
+        text: "Please select at least 1 domain interest before saving your profile.",
+      });
+      return false;
+    }
+    if (careerGoal.trim().length < 3) {
+      setStatusBanner({
+        type: "error",
+        text: "Please enter your Target Career Goal (e.g., Full-Stack Engineer, AI Engineer) below before saving.",
+      });
+      return false;
+    }
+
     setIsSaving(true);
     setStatusBanner(null);
 
@@ -790,6 +812,17 @@ export default function StudentProfilePage() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2 py-1 border-b border-border-default/60">
+                    <span className="text-text-secondary">Target Career Goal</span>
+                    <span className="inline-flex items-center gap-1.5 font-mono-tabular font-semibold text-text-primary shrink-0">
+                      <span>{careerGoal.trim().length >= 3 ? "Ready" : "Required"}</span>
+                      {careerGoal.trim().length >= 3 ? (
+                        <CheckCircle2 className="h-4 w-4 text-status-success shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-status-warning shrink-0" />
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 py-1 border-b border-border-default/60">
                     <span className="text-text-secondary">Weekly Time Window</span>
                     <span className="inline-flex items-center gap-1.5 font-mono-tabular font-semibold text-text-primary shrink-0">
                       <Clock className="h-3.5 w-3.5 text-brand-primary shrink-0" />
@@ -821,7 +854,7 @@ export default function StudentProfilePage() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isSaving || !isReadyForRecommendations}
+                    disabled={isSaving}
                   >
                     {isSaving ? "Saving Profile..." : "Save Skill Profile"}
                   </Button>
@@ -829,11 +862,16 @@ export default function StudentProfilePage() {
                     type="button"
                     variant="outline"
                     className="w-full"
-                    disabled={!isReadyForRecommendations}
+                    disabled={isSaving}
                     onClick={handleNavigateToRecommendations}
                   >
                     Generate FYP Recommendations
                   </Button>
+                  {!isReadyForRecommendations && (
+                    <p className="text-[11px] text-text-muted text-center">
+                      Complete all 3 Mandatory Readiness Gates above (including Target Career Goal) to save.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
