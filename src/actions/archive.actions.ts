@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
+import { resolveDepartmentByCode } from "@/lib/auth/university-id";
 import { inngest } from "@/lib/inngest/client";
 import { processArchiveRecordIngestion } from "@/lib/inngest/functions/archive-ingest";
 import {
@@ -28,6 +29,7 @@ const createArchiveInputSchema = z.object({
     .min(10, "Abstract or PDF status required")
     .max(3000, "Abstract cannot exceed 3000 characters"),
   academicYear: z.coerce.number().int().min(2010).max(2035),
+  programCode: z.enum(["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"]).optional(),
   domain: z.string().min(2).max(60),
   techStack: z.array(z.string().min(1).max(60)).min(1).max(15),
   sourceFileUrl: z.string().url().optional().or(z.literal("")),
@@ -54,7 +56,9 @@ export async function createArchiveRecord(
     }
 
     const input = parsed.data;
-    const departmentId = user.departmentId ?? "cm0deptbscs00000000000001";
+    const departmentId = input.programCode
+      ? resolveDepartmentByCode(input.programCode).id
+      : (user.departmentId ?? "cm0deptbscs00000000000001");
     let archiveId = `cm0arch_${Date.now()}`;
     const ingestStatus =
       input.abstract.trim().length < 100 ? "NEEDS_MANUAL_ABSTRACT" : "READY";
@@ -75,12 +79,21 @@ export async function createArchiveRecord(
       });
       archiveId = archive.id;
 
-      try {
-        await inngest.send({
-          name: "archive/record.created",
-          data: { archiveId: archive.id },
-        });
-      } catch {
+      const hasLiveInngest =
+        Boolean(process.env.INNGEST_EVENT_KEY) &&
+        !process.env.INNGEST_EVENT_KEY!.includes("local-dev") &&
+        !process.env.INNGEST_EVENT_KEY!.includes("replace_me");
+
+      if (hasLiveInngest) {
+        try {
+          await inngest.send({
+            name: "archive/record.created",
+            data: { archiveId: archive.id },
+          });
+        } catch {
+          await processArchiveRecordIngestion(archive.id);
+        }
+      } else {
         await processArchiveRecordIngestion(archive.id);
       }
     } catch {

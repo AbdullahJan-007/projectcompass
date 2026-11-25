@@ -133,6 +133,13 @@ export default function AdminDashboardPage() {
 
   async function handleQuotaOverride(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedSupervisorId) {
+      setBanner({
+        type: "error",
+        text: "No faculty supervisor selected. Register a faculty supervisor first.",
+      });
+      return;
+    }
     if (overrideReason.trim().length < 10) {
       setBanner({
         type: "error",
@@ -156,6 +163,12 @@ export default function AdminDashboardPage() {
     }
 
     const sup = supervisors.find((s) => s.id === selectedSupervisorId);
+    setSupervisors((prev) =>
+      prev.map((s) =>
+        s.id === selectedSupervisorId ? { ...s, maxSlots: overrideMaxSlots } : s
+      )
+    );
+    setOverrideReason("");
     setAuditLogs((prev) => [
       {
         id: `cm0audit_${Date.now()}`,

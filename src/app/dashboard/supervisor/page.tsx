@@ -96,6 +96,12 @@ export default function SupervisorPortalPage() {
       );
       return;
     }
+    if (bio.trim().length < 30) {
+      setStatusMessage(
+        "Validation error: Research bio must be at least 30 characters so students can evaluate lab fit."
+      );
+      return;
+    }
 
     const domains = researchDomains
       .split(",")
@@ -106,12 +112,23 @@ export default function SupervisorPortalPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    if (domains.length === 0) {
+      setStatusMessage(
+        "Validation error: Enter at least one research domain (comma-separated)."
+      );
+      return;
+    }
+
+    const derivedSkillSlugs = stacks
+      .map((s) => s.toLowerCase().replace(/[^a-z0-9+#.-]+/g, "-").replace(/^-|-$/g, ""))
+      .filter(Boolean);
+
     const res = await upsertSupervisorProfile({
       title,
       bio,
       researchDomains: domains,
-      preferredStacks: stacks,
-      skillSlugs: ["typescript", "postgresql", "opentelemetry"],
+      preferredStacks: stacks.length > 0 ? stacks : ["TypeScript"],
+      skillSlugs: derivedSkillSlugs.length > 0 ? derivedSkillSlugs : ["typescript"],
       maxSlots,
       isAccepting,
     });
@@ -122,7 +139,7 @@ export default function SupervisorPortalPage() {
     }
 
     setStatusMessage(
-      "Supervisor research profile and 1536-dim domain embedding updated."
+      "Supervisor research profile and 1536-dim domain embedding saved to database."
     );
   }
 
@@ -354,6 +371,17 @@ export default function SupervisorPortalPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {requests.length === 0 && (
+                  <div className="rounded-[8px] border border-dashed border-border-default bg-bg-subtle p-6 text-center">
+                    <p className="text-sm font-medium text-text-primary">
+                      No Incoming Supervision Requests Yet
+                    </p>
+                    <p className="mt-1 text-xs text-text-secondary">
+                      Once students match with your research domains and submit a proposal pitch,
+                      their vetted requests will appear here for review.
+                    </p>
+                  </div>
+                )}
                 {requests.map((req) => (
                   <div
                     key={req.id}

@@ -104,7 +104,14 @@ export default function CoordinatorDashboardPage() {
 
   async function handleCreateArchive(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !abstractText.trim()) return;
+    if (title.trim().length < 8) {
+      setFeedback("Archive title must be at least 8 characters.");
+      return;
+    }
+    if (abstractText.trim().length < 10) {
+      setFeedback("Please enter a project abstract (100+ chars for immediate indexing).");
+      return;
+    }
 
     const stack = techStackText
       .split(",")
@@ -118,6 +125,7 @@ export default function CoordinatorDashboardPage() {
       title,
       abstract: abstractText,
       academicYear,
+      programCode,
       domain,
       techStack: stack.length > 0 ? stack : ["TypeScript"],
     });

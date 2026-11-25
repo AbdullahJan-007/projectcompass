@@ -865,7 +865,7 @@ export default function StudentProfilePage() {
                     disabled={isSaving}
                     onClick={handleNavigateToRecommendations}
                   >
-                    Generate FYP Recommendations
+                    {isSaving ? "Saving & Generating..." : "Generate FYP Recommendations"}
                   </Button>
                   {!isReadyForRecommendations && (
                     <p className="text-[11px] text-text-muted text-center">

@@ -182,7 +182,7 @@ export default function HomePage() {
             </CardHeader>
             <CardContent>
               <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3 text-xs text-text-secondary font-mono-tabular">
-                Dr. Kamran Siddiqui · Distributed Systems (3 of 5 slots available)
+                IT &amp; Computing Faculty · Live Slot Quota Verification (Atomic Lock)
               </div>
             </CardContent>
           </Card>
@@ -192,7 +192,8 @@ export default function HomePage() {
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-4 w-4 text-status-success" strokeWidth={1.75} />
             <span>
-              ProjectCompass Academic Decision-Support System · Department of Computer Science
+              ProjectCompass Academic Decision-Support System · Department of Information Technology
+              &amp; Computing
             </span>
           </div>
           <div className="flex items-center gap-4">
