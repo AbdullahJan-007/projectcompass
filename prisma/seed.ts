@@ -74,7 +74,109 @@ async function main() {
   }
 
   const departmentId = DEPARTMENT_MAP["CS"]!.id;
+  const includeDemoData =
+    process.env.SEED_DEMO_DATA === "true" && process.env.NODE_ENV !== "production";
 
+  // 2. 62 Canonical Skills across 7 categories
+  const skillIdBySlug = new Map<string, string>();
+  for (const skill of CANONICAL_SKILLS) {
+    const upsertedSkill = await prisma.skill.upsert({
+      where: { slug: skill.slug },
+      update: {
+        displayName: skill.displayName,
+        category: skill.category,
+      },
+      create: {
+        slug: skill.slug,
+        displayName: skill.displayName,
+        category: skill.category,
+      },
+    });
+    skillIdBySlug.set(skill.slug, upsertedSkill.id);
+  }
+
+  // 3. 42 Curated SeedIdeaTemplate Archetypes with 1536-dim embeddings (Production Reference Catalog)
+  for (const seed of SEED_IDEA_TEMPLATES) {
+    const upsertedSeed = await prisma.seedIdeaTemplate.upsert({
+      where: { slug: seed.slug },
+      update: {
+        title: seed.title,
+        domain: seed.domain,
+        problemSummary: seed.problemSummary,
+        coreDeliverable: seed.coreDeliverable,
+        requiredSkillSlugs: seed.requiredSkillSlugs,
+        recommendedStack: seed.recommendedStack,
+        difficulty: seed.difficulty,
+        baseEffortHours: seed.baseEffortHours,
+        publicDatasetAvailable: seed.publicDatasetAvailable,
+        standardHardwareSufficient: seed.standardHardwareSufficient,
+        noPaidApiLockin: seed.noPaidApiLockin,
+        careerTracks: seed.careerTracks,
+        isActive: true,
+      },
+      create: {
+        id: seed.id,
+        slug: seed.slug,
+        title: seed.title,
+        domain: seed.domain,
+        problemSummary: seed.problemSummary,
+        coreDeliverable: seed.coreDeliverable,
+        requiredSkillSlugs: seed.requiredSkillSlugs,
+        recommendedStack: seed.recommendedStack,
+        difficulty: seed.difficulty,
+        baseEffortHours: seed.baseEffortHours,
+        publicDatasetAvailable: seed.publicDatasetAvailable,
+        standardHardwareSufficient: seed.standardHardwareSufficient,
+        noPaidApiLockin: seed.noPaidApiLockin,
+        careerTracks: seed.careerTracks,
+        isActive: true,
+      },
+    });
+
+    const embeddingText = `${seed.title} | ${seed.domain} | ${seed.requiredSkillSlugs.join(", ")} | ${seed.problemSummary} | ${seed.coreDeliverable}`;
+    const vecLiteral = toPgVectorLiteral(generateDeterministicEmbedding(embeddingText));
+    await prisma.$executeRaw`
+      UPDATE "SeedIdeaTemplate"
+      SET embedding = ${vecLiteral}::vector
+      WHERE id = ${upsertedSeed.id}
+    `;
+  }
+
+  // 4. 12 MarketTrendSnapshot Benchmarks (Production Reference Catalog)
+  for (const trend of MARKET_TREND_SNAPSHOTS) {
+    await prisma.marketTrendSnapshot.upsert({
+      where: { domainSlug: trend.domainSlug },
+      update: {
+        domainName: trend.domainName,
+        demandLevel: trend.demandLevel,
+        trendDirection: trend.trendDirection,
+        topTechPairings: trend.topTechPairings,
+        portfolioSignal: trend.portfolioSignal,
+        sourceSummary: trend.sourceSummary,
+        versionLabel: trend.versionLabel,
+      },
+      create: {
+        id: trend.id,
+        domainSlug: trend.domainSlug,
+        domainName: trend.domainName,
+        demandLevel: trend.demandLevel,
+        trendDirection: trend.trendDirection,
+        topTechPairings: trend.topTechPairings,
+        portfolioSignal: trend.portfolioSignal,
+        sourceSummary: trend.sourceSummary,
+        versionLabel: trend.versionLabel,
+      },
+    });
+  }
+
+  if (!includeDemoData) {
+    return;
+  }
+
+  // ============================================================================
+  // LOCAL / CI DEMO DATA ONLY (Never seeded into production or Supabase unless
+  // SEED_DEMO_DATA="true" is explicitly set in a non-production environment)
+  // ============================================================================
   const activeCohort = await prisma.cohort.upsert({
     where: {
       departmentId_name: {
@@ -95,25 +197,7 @@ async function main() {
     },
   });
 
-  // 2. 62 Canonical Skills across 7 categories
-  const skillIdBySlug = new Map<string, string>();
-  for (const skill of CANONICAL_SKILLS) {
-    const upsertedSkill = await prisma.skill.upsert({
-      where: { slug: skill.slug },
-      update: {
-        displayName: skill.displayName,
-        category: skill.category,
-      },
-      create: {
-        slug: skill.slug,
-        displayName: skill.displayName,
-        category: skill.category,
-      },
-    });
-    skillIdBySlug.set(skill.slug, upsertedSkill.id);
-  }
-
-  // 3. Baseline Student & Faculty University Portal Accounts (Parity with Dual-Auth Sign-In)
+  // 5. Local Demo Student & Faculty Accounts
   const defaultAccounts = buildDefaultAccountsDb();
   for (const stu of defaultAccounts.studentAccounts) {
     const stuUser = await prisma.user.upsert({
@@ -247,81 +331,7 @@ async function main() {
     });
   }
 
-  // 4. 42 Curated SeedIdeaTemplate Archetypes with 1536-dim embeddings
-  for (const seed of SEED_IDEA_TEMPLATES) {
-    const upsertedSeed = await prisma.seedIdeaTemplate.upsert({
-      where: { slug: seed.slug },
-      update: {
-        title: seed.title,
-        domain: seed.domain,
-        problemSummary: seed.problemSummary,
-        coreDeliverable: seed.coreDeliverable,
-        requiredSkillSlugs: seed.requiredSkillSlugs,
-        recommendedStack: seed.recommendedStack,
-        difficulty: seed.difficulty,
-        baseEffortHours: seed.baseEffortHours,
-        publicDatasetAvailable: seed.publicDatasetAvailable,
-        standardHardwareSufficient: seed.standardHardwareSufficient,
-        noPaidApiLockin: seed.noPaidApiLockin,
-        careerTracks: seed.careerTracks,
-        isActive: true,
-      },
-      create: {
-        id: seed.id,
-        slug: seed.slug,
-        title: seed.title,
-        domain: seed.domain,
-        problemSummary: seed.problemSummary,
-        coreDeliverable: seed.coreDeliverable,
-        requiredSkillSlugs: seed.requiredSkillSlugs,
-        recommendedStack: seed.recommendedStack,
-        difficulty: seed.difficulty,
-        baseEffortHours: seed.baseEffortHours,
-        publicDatasetAvailable: seed.publicDatasetAvailable,
-        standardHardwareSufficient: seed.standardHardwareSufficient,
-        noPaidApiLockin: seed.noPaidApiLockin,
-        careerTracks: seed.careerTracks,
-        isActive: true,
-      },
-    });
-
-    const embeddingText = `${seed.title} | ${seed.domain} | ${seed.requiredSkillSlugs.join(", ")} | ${seed.problemSummary} | ${seed.coreDeliverable}`;
-    const vecLiteral = toPgVectorLiteral(generateDeterministicEmbedding(embeddingText));
-    await prisma.$executeRaw`
-      UPDATE "SeedIdeaTemplate"
-      SET embedding = ${vecLiteral}::vector
-      WHERE id = ${upsertedSeed.id}
-    `;
-  }
-
-  // 5. 12 MarketTrendSnapshot records (2026-Q4)
-  for (const trend of MARKET_TREND_SNAPSHOTS) {
-    await prisma.marketTrendSnapshot.upsert({
-      where: { domainSlug: trend.domainSlug },
-      update: {
-        domainName: trend.domainName,
-        demandLevel: trend.demandLevel,
-        trendDirection: trend.trendDirection,
-        topTechPairings: trend.topTechPairings,
-        portfolioSignal: trend.portfolioSignal,
-        sourceSummary: trend.sourceSummary,
-        versionLabel: trend.versionLabel,
-      },
-      create: {
-        id: trend.id,
-        domainSlug: trend.domainSlug,
-        domainName: trend.domainName,
-        demandLevel: trend.demandLevel,
-        trendDirection: trend.trendDirection,
-        topTechPairings: trend.topTechPairings,
-        portfolioSignal: trend.portfolioSignal,
-        sourceSummary: trend.sourceSummary,
-        versionLabel: trend.versionLabel,
-      },
-    });
-  }
-
-  // 6. 5 Demo Supervisors & 11 Demo Past-FYP Archives
+  // 6. Local Demo Supervisors & Past-FYP Archives
   for (const sup of DEMO_SUPERVISORS) {
     const existingAccount = defaultAccounts.facultyAccounts.find(
       (f) => f.universityEmail.toLowerCase() === sup.email.toLowerCase()

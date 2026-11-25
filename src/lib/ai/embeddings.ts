@@ -58,10 +58,11 @@ export function generateDeterministicEmbedding(text: string): number[] {
 export async function generateTextEmbedding(text: string): Promise<number[]> {
   const sanitized = text.replace(/[\u0000-\u001F\u007F]/g, " ").trim().slice(0, 6000);
 
+  const key = env.AI_API_KEY.trim();
   const hasLiveKey =
-    env.AI_API_KEY.startsWith("sk-") &&
-    !env.AI_API_KEY.includes("replace_me") &&
-    !env.AI_API_KEY.includes("placeholder");
+    key.length >= 12 &&
+    !key.toLowerCase().includes("replace_me") &&
+    !key.toLowerCase().includes("placeholder");
 
   if (!hasLiveKey) {
     return generateDeterministicEmbedding(sanitized);
@@ -70,11 +71,13 @@ export async function generateTextEmbedding(text: string): Promise<number[]> {
   try {
     const openai = createOpenAI({
       baseURL: env.AI_PROVIDER_BASE_URL,
-      apiKey: env.AI_API_KEY,
+      apiKey: key,
     });
 
     const { embedding } = await embed({
-      model: openai.embedding(env.AI_EMBEDDING_MODEL),
+      model: openai.embedding(env.AI_EMBEDDING_MODEL, {
+        dimensions: EMBEDDING_DIMENSIONS,
+      }),
       value: sanitized,
       abortSignal: AbortSignal.timeout(env.AI_REQUEST_TIMEOUT_MS),
     });

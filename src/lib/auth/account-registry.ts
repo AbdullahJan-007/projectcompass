@@ -162,6 +162,15 @@ export function buildDefaultAccountsDb(): AccountsDatabaseStore {
 }
 
 export function readAccountsStore(): AccountsDatabaseStore {
+  // Never serve local demo/dummy accounts in production deployments (Vercel/Supabase)
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  ) {
+    return { studentAccounts: [], facultyAccounts: [] };
+  }
+
   const defaults = buildDefaultAccountsDb();
   try {
     if (!fs.existsSync(REGISTRY_FILE_PATH)) {

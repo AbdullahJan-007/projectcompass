@@ -511,6 +511,23 @@ function createDefaultInstitutionalState(): InstitutionalDatabaseState {
 }
 
 export function readInstitutionalDb(): InstitutionalDatabaseState {
+  // Never serve local demo/dummy fallback data in production deployments (Vercel/Supabase)
+  if (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  ) {
+    return {
+      studentProfiles: {},
+      recommendationsByUser: {},
+      milestoneStatuses: {},
+      supervisors: [],
+      supervisionRequests: [],
+      archives: [],
+      auditLogs: [],
+    };
+  }
+
   try {
     if (!fs.existsSync(DB_FILE_PATH)) {
       const initial = createDefaultInstitutionalState();

@@ -14,11 +14,10 @@ export interface LlmSynthesisResult {
 }
 
 export function isLiveAiProviderConfigured(): boolean {
-  return (
-    env.AI_API_KEY.startsWith("sk-") &&
-    !env.AI_API_KEY.includes("replace_me") &&
-    !env.AI_API_KEY.includes("placeholder")
-  );
+  const key = env.AI_API_KEY.trim();
+  if (key.length < 12) return false;
+  const lower = key.toLowerCase();
+  return !lower.includes("replace_me") && !lower.includes("placeholder");
 }
 
 /**
