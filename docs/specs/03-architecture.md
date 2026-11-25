@@ -136,11 +136,11 @@ projectcompass/
 │   ├── local-accounts-db.json         # Persistent local DB registry for StudentAccount & FacultyAccount
 │   └── local-institutional-db.json    # Persistent local DB store for profiles, runs, archives & logs
 ├── docs/
-│   ├── specs/                         # Indexed by Antigravity (01 through 11)
-│   └── academic/                      # Excluded from Antigravity (.antigravityignore)
+│   ├── specs/                         # Engineering specifications (01 through 11)
+│   └── academic/                      # Defense script & portfolio summary
 ├── src/
 │   ├── app/
-│   │   ├── page.tsx                   # Humanized institutional landing portal
+│   │   ├── page.tsx                   # Institutional landing portal
 │   │   ├── (auth)/
 │   │   │   ├── sign-in/[[...sign-in]]/page.tsx # University RegNo (B23F0184CS042) & Faculty 4-Digit PIN login
 │   │   │   └── sign-up/[[...sign-up]]/page.tsx # Separate StudentAccount & FacultyAccount DB registration

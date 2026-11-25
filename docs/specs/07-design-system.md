@@ -6,18 +6,16 @@
 
 ---
 
-## 1. Visual Philosophy & Anti-AI-Slop Mandate
+## 1. Visual Design Principles
 
-ProjectCompass must look and behave like a crafted institutional engineering product—like Linear or Stripe Docs tailored for university research—never a generic AI SaaS template.
+ProjectCompass uses a high-contrast, editorial light interface designed for extended academic planning, feasibility analysis, and roadmap review.
 
-- **Light surface first:** Clean alabaster canvas (`#F8FAFC`) and elevated white cards (`#FFFFFF`) prevent eye fatigue during extended planning and roadmap reviews. Deep ink navy (`#0F172A`) anchors headings, key data, and structural contrast.
-- **Strictly Prohibited Patterns:**
-  - Indigo-to-purple generic gradients or dark-mode-first surfaces.
-  - Floating blurred neon blobs behind hero sections.
-  - Emoji used in place of vector icons (use `lucide-react` exclusively at `strokeWidth={1.75}`).
-  - Generic centered "Welcome to our AI-powered platform" copy or "Project 1 / Item A" placeholders.
-  - Unstyled default shadcn/ui boxes with identical padding and no typographic hierarchy.
-  - Artificial debug state dropdowns (`"State: Populated"`, `"Simulate LLM Fallback"`) or synthetic AI/vibe-coding jargon exposed in production user interfaces.
+- **Light Surface Hierarchy:** Clean alabaster canvas (`#F8FAFC`) paired with crisp white cards (`#FFFFFF`) and hairline borders (`#E2E8F0`) keeps dense quantitative data legible without visual fatigue. Deep ink navy (`#0F172A`) anchors typography and primary structure, while Academic Teal (`#0F766E`) highlights primary actions and active navigation.
+- **Consistency & Restraint:**
+  - Use `lucide-react` vector icons (`strokeWidth={1.75}`) consistently across all controls and navigation.
+  - Keep elevation minimal: `1px` borders and subtle ambient shadows (`0 1px 2px rgba(15, 23, 42, 0.04)`).
+  - Reserve accent colors strictly for semantic status (feasibility scores, duplicate risk alerts, slot availability).
+  - Never expose internal debug toggles or placeholder copy in production views.
 
 ---
 
@@ -67,7 +65,7 @@ Every component MUST reference CSS custom properties / Tailwind theme tokens—z
 - **Spacing System:** Strict `4px` base grid (`4, 8, 12, 16, 24, 32, 48px`). Max content width `1280px` inside a clean `248px` fixed desktop sidebar shell (`bg-subtle` with `1px` right border).
 
 ### Customizing shadcn/ui Beyond Defaults
-- **Radius:** Standardize on crisp `8px` (`--radius: 0.5rem`) for cards/inputs and `6px` for buttons/badges — avoid overly bubbly `rounded-3xl` boxes.
+- **Radius:** Standardize on crisp `8px` (`--radius: 0.5rem`) for cards/inputs and `6px` for buttons/badges for consistent geometric alignment.
 - **Elevation:** Use hairline borders (`1px solid var(--border-default)`) + subtle ambient shadow (`0 1px 2px rgba(15, 23, 42, 0.04)`) rather than heavy drop shadows.
 - **Motion Discipline:** Animations are permitted ONLY for purposeful state feedback (`150ms ease-out` tab indicator slide, accordion expand for score breakdowns, subtle progress bar fill on recommendation generation). Respect `prefers-reduced-motion`.
 - **Select / Dropdowns:** Use the custom accessible `Select` in `src/components/ui/select.tsx` (ARIA `combobox` + `listbox` popover, keyboard navigable, `aria-controls` via `React.useId()`). Do not use native `<select>` with `truncate`/`overflow: hidden` — on Windows Chromium it renders a black scrollbar arrow artifact. `color-scheme: light` is set globally.
@@ -121,9 +119,9 @@ Every route below MUST implement **Loading (matched skeleton)**, **Empty (action
 
 ---
 
-## 5. Humanized Copy & Realistic Domain Sample Data
+## 5. Domain Content & Copy Standards
 
-Use realistic academic CS data throughout UI previews, empty-state examples, and `prisma/seed.ts` — never lorem ipsum:
+Use realistic academic IT & Computing domain data throughout empty-state guidance and local seed previews — never lorem ipsum:
 - **Sample Idea Title:** *"Deterministic CI Log Anomaly Triage Engine for Small Engineering Teams"*
 - **Sample Supervisor:** *"Dr. Kamran Siddiqui — Associate Professor, Distributed Systems & Automated Software Testing (3 of 5 slots open)"*
 - **Sample Past Archive Match:** *"Automated Server Log Visualizer (BSIT 2023 — 84% similarity)"*

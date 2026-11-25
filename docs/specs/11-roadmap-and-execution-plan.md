@@ -1,101 +1,65 @@
-# 11 — Roadmap & Phased Antigravity Execution Plan
+# 11 — Engineering Roadmap & Release Milestones
 
 **Project:** ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System  
 **Author:** Abdullah Jan  
-**Document Coverage:** Section 22 (MVP Implementation Roadmap), Antigravity Phase Prompts & Gates, Section 25 (Post-MVP & FYP-MS Expansion)
+**Document Coverage:** Completed MVP Milestones (Phases 0–5), Production Hardening, and Post-MVP FYP-MS Roadmap
 
 ---
 
-## 1. Execution Status Summary (Phases 0–5 Completed & Verified)
+## 1. Release Status Summary (Phases 0–5 Completed & Verified)
 
-All 6 implementation phases (Phase 0 through Phase 5) have been executed, humanized, and verified against automated gates:
-- **`pnpm prisma validate` & `pnpm prisma generate`**: Validated (`StudentAccount`, `FacultyAccount`, `pgvector` 1536-dim HNSW indexes, CHECK constraints).
-- **`pnpm typecheck` (`tsc --noEmit`)**: **0 errors** (TypeScript 5.9 strict mode + `noUncheckedIndexedAccess`).
-- **`pnpm lint` (`eslint . --max-warnings=0`)**: **0 errors, 0 warnings**.
-- **`pnpm test` (Vitest 3.2)**: **6 test suites passed (24/24 unit & integration tests)**.
-- **`pnpm test:e2e` (Playwright 1.65)**: **2/2 end-to-end browser journeys passed**.
-- **`pnpm build` (Next.js 15.5 App Router)**: **19/19 routes compiled cleanly**.
+All six core implementation phases are complete and verified against the automated CI pipeline:
 
-Do NOT ask Antigravity to build the entire repository in one prompt when extending. Execute phases sequentially and verify every gate before advancing.
-
----
-
-## 2. Phase-by-Phase Build Schedule (Section 22)
-
-### Phase 0 — Foundation, Tooling, Database & Design System Tokens
-- **Goal:** Scaffold latest stable Next.js App Router + strict TypeScript + Tailwind CSS + themed shadcn/ui + Prisma (`pgvector`) + Docker Compose local DB + Zod env validation + `/api/health`.
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/03-architecture.md`, `docs/specs/04-database-schema.md`, and `docs/specs/07-design-system.md`. Execute Phase 0 only:
-  > 1. Verify latest stable setup docs for Next.js App Router, Tailwind CSS, shadcn/ui, and Prisma before generating config files.
-  > 2. Scaffold the repo structure defined in `03-architecture.md` with TypeScript strict mode (`strict: true`, `noUncheckedIndexedAccess: true`), ESLint flat config, Prettier, and Vitest.
-  > 3. Configure `docker-compose.yml` (`pgvector/pgvector:pg16`), `src/lib/env.ts` (Zod), `src/lib/db.ts` (Prisma singleton), `prisma/schema.prisma`, and the custom `pgvector` HNSW + CHECK constraint SQL migration from `04-database-schema.md`.
-  > 4. Configure `Plus Jakarta Sans`, `Inter`, and `JetBrains Mono` via CSS font variables + a runtime Google Fonts stylesheet (no build-time `next/font/google` fetch, so CI/offline builds never fail) and wire every light-theme WCAG AA CSS/Tailwind token from `07-design-system.md` into globals and custom-themed shadcn/ui base components (`Button`, `Card`, `Badge`, `Input`, `Select`, `Tabs`, `Skeleton`, `Dialog`).
-  > 5. Implement `src/app/api/health/route.ts` checking DB and `pgvector` connectivity.
-  > 6. Run `pnpm typecheck`, `pnpm lint`, and `pnpm prisma validate` before finishing.
-- **Gate 0:** `docker compose up -d db` starts cleanly; `prisma migrate dev` succeeds with HNSW indexes; `/api/health` returns `200`; zero TS/lint errors.
-
-### Phase 1 — Auth Adapter (Clerk), Webhooks, RBAC & Onboarding
-- **Goal:** Working Clerk auth wrapped behind `src/lib/auth/session.ts`, Svix-verified Clerk webhook, Department/Cohort onboarding, and role-based dashboard shell.
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/01-product-brief.md` (Section 7 RBAC), `docs/specs/05-api-design.md`, and `docs/specs/07-design-system.md`. Execute Phase 1 only:
-  > 1. Implement `src/lib/auth/session.ts` (`getCurrentUser`, `requireUser`, `requireRole`) wrapping Clerk so all business logic uses internal `User.id` and never couples directly to Clerk APIs.
-  > 2. Implement `src/app/api/webhooks/clerk/route.ts` with strict Svix signature verification handling `user.created`, `user.updated`, and `user.deleted` idempotently.
-  > 3. Build `/sign-in`, `/sign-up`, `/onboarding` (`completeOnboarding` Server Action restricting self-signup to `STUDENT` or `SUPERVISOR`), and the responsive light-theme App Shell (`248px` sidebar, role-filtered navigation).
-  > 4. Add Vitest integration tests verifying RBAC denial (`UNAUTHORIZED`, `FORBIDDEN`) and onboarding role-escalation rejection.
-  > 5. Run `pnpm typecheck`, `pnpm lint`, and `pnpm test`.
-- **Gate 1:** Auth + onboarding + role-scoped sidebar work end-to-end; RBAC tests pass.
-
-### Phase 2 — Cold-Start Seed Catalog, Student/Supervisor Profiles & Archive Ingestion
-- **Goal:** Populate 40+ curated CS seed archetypes + 12 market trends, build Student & Supervisor profile forms, and wire Coordinator archive upload (UploadThing + Inngest embedding pipeline).
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/02-workflows.md` (State Machine 3), `docs/specs/04-database-schema.md` (Section 5), `docs/specs/05-api-design.md`, and `docs/specs/07-design-system.md` (Screens 1 & 5). Execute Phase 2 only:
-  > 1. Implement idempotent `prisma/seed.ts` with 60+ canonical skills, 40+ high-rigor CS/SE/AI `SeedIdeaTemplate` records, 12 `MarketTrendSnapshot` (`Current Benchmark`) records, and demo department/cohort/supervisors/archives.
-  > 2. Implement `src/lib/ai/embeddings.ts` (Vercel AI SDK `text-embedding-3-small`, 1536 dims, with local deterministic test-mode fallback when `AI_API_KEY` is absent in unit tests).
-  > 3. Implement `upsertStudentProfile` and `upsertSupervisorProfile` Server Actions and build `/dashboard/profile` (with live effort budget calculator & readiness checklist) and `/dashboard/supervisor` profile/quota settings.
-  > 4. Implement `/api/uploadthing`, `/api/inngest`, `archiveIngestFunction`, `createArchiveRecord`, `retryArchiveEmbedding`, and `/dashboard/coordinator` archive dashboard handling all 5 `ArchiveIngestStatus` states.
-  > 5. Run `pnpm typecheck`, `pnpm lint`, `pnpm test`, and verify `pnpm prisma db seed`.
-- **Gate 2:** Seed runs cleanly; Student profile saves & embeds; Coordinator uploads PDF/manual abstract and sees `PENDING_EMBEDDING -> READY` (and `NEEDS_MANUAL_ABSTRACT` on empty PDF).
-
-### Phase 3 — The 3-Stage Hybrid Recommendation Engine & Explainability UI
-- **Goal:** Build and unit-test deterministic feasibility math, `pgvector` duplicate gate, MMR diversity selection, guardrailed Vercel AI SDK synthesis + deterministic fallback, and Screen 2 UI.
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/02-workflows.md` (State Machine 1), `docs/specs/03-architecture.md` (Section 3), `docs/specs/05-api-design.md`, `docs/specs/06-ai-policy.md`, and `docs/specs/07-design-system.md` (Screen 2). Execute Phase 3 only:
-  > 1. Implement pure, unit-testable modules in `src/lib/recommendation/`: `feasibility.ts` (40/30/20/10 exact formula), `duplicate-check.ts` (`0.72` / `0.82` thresholds via `pgvector`), `diversity.ts` (MMR 3-track selector), `supervisor-ranker.ts` (capacity-guarded + 10% load-balance weight), and `engine.ts` (full 3-stage orchestrator + `COMPLETED_FALLBACK`).
-  > 2. Implement `src/lib/ai/client.ts`, `schemas.ts`, and `prompts.ts` with XML delimiter prompt-injection isolation and `AbortSignal.timeout(25000)`.
-  > 3. Implement `generateRecommendations` and `updateIdeaStatus` Server Actions with daily quota (`5/24h`) and concurrent-run guard.
-  > 4. Build `/dashboard/recommendations` with 3-track navigation, expandable 4-factor Feasibility Score breakdown, Duplicate Risk banner + differentiation angle, Skill-Gap table, Tech Stack rationale table, Market-Trend badge, and multi-step loading progress.
-  > 5. Write comprehensive Vitest unit & integration tests covering feasibility edge cases, duplicate thresholds, MMR diversity, and LLM outage fallback.
-- **Gate 3:** All math/fallback Vitest suites pass (`>= 90%` coverage on `src/lib/recommendation/`); recommendations render in `< 12s` live and `< 2s` in fallback mode.
-
-### Phase 4 — Availability-Aware Supervisor Matching, Atomic Requests & Roadmap Generator
-- **Goal:** Complete the vertical slice from matched supervisor request -> atomic acceptance -> week-by-week calibrated roadmap + Markdown export + Resend notifications.
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/02-workflows.md` (State Machines 2 & 4), `docs/specs/05-api-design.md`, and `docs/specs/07-design-system.md` (Screens 3 & 4). Execute Phase 4 only:
-  > 1. Implement `createSupervisionRequest`, `withdrawSupervisionRequest`, and `respondToSupervisionRequest` (with atomic PostgreSQL conditional `activeSlots < maxSlots` increment inside `prisma.$transaction`, auto-withdrawal of other pending requests on accept, and Resend email notifications).
-  > 2. Implement `src/lib/recommendation/roadmap-planner.ts` (deterministic `prepWeeks` + 4-phase allocator guaranteeing `sum(weeks) === durationWeeks`), `generateProjectRoadmap`, `toggleMilestoneStatus`, and `exportRoadmapMarkdown`.
-  > 3. Build `/dashboard/supervisors` (student matching & pitch modal + collapsed full-capacity section), `/dashboard/supervisor` (incoming request review + accept/decline), `/dashboard/roadmaps/[id]` (`--grad-contrast` banner, interactive timeline, Markdown export), and `/dashboard/market-trends`.
-  > 4. Write Vitest integration test for concurrent last-slot acceptance (`Promise.allSettled`) proving zero over-allocation, plus unit tests for roadmap week allocation across `12/16/24/36` weeks.
-- **Gate 4:** Concurrent slot race-condition test passes; emails dispatch cleanly; roadmaps export clean Markdown.
-
-### Phase 5 — Admin Controls, Public Landing Page, Playwright E2E & Production Hardening
-- **Goal:** Finalize Admin panel, humanized landing page, Sentry + PostHog wiring, security headers, Playwright E2E suite, GitHub Actions CI, and production deployment checklist.
-- **Antigravity Prompt (Copy & Paste):**
-  > Read `ANTIGRAVITY_RULES.md`, `docs/specs/07-design-system.md`, and `docs/specs/08-security-threat-model.md`, `docs/specs/09-testing-strategy.md`, and `docs/specs/10-deployment-and-ops.md`. Execute Phase 5 only:
-  > 1. Build `/dashboard/admin` (departments, cohorts, role updates with last-admin protection, audit logs) and `/` public landing page following `07-design-system.md` (light alabaster base, real engineering preview, zero AI boilerplate).
-  > 2. Wire Sentry error tracking, PostHog funnel telemetry (PII-scrubbed), `/api/webhooks/resend`, security headers in `next.config.ts`, and production `Dockerfile`.
-  > 3. Create `.github/workflows/ci.yml` (`prisma validate -> typecheck -> lint -> vitest -> build`) and Playwright E2E tests in `tests/e2e/` for Student golden path and Coordinator RBAC boundary.
-  > 4. Run full verification (`pnpm typecheck && pnpm lint && pnpm test && pnpm build`) and audit every route for WCAG AA contrast, loading/empty/error states, and zero console logs or `TODO`s.
-- **Gate 5:** Full CI green, Playwright E2E green, ready for Vercel + Supabase production deploy.
-
----
-
-## 3. Post-MVP & FYP Management System (FYP-MS) Roadmap (Section 25)
-
-Because core schemas (`Department`, `Cohort`, `SupervisorProfile`, `ProjectArchive`, `RecommendedIdea`) are already normalized, the following modules plug directly into ProjectCompass post-MVP:
-
-| Phase | Module | Capabilities Added |
+| Verification Gate | Command | Status |
 | :--- | :--- | :--- |
-| **Phase 6 (v1.1)** | **FYP Proposal Submission & Committee Review** | Students convert `SUPERVISOR_LOCKED` ideas into formal Proposal PDFs; committee panels score proposals against institutional rubrics and issue `APPROVED` / `REVISIONS_REQUIRED`. |
-| **Phase 7 (v1.2)** | **Live Milestone Tracking & Mid-Defense Evaluation** | Extends `RoadmapMilestone` with supervisor sign-offs, GitHub repo commit pulse links, and mid-term / final viva grading rubrics. |
-| **Phase 8 (v1.3)** | **Institutional Analytics & Multi-Tenant SaaS** | Cross-department skill-gap heatmaps (showing curriculum gaps to faculty), institutional SSO (SAML/Google Workspace), automated LMS sync, and Stripe institutional seat billing. |
-| **Phase 9 (v2.0)** | **Scale Optimization (If Needed)** | Optional swap from Clerk to Custom JWT via `src/lib/auth/session.ts` above 10k MAU; Cloudflare R2 migration if full thesis PDF archives exceed 100GB. |
+| **Schema & Vector Validation** | `pnpm prisma validate && pnpm prisma generate` | Passing (21 models, `pgvector` HNSW indexes, `CHECK` constraints) |
+| **Type Safety** | `pnpm typecheck` (`tsc --noEmit`) | 0 errors (TypeScript 5.9 strict mode + `noUncheckedIndexedAccess`) |
+| **Code Quality** | `pnpm lint` (`eslint . --max-warnings=0`) | 0 errors, 0 warnings |
+| **Unit, Integration & Security** | `pnpm test` (Vitest 3.2) | 7 suites / 31 tests passing |
+| **End-to-End & Responsive** | `pnpm test:e2e` (Playwright 1.65) | 3/3 specs passing (Golden Path, RBAC Security, Multi-Batch + `375px`/`768px`) |
+| **Production Bundle** | `pnpm build` (Next.js 15.5) | 18/18 routes compiled cleanly |
+
+---
+
+## 2. Completed Implementation Phases
+
+### Phase 0 — Foundation, Database Schema & Design Tokens
+- Scaffolded Next.js 15.5 App Router with strict TypeScript, Tailwind CSS v4, ESLint flat config, and Vitest.
+- Configured Zod environment validation (`src/lib/env.ts`), Prisma singleton with fast reachability circuit breaker (`src/lib/db.ts`), PostgreSQL `pgvector` HNSW migrations, and `/api/health`.
+- Established WCAG 2.1 AA light-theme tokens, CSS font variables (`Plus Jakarta Sans`, `Inter`, `JetBrains Mono`), and custom-themed Radix/shadcn primitives.
+
+### Phase 1 — Institutional Auth, RBAC & Multi-Batch Identity
+- Implemented dual-mode institutional authentication (`StudentAccount` via Reg No pattern `B[YY][F/S][4-Digits][DEPT][3-Digits]` and `FacultyAccount` via university email + salted SHA-256 4-digit PIN) behind `src/lib/auth/session.ts`, alongside a Svix-verified Clerk webhook adapter.
+- Built `/sign-in`, `/sign-up`, `/onboarding`, and the responsive dashboard shell with server-side RBAC layout guards across all 6 IT programs (`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS`) and all Fall/Spring batches.
+
+### Phase 2 — Reference Catalog, Profiles & Archive Ingestion
+- Authored idempotent `prisma/seed.ts` with 6 IT departments, 62 canonical skills, 42 curated FYP archetypes with 1536-dim embeddings, and 12 rolling market benchmarks (with demo data strictly gated to local/CI via `SEED_DEMO_DATA=true`).
+- Built Student Profile Builder (`/dashboard/profile`), Supervisor Profile & Quota settings (`/dashboard/supervisor`), and Coordinator Archive Dashboard (`/dashboard/coordinator`) with UploadThing + Inngest ingestion and `NEEDS_MANUAL_ABSTRACT` handling.
+
+### Phase 3 — 3-Stage Hybrid Recommendation Engine
+- Implemented pure, unit-tested modules in `src/lib/recommendation/`: deterministic feasibility scoring (`40/30/20/10`), `pgvector` duplicate risk gate (`0.72` / `0.82`), MMR 3-track diversity selection, and capacity-balanced supervisor ranking.
+- Built provider-agnostic AI synthesis (`src/lib/ai/client.ts` & `embeddings.ts`) supporting Google Gemini and OpenAI-compatible endpoints with XML prompt-injection isolation, `25s` timeout, and `COMPLETED_FALLBACK` resilience.
+- Built `/dashboard/recommendations` with expandable score breakdowns, duplicate warnings, skill-gap tables, and tech-stack rationales.
+
+### Phase 4 — Supervisor Matching, Atomic Quotas & Roadmaps
+- Implemented `createSupervisionRequest`, `withdrawSupervisionRequest`, and atomic `respondToSupervisionRequest` (conditional `activeSlots < maxSlots` inside `prisma.$transaction`, auto-withdrawing competing requests on accept).
+- Implemented deterministic roadmap week allocation (`src/lib/recommendation/roadmap-planner.ts`) guaranteeing `sum(weeks) === durationWeeks` across `12`–`36` weeks, interactive milestone tracking, and Markdown export.
+- Built `/dashboard/supervisors` (with IT program filter), `/dashboard/roadmaps/[id]`, and `/dashboard/market-trends`.
+
+### Phase 5 — Governance, Security Hardening, Responsive UI & CI/CD
+- Built `/dashboard/admin` governance (role updates with last-admin protection, department quotas, audit logs) and the public institutional landing portal (`/`).
+- Hardened security: HMAC-SHA256 expiring sessions (`7d`), fail-closed `AUTH_SECRET` requirement in production, canonical pre-DB login rate limiting, HTML output escaping, HTTP security headers, and `21/21` Supabase RLS lockdown.
+- Added mobile/tablet responsive navigation drawer, accessible custom `Select`, wrapping tabs, viewport-safe dialogs, GitHub Actions CI (`pgvector` service container + Playwright E2E), and Supabase + Vercel deployment readiness.
+
+---
+
+## 3. Post-MVP FYP Management System (FYP-MS) Roadmap
+
+Because core entities (`Department`, `Cohort`, `SupervisorProfile`, `ProjectArchive`, `RecommendedIdea`) are normalized, the following modules extend ProjectCompass cleanly post-MVP:
+
+| Release | Module | Capabilities |
+| :--- | :--- | :--- |
+| **v1.1** | **Proposal Submission & Committee Review** | Convert `SUPERVISOR_LOCKED` ideas into formal Proposal PDFs; panel rubric scoring (`APPROVED` / `REVISIONS_REQUIRED`). |
+| **v1.2** | **Milestone Sign-Off & Mid-Defense Evaluation** | Supervisor milestone approvals, GitHub repository activity links, and mid-term / final viva grading rubrics. |
+| **v1.3** | **Institutional Analytics & SSO** | Cross-department skill-gap heatmaps, university SAML / Google Workspace SSO, and LMS roster synchronization. |
+| **v2.0** | **Multi-University Scale** | Dedicated multi-tenant isolation, Cloudflare R2 archive storage for large thesis corpora, and enterprise billing. |

@@ -1,8 +1,7 @@
 # Resume / CV & Portfolio Bullet Points — ProjectCompass
 
 **Candidate:** Abdullah Jan  
-**Project:** ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System  
-**Note:** Stored in `docs/academic/` and excluded from Antigravity code-indexing via `.antigravityignore`.
+**Project:** ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System
 
 ---
 

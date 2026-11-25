@@ -2,8 +2,7 @@
 
 **Project:** ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System  
 **Presenter:** Abdullah Jan  
-**Target Duration:** 10 Minutes Presentation + Panel Q&A  
-**Note:** Stored in `docs/academic/` and excluded from Antigravity code-indexing via `.antigravityignore`.
+**Target Duration:** 10 Minutes Presentation + Panel Q&A
 
 ---
 

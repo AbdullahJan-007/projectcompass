@@ -2,6 +2,19 @@
 
 All notable changes to ProjectCompass are documented here.
 
+## 2026-11-25 — Production Readiness, Gemini AI Support & Documentation Overhaul
+
+### Added
+- Provider-agnostic AI key detection supporting **Google Gemini** (`gemini-3.8-flash` & `gemini-embedding-001` at `1536` dimensions via OpenAI-compatible endpoint) alongside OpenAI and compatible providers.
+- Live Supabase PostgreSQL 17 + `pgvector` schema, HNSW indexes, and `21/21` Row Level Security (RLS) lockdown.
+
+### Security & Production Hardening
+- Enforced **fail-closed `AUTH_SECRET`** validation in `src/lib/auth/token-signer.ts` when `NODE_ENV === "production"` (verified by `Exploit 7 Defense` unit test; 31/31 tests passing).
+- Restricted all demo accounts, sample supervisors, and sample archives to **local/CI environments only** (`SEED_DEMO_DATA=true` and `NODE_ENV !== "production"`), keeping production Supabase & Vercel strictly on real reference catalog + real user data.
+
+### Documentation
+- Redesigned `README.md`, `ANTIGRAVITY_RULES.md`, `docs/specs/07-design-system.md`, and `docs/specs/11-roadmap-and-execution-plan.md` for crisp, production-grade engineering clarity.
+
 ## 2026-11-24 — Department-Wide, Multi-Batch & Responsive Release (`2257da8`)
 
 ### Added

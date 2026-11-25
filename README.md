@@ -1,110 +1,153 @@
-# ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System
+# ProjectCompass
 
 [![CI](https://github.com/AbdullahJan-007/projectcompass/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/AbdullahJan-007/projectcompass/actions/workflows/ci.yml)
+![Next.js 15.5](https://img.shields.io/badge/Next.js-15.5-0F172A?style=flat-square)
+![TypeScript 5.9](https://img.shields.io/badge/TypeScript-5.9_Strict-0F766E?style=flat-square)
+![PostgreSQL pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-1E40AF?style=flat-square)
+![Playwright E2E](https://img.shields.io/badge/E2E-Playwright-15803D?style=flat-square)
 
-**Author:** Abdullah Jan  
-**System Class:** Production-Grade SaaS & Modular FYP Management System (FYP-MS) Core Module  
-**Scope:** Entire **Department of Information Technology & Computing** (`BSIT` · `BSCS` · `BSSE` · `BSAI` · `BSCY` · `BSDS`) across **all active Fall & Spring batches**  
-**Primary Stack:** Next.js 15.5 (App Router) + React 19, TypeScript 5.9 (Strict), Tailwind CSS v4 (`@tailwindcss/postcss`), custom-themed shadcn/ui (Radix UI), PostgreSQL 16 (`pgvector`), Prisma ORM 6.19, Dual-Mode Institutional Auth (University Reg No + Faculty Email with 4-digit PIN, HMAC-signed sessions, Clerk SSO adapter), Vercel AI SDK, Inngest, UploadThing, Resend, PostHog, Vitest 3.2, Playwright 1.65, GitHub Actions, Vercel, Docker
+**AI-Powered Final-Year Project (FYP) Idea, Feasibility & Supervisor Recommendation Platform** for the **Department of Information Technology & Computing** (`BSIT` · `BSCS` · `BSSE` · `BSAI` · `BSCY` · `BSDS`) across all Fall & Spring academic batches.
 
----
-
-## 1. What ProjectCompass Solves
-
-Final-Year Project (FYP) selection fails at scale across universities for two opposite reasons: students either recycle generic, saturated ideas (basic e-commerce clones, hospital CRUD apps) or propose unrealistic scopes that collapse midway through the semester. Meanwhile, faculty supervisors receive misaligned proposals or become overloaded while domain-matched supervisors remain underutilized.
-
-**ProjectCompass** is an engineering-first recommendation and planning platform—not a thin LLM prompt wrapper. It evaluates a student's verified skill profile, interests, academic background, weekly time budget, and career goal through a **3-stage hybrid engine**:
-
-1. **Deterministic SQL Filtering, Institutional Identity & Capacity Guard:** Authenticates students via University Registration Number pattern (`B[YY][F/S][4-Digits][DEPT][3-Digits]`, e.g., `B23F0184CS042`) and faculty via official University Email + 4-digit PIN, automatically extracting batch year, intake semester, IT program (`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS`), and enforcing supervisor slot availability (`activeSlots < maxSlots`) and scope-to-time feasibility before ranking begins.
-2. **Semantic Similarity & Anti-Duplicate Gate (`pgvector` + Explicit Scoring):** Searches 42 curated domain seed templates (solving Day-1 cold start) and historical department FYP archives via cosine similarity. Flags near-duplicates at similarity `>= 0.82` and computes a transparent **Explainable Feasibility Score (0–100)**.
-3. **Guardrailed AI Synthesis (`Vercel AI SDK` + Zod):** Generates grounded differentiation angles, skill-gap learning plans, and week-by-week project roadmaps strictly from retrieved records—with deterministic fallbacks (`COMPLETED_FALLBACK`) if the LLM provider fails.
+**Author:** Abdullah Jan
 
 ---
 
-## 2. Multi-Batch, Department-Wide & Responsive by Design
+## Overview
 
-| Capability | How It Works |
+University Final-Year Project selection routinely fails at two extremes: students either propose saturated CRUD clones that fail novelty review, or commit to over-scoped research topics that stall mid-semester due to unmeasured skill and time gaps. Meanwhile, faculty supervisors face misaligned proposals and uneven workload distribution.
+
+**ProjectCompass** models FYP selection as a constrained engineering decision problem using a **3-Stage Hybrid Recommendation Engine**:
+
+```text
+Student Profile (Skills, Hours, Interests, Batch, IT Program)
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│ Stage 1 · Deterministic SQL Filtering & Capacity Guard                │
+│  • Decodes institutional identity (Reg No → Batch, Intake, Program)   │
+│  • Filters supervisors by activeSlots < maxSlots & isAccepting = true │
+│  • Filters project archetypes by effort-to-time budget                │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│ Stage 2 · Semantic Retrieval (pgvector HNSW) & Feasibility Scoring    │
+│  • Cosine similarity over 42 curated archetypes & past FYP archives   │
+│  • Anti-duplicate gate: >= 0.72 Moderate Risk, >= 0.82 High Risk      │
+│  • Explainable 0–100 score: Skill (40) + Time (30) + Resource (20)    │
+│    + Supervisor Fit (10)                                              │
+└───────────────────────────────┬───────────────────────────────────────┘
+                                │
+                                ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│ Stage 3 · MMR Diversity Selection & Guardrailed AI Synthesis          │
+│  • Selects 3 distinct tracks: Core/Safe, Career-Stretch, Research     │
+│  • Vercel AI SDK (Gemini / OpenAI-compatible) + strict Zod schema     │
+│  • Deterministic fallback (COMPLETED_FALLBACK) guarantees uptime      │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Key Capabilities
+
+- **Department-Wide & Multi-Batch Support:** Deterministically parses University Registration Numbers (`B[YY][F/S][4-Digits][DEPT][3-Digits]`, e.g., `B22F0512IT673`) to resolve batch year, Fall/Spring intake, roll number, and degree program across **`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, and `BSDS`**.
+- **Four-Role Access Control (RBAC):** Dedicated server-guarded workspaces for **Students**, **Faculty Supervisors**, **FYP Coordinators**, and **University Admins**, backed by HMAC-SHA256 signed cookies with 7-day expiry, canonical login rate limiting, and fail-closed production `AUTH_SECRET` enforcement.
+- **Anti-Duplicate Archive Intelligence:** `pgvector` HNSW cosine similarity compares proposals against historical departmental archives, flagging high-overlap topics (`>= 0.82`) with concrete differentiation angles.
+- **Race-Safe Supervisor Matching:** Availability-aware faculty ranking with atomic PostgreSQL slot locking (`activeSlots < maxSlots` inside interactive transactions + database `CHECK` constraints) preventing concurrent over-allocation.
+- **Calibrated Execution Roadmaps:** Deterministic week allocator distributes skill-gap preparation weeks and 4 execution phases across `12`–`36` weeks with milestone tracking and Markdown export.
+- **Responsive Interface (`375px` → `1280px+`):** Mobile and tablet slide-over navigation drawer, accessible custom combobox selects, wrapping tabs, and viewport-safe dialogs — verified for zero horizontal overflow in Playwright.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
 | :--- | :--- |
-| **Any Batch (Fall & Spring)** | Batch year and intake are decoded from the Reg No (`B21F…`, `B22F…`, `B23S…`, `B24F…`). Nothing is hardcoded to a single cohort; the session carries a dynamic `batchLabel` such as `Fall 2022 · BSIT · Roll #512`. |
-| **All 6 IT & Computing Programs** | `DEPARTMENT_MAP` in [`src/lib/auth/university-id.ts`](src/lib/auth/university-id.ts) maps `IT`, `CS`, `SE`, `AI`, `CY`, `DS` to `BSIT`…`BSDS` with stable department IDs. Sign-up, onboarding, supervisor filters, coordinator archives, and admin governance all expose every program. |
-| **Program-Aware Faculty Matching** | Supervisors carry a `programCode`; students can filter faculty by program (e.g., `BSIT Faculty`) on `/dashboard/supervisors`. |
-| **Evergreen Market Benchmarks** | Market trend snapshots use a rolling `Current Benchmark` label instead of a fixed quarter. |
-| **Responsive UI (375px → 1280px+)** | Mobile/tablet sticky header with slide-over navigation drawer, wrapping tabs, viewport-safe dialogs, full-width filters on small screens, and desktop-only sticky side cards. Verified by Playwright with zero horizontal overflow at `375px` and `768px`. |
-| **Session Context** | [`PortalSessionProvider`](src/components/layout/portal-session-context.tsx) exposes the signed-in user's role, program, and batch to every dashboard screen via `usePortalSession()`. |
+| **Framework & UI** | Next.js 15.5 (App Router), React 19, TypeScript 5.9 (Strict), Tailwind CSS v4, Radix UI / shadcn/ui, Lucide Icons |
+| **Database & Vectors** | PostgreSQL 16/17 (Supabase), Prisma ORM 6.19, `pgvector` (`vector(1536)` + HNSW indexes), Row Level Security |
+| **AI & Embeddings** | Vercel AI SDK (`generateObject`, `embed`), Google Gemini (`gemini-3.8-flash` / `gemini-embedding-001`) or OpenAI-compatible providers, Zod |
+| **Auth & Security** | Institutional Reg No / Faculty Email + salted SHA-256 4-digit PIN, HMAC-SHA256 expiring sessions, optional Clerk SSO adapter |
+| **Async & Integrations** | Inngest (archive ingestion), UploadThing (PDF/CSV), Resend (email notifications), PostHog, Sentry |
+| **Verification & CI/CD** | Vitest 3.2 (31 unit/integration/security tests), Playwright 1.65 (3 E2E specs), GitHub Actions, Vercel, Docker |
 
 ---
 
-## 3. Repository Documentation Map
+## Quick Local Setup
 
-Build specifications and academic deliverables are intentionally separated so agentic IDEs (such as Antigravity) index only executable engineering contracts and ignore presentation scripts.
+### Prerequisites
+- Node.js 22+ and `pnpm` 10+
+- PostgreSQL 16+ with `pgvector` (Supabase or local Docker via `docker compose up -d db`)
 
-| Path | Audience | Purpose |
-| :--- | :--- | :--- |
-| `ANTIGRAVITY_RULES.md` | Antigravity / AI Coding Agent | Mandatory architecture, UI/UX, strict TypeScript, and verification gates |
-| `CHANGELOG.md` | Everyone | Release history and notable engineering changes |
-| `.antigravityignore` | Antigravity IDE | Excludes `docs/academic/` from agent code-indexing context |
-| `.env.example` | Developers / DevOps | Complete environment variable specification (zero secrets committed) |
-| `docs/specs/01-product-brief.md` | Product & Engineering | Vision, scope, non-goals, RBAC matrix, user stories, functional & NFRs, MVP DoD |
-| `docs/specs/02-workflows.md` | Engineering | Explicit state machines, transitions, failure paths, idempotency rules |
-| `docs/specs/03-architecture.md` | Architects & Engineers | System architecture, 3-stage hybrid engine math, tech comparisons, risks, repo tree |
-| `docs/specs/04-database-schema.md` | Backend Engineers | Complete Prisma schema, `pgvector` HNSW SQL migrations, pooling rules, seed data |
-| `docs/specs/05-api-design.md` | Full-Stack Engineers | Server Actions vs. Route Handlers boundary, Zod contracts, error taxonomy |
-| `docs/specs/06-ai-policy.md` | AI / Backend Engineers | Embeddings, anti-duplicate threshold, prompt guardrails, fallback policy, cost controls |
-| `docs/specs/07-design-system.md` | Frontend & UI/UX | WCAG AA light-theme tokens, responsive breakpoints, themed shadcn/ui, screen states |
-| `docs/specs/08-security-threat-model.md` | Security & Privacy | STRIDE threat model, session hardening, HTTP headers, zero-PII AI policy |
-| `docs/specs/09-testing-strategy.md` | QA & Engineering | Vitest unit/integration/red-team tests, atomic quota race test, Playwright E2E (incl. responsive) |
-| `docs/specs/10-deployment-and-ops.md` | DevOps & FinOps | GitHub Actions CI, Vercel + managed Postgres, Docker self-host, production checklist, cost tiers |
-| `docs/specs/11-roadmap-and-execution-plan.md` | Engineering & Antigravity | Phase 0–5 build roadmap, Antigravity prompts, post-MVP FYP-MS plan |
-| `docs/academic/fyp-defense-script.md` | Student / FYP Panel | 10-minute defense script + technical viva Q&As (excluded from agent build context) |
-| `docs/academic/cv-bullets.md` | Career / Portfolio | ATS-ready resume and portfolio bullets (excluded from agent build context) |
-
----
-
-## 4. Quick Local Setup
-
-1. Copy `.env.example` to `.env.local`. Set `AUTH_SECRET` to a random value of at least 32 characters (`openssl rand -base64 32`). All other provider keys are optional for local development.
-   - Without Docker/PostgreSQL, the app runs on a built-in local fallback store written to the OS temp directory (`projectcompass-local-accounts-db-v2.json`, `projectcompass-local-institutional-db-v2.json`) so writes never trigger `next dev` reloads. A 120ms reachability probe in `src/lib/db.ts` fails fast instead of stalling when Postgres is offline.
-   - Without an LLM/embedding key, deterministic 1536-dim embeddings and the `COMPLETED_FALLBACK` path are used.
-2. *(Optional)* Start local PostgreSQL 16 with `pgvector`:
-   ```bash
-   docker compose up -d db
-   ```
-3. Install dependencies, validate the Prisma schema, and seed the 62 canonical skills + 42 archetypes:
+### Steps
+1. **Install dependencies:**
    ```bash
    pnpm install
-   pnpm prisma validate
+   ```
+2. **Configure environment:**
+   Copy `.env.example` to `.env` and set `DATABASE_URL`, `DIRECT_URL`, and a 32+ character `AUTH_SECRET`.
+   - For local offline development without PostgreSQL, the app falls back to a temp-directory store (`os.tmpdir()`).
+   - `AI_API_KEY` (Google Gemini or OpenAI-compatible) is optional; omitting it activates the deterministic fallback engine.
+3. **Sync schema and seed reference catalog:**
+   ```bash
    pnpm prisma generate
+   pnpm exec tsx prisma/ensure-vector.ts
+   pnpm prisma db push
    pnpm db:seed
    ```
-4. Start the development server:
+   > `pnpm db:seed` loads only the production reference catalog (6 IT departments, 62 skills, 42 FYP archetypes, 12 market benchmarks). Demo accounts and sample archives are **local-only** and require `SEED_DEMO_DATA=true` in a non-production environment.
+4. **Start the development server:**
    ```bash
    pnpm dev
    ```
-5. Open `http://localhost:3000/sign-up` and register with any IT program and batch, e.g. `B22F0512IT673` (decoded as `Bachelor · Fall 2022 · BSIT · Roll #673`), or sign in at `/sign-in`.
-
-> [!IMPORTANT]
-> The seed creates **local demo accounts** (one student, one supervisor, one coordinator, one admin) used by the automated E2E tests; see `src/lib/auth/account-registry.ts`. Their PINs are for local development and CI only — **never seed demo accounts into a production database**, and rotate any account created with a demo PIN.
-
-6. Run the full verification gate:
-   ```bash
-   pnpm typecheck   # tsc --noEmit
-   pnpm lint        # eslint . --max-warnings=0
-   pnpm test        # Vitest: 7 suites / 30 tests
-   pnpm test:e2e    # Playwright: 3 specs (golden path, RBAC, multi-batch + responsive)
-   pnpm build
-   ```
+   Open `http://localhost:3000/sign-up` to register a Student or Faculty account.
 
 ---
 
-## 5. Continuous Integration
+## Production Deployment (Supabase + Vercel)
 
-Every push and pull request to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml) against a live `pgvector/pgvector:pg16` service container: Prisma validate + `db push` + seed → typecheck → zero-warning ESLint → Vitest (unit, integration, red-team) → production build → `/api/health` check → Playwright E2E. See [`docs/specs/10-deployment-and-ops.md`](docs/specs/10-deployment-and-ops.md) for deployment guidance.
+1. **Supabase Database:**
+   - Enable the `vector` (`pgvector`) extension and apply the Prisma schema + HNSW indexes + RLS lockdown (`21/21` public tables with RLS enabled so the public PostgREST API is closed while Prisma connects via the database role).
+   - Use the **Transaction Pooler** (port `6543`, `?pgbouncer=true&connection_limit=1&sslmode=require`) for `DATABASE_URL` and the **Session Pooler** (port `5432`, `?sslmode=require`) for `DIRECT_URL`.
+   - Run `pnpm db:seed` once to load the reference catalog (zero demo users are created in production).
+2. **Vercel Project:**
+   - Import the repository in Vercel and configure:
+     - **Required:** `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET` (32+ random chars; enforced fail-closed in production), `NEXT_PUBLIC_APP_URL`
+     - **Recommended (Live AI):** `AI_PROVIDER_BASE_URL`, `AI_API_KEY`, `AI_CHAT_MODEL`, `AI_EMBEDDING_MODEL`
+     - **Optional:** `UPLOADTHING_TOKEN`, `RESEND_API_KEY`, `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`, `NEXT_PUBLIC_POSTHOG_KEY`, `SENTRY_DSN`
+   - Deploy and verify `GET /api/health` returns `{"status":"ok","db":"connected"}`.
 
 ---
 
-## 6. How to Extend This Project with Antigravity
+## Verification & CI Pipeline
 
-1. **Open the repo in Antigravity.** Confirm `ANTIGRAVITY_RULES.md` is at the repository root and `.antigravityignore` excludes `docs/academic/`.
-2. **Never prompt to "build everything at once."** Use the sequential phase prompts in `docs/specs/11-roadmap-and-execution-plan.md`.
-3. **Verify each phase gate before advancing:** `pnpm typecheck`, `pnpm lint`, `pnpm test`, `pnpm test:e2e`, Prisma migrations, and UI contrast/responsiveness.
-4. **Verify current package syntax** against official documentation before changing Tailwind CSS, shadcn/ui, Prisma, or Next.js configuration.
+Every push and pull request to `main` runs [`.github/workflows/ci.yml`](.github/workflows/ci.yml) against a live `pgvector/pgvector:pg16` service container:
+
+```bash
+pnpm typecheck   # TypeScript strict check (0 errors)
+pnpm lint        # ESLint zero-warnings gate
+pnpm test        # Vitest: 7 suites, 31 unit, integration & security tests
+pnpm build       # Production Next.js App Router bundle
+pnpm test:e2e    # Playwright: Student golden path, RBAC security & mobile/tablet responsive checks
+```
+
+---
+
+## Documentation Index
+
+| Document | Scope |
+| :--- | :--- |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history and engineering updates |
+| [`docs/specs/01-product-brief.md`](docs/specs/01-product-brief.md) | Product vision, scope, RBAC matrix, user stories, functional & non-functional requirements |
+| [`docs/specs/02-workflows.md`](docs/specs/02-workflows.md) | State machines, transitions, failure paths, idempotency rules |
+| [`docs/specs/03-architecture.md`](docs/specs/03-architecture.md) | System architecture, 3-stage hybrid engine formulas, tech decisions, repository structure |
+| [`docs/specs/04-database-schema.md`](docs/specs/04-database-schema.md) | Prisma data model, `pgvector` HNSW indexes, pooling rules, reference catalog |
+| [`docs/specs/05-api-design.md`](docs/specs/05-api-design.md) | Server Actions vs. Route Handlers, Zod contracts, error taxonomy |
+| [`docs/specs/06-ai-policy.md`](docs/specs/06-ai-policy.md) | Embeddings, anti-duplicate thresholds, prompt-injection guardrails, fallback policy |
+| [`docs/specs/07-design-system.md`](docs/specs/07-design-system.md) | WCAG 2.1 AA light-theme tokens, typography, component standards, responsive breakpoints |
+| [`docs/specs/08-security-threat-model.md`](docs/specs/08-security-threat-model.md) | STRIDE threat model, session hardening, HTTP security headers, privacy controls |
+| [`docs/specs/09-testing-strategy.md`](docs/specs/09-testing-strategy.md) | Unit, integration, concurrency, red-team security, and Playwright E2E test suites |
+| [`docs/specs/10-deployment-and-ops.md`](docs/specs/10-deployment-and-ops.md) | CI/CD pipeline, Supabase + Vercel deployment, observability, cost tiers |
+| [`docs/specs/11-roadmap-and-execution-plan.md`](docs/specs/11-roadmap-and-execution-plan.md) | Completed milestones (Phases 0–5) and post-MVP FYP-MS roadmap |
+| [`docs/academic/fyp-defense-script.md`](docs/academic/fyp-defense-script.md) | Academic defense presentation script & technical viva Q&A |
+| [`docs/academic/cv-bullets.md`](docs/academic/cv-bullets.md) | Engineering impact summary & portfolio highlights |
