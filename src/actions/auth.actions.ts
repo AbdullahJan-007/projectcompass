@@ -15,7 +15,6 @@ import {
   findStudentAccountForLogin,
   findFacultyAccountForLogin,
   registerStudentAccountInDb,
-  registerFacultyAccountInDb,
   verifyFourDigitPinHash,
 } from "@/lib/auth/account-registry";
 import {
@@ -27,16 +26,10 @@ import {
 import type { ActionResult } from "@/types/actions";
 
 const registerAccountInputSchema = z.object({
-  accountType: z.enum(["STUDENT", "FACULTY"]),
+  accountType: z.enum(["STUDENT"]),
   fullName: z.string().min(3, "Full Name must be at least 3 characters").max(80),
-  identifier: z.string().min(3, "Enter your Student Reg No or Faculty Email"),
+  identifier: z.string().min(3, "Enter your University Student Registration Number"),
   pin: z.string().regex(/^\d{4}$/, "Password PIN must be exactly 4 numeric digits (XXXX)"),
-  designation: z.string().max(80).optional(),
-  departmentCode: z.enum(["BSCS", "BSSE", "BSAI", "BSCY", "BSDS", "BSIT"]).optional(),
-  // Strictly prohibit self-registration as COORDINATOR or ADMIN
-  facultyRole: z.enum(["SUPERVISOR"]).optional(),
-  maxSlots: z.coerce.number().int().min(1).max(15).optional(),
-  researchDomains: z.array(z.string().min(2).max(60)).optional(),
 });
 
 export async function registerUniversityAccount(
@@ -47,6 +40,23 @@ export async function registerUniversityAccount(
     redirectTo: string;
   }>
 > {
+  // Hard boundary: block any public attempt to self-register as Faculty/Supervisor/Coordinator/Admin
+  if (
+    typeof rawInput === "object" &&
+    rawInput !== null &&
+    "accountType" in rawInput &&
+    (rawInput as Record<string, unknown>).accountType !== "STUDENT"
+  ) {
+    return {
+      ok: false,
+      error: {
+        code: "FORBIDDEN",
+        message:
+          "Faculty and staff accounts cannot be self-registered. Faculty supervisors are provisioned exclusively via the University Admin Panel.",
+      },
+    };
+  }
+
   const parsed = registerAccountInputSchema.safeParse(rawInput);
   if (!parsed.success) {
     return {
@@ -55,7 +65,7 @@ export async function registerUniversityAccount(
         code: "VALIDATION_ERROR",
         message:
           parsed.error.issues[0]?.message ??
-          "Invalid registration payload. Self-escalation to Coordinator or Admin is prohibited.",
+          "Invalid student registration details. Only students may self-register.",
         fieldErrors: parsed.error.flatten().fieldErrors,
       },
     };
@@ -63,62 +73,9 @@ export async function registerUniversityAccount(
 
   const input = parsed.data;
 
-  if (input.accountType === "STUDENT") {
-    const res = await registerStudentAccountInDb({
-      registrationNo: input.identifier,
-      fullName: input.fullName,
-      pin: input.pin,
-    });
-
-    if (!res.ok) {
-      return {
-        ok: false,
-        error: {
-          code: res.code,
-          message: res.message,
-        },
-      };
-    }
-
-    const acc = res.account;
-    const session: UniversitySessionPayload = {
-      userId: acc.userId,
-      identifier: acc.registrationNo,
-      email: acc.email,
-      fullName: `${acc.fullName} (${acc.registrationNo})`,
-      role: "STUDENT",
-      departmentId: acc.departmentId,
-      departmentCode: acc.departmentCode,
-      batchLabel: `${acc.intakeTerm} ${acc.batchYear} · ${acc.departmentCode} · Roll #${acc.rollNumber}`,
-    };
-
-    const signedToken = signSessionToken(session);
-    const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, signedToken, {
-      httpOnly: true,
-      secure: env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
-    revalidatePath("/dashboard");
-    return {
-      ok: true,
-      data: {
-        session,
-        redirectTo: "/dashboard/profile",
-      },
-    };
-  }
-
-  const res = await registerFacultyAccountInDb({
-    identifier: input.identifier,
+  const res = await registerStudentAccountInDb({
+    registrationNo: input.identifier,
     fullName: input.fullName,
-    designation: input.designation ?? "Assistant Professor",
-    departmentCode: input.departmentCode ?? "BSCS",
-    maxSlots: input.maxSlots ?? 5,
-    researchDomains: input.researchDomains ?? ["DevTools", "Applied AI"],
     pin: input.pin,
   });
 
@@ -135,13 +92,13 @@ export async function registerUniversityAccount(
   const acc = res.account;
   const session: UniversitySessionPayload = {
     userId: acc.userId,
-    identifier: acc.universityEmail,
-    email: acc.universityEmail,
-    fullName: acc.fullName,
-    role: "SUPERVISOR",
+    identifier: acc.registrationNo,
+    email: acc.email,
+    fullName: `${acc.fullName} (${acc.registrationNo})`,
+    role: "STUDENT",
     departmentId: acc.departmentId,
     departmentCode: acc.departmentCode,
-    batchLabel: `${acc.designation} · ${acc.departmentCode}`,
+    batchLabel: `${acc.intakeTerm} ${acc.batchYear} · ${acc.departmentCode} · Roll #${acc.rollNumber}`,
   };
 
   const signedToken = signSessionToken(session);
@@ -159,7 +116,7 @@ export async function registerUniversityAccount(
     ok: true,
     data: {
       session,
-      redirectTo: "/dashboard/supervisor",
+      redirectTo: "/dashboard/profile",
     },
   };
 }

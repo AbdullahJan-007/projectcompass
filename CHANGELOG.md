@@ -2,6 +2,21 @@
 
 All notable changes to ProjectCompass are documented here.
 
+## 2026-11-26 — Decoupled 3-Portal Restructure, Admin Faculty Provisioning & Audit Remediation
+
+### Added
+- **Admin Command Center (`/dashboard/admin`):** 4-tab centralized control panel with **Hire & Provision Faculty** (`provisionFacultyAccount`), **Student Data Explorer**, **Department Projects & Supervision Oversight**, and **Role Governance & Immutable Audit Trail**.
+- **Strict Server-Side Portal Route Guards:** Added student-only layouts on `/dashboard/profile`, `/dashboard/recommendations`, `/dashboard/supervisors`, and `/dashboard/roadmaps`, plus `clearWorkspaceStorage()` on sign-out to eliminate cross-account `localStorage` leakage.
+- **`AUDIT_REPORT.md`:** Full evidence-based performance, silent-save, and role-isolation diagnostic report.
+- **Supabase FK Indexes:** Applied `idx_student_skill_profile_id`, `idx_supervisor_skill_profile_id`, and `idx_supervisor_request_student_created`.
+
+### Security & Breaking Boundaries
+- **Disabled Public Faculty Self-Registration:** Removed Faculty tab from `/sign-up` and locked `registerUniversityAccount()` to reject any non-`STUDENT` request with `FORBIDDEN`. Faculty accounts are now provisioned exclusively by the Admin Panel.
+- **Fail-Closed DB Writes:** Eliminated silent `catch {}` error swallowing in `upsertStudentProfile()` and `upsertSupervisorProfile()`, adding post-write row verification and removing premature `localStorage` writes.
+
+### Performance
+- Eliminated N+1 per-skill SQL loops inside interactive Prisma transactions (replaced with batched `findMany` + `createMany`), decoupled slow external LLM calls from `Save Skill Profile` (`< 1s` save), parallelized independent DB lookups with `Promise.all()`, and cached Prisma singleton in production.
+
 ## 2026-11-25 — Production Readiness, Gemini AI Support & Documentation Overhaul
 
 ### Added

@@ -1,48 +1,69 @@
-# Engineering Standards & Architecture Contract
+# Strict Engineering Rules & Portal Isolation Contract
 
-This document defines the mandatory engineering, security, data-integrity, and UI standards for **ProjectCompass**.
+This document defines the **non-negotiable architectural, security, isolation, and performance boundaries** for **ProjectCompass**. Every code change, Server Action, UI route, and database query must comply with these rules.
 
 ---
 
-## 1. Architectural Invariants
+## 1. Strict 3-Portal Isolation Boundaries
 
-1. **Deterministic Computation Before AI Synthesis:**
-   - Feasibility scores (`0–100`), duplicate risk levels (`LOW` / `MODERATE` / `HIGH`), supervisor capacity guards (`activeSlots < maxSlots`), and roadmap week allocation (`sum(weeks) === durationWeeks`) are computed strictly in SQL and TypeScript.
-   - Language models are restricted to grounded synthesis (problem framing, differentiation angles, rationale prose) validated against strict Zod schemas.
-2. **Provider-Agnostic AI & Resilient Fallback:**
-   - AI calls use the Vercel AI SDK over an OpenAI-compatible interface (supporting Google Gemini, OpenAI, and compatible endpoints) with a `25s` `AbortSignal` timeout, 1 retry, and deterministic `COMPLETED_FALLBACK` degradation.
-3. **Atomic Concurrency & Quota Safety:**
-   - Supervision acceptance uses conditional PostgreSQL updates (`activeSlots < maxSlots`) inside `prisma.$transaction`, reinforced by database-level `CHECK` constraints.
+ProjectCompass operates as **three strictly isolated portals** sharing a single normalized PostgreSQL (`pgvector`) database:
+
+| Portal | Route Scope | Account Creation Rule | Forbidden Cross-Access |
+| :--- | :--- | :--- | :--- |
+| **Student Portal** | `/dashboard/profile`, `/dashboard/recommendations`, `/dashboard/supervisors`, `/dashboard/roadmaps/*` | **Public Self-Registration** at `/sign-up` (University Reg No + 4-digit PIN) | Cannot access `/dashboard/supervisor`, `/dashboard/coordinator`, or `/dashboard/admin` |
+| **Faculty Supervisor Portal** | `/dashboard/supervisor` | **Login-Only** at `/sign-in`. **Zero public faculty signup.** Provisioned exclusively by Admin via `provisionFacultyAccount` (`src/actions/admin.actions.ts`). | Must NEVER see or access Student Execution Roadmaps, Student Profile Builder, or Student Recommendations |
+| **Admin Command Center** | `/dashboard/admin`, `/dashboard/coordinator` | **Governance-Controlled** (Last-Admin protection enforced) | Controls Faculty Hiring, Student Data Explorer, Project Oversight, Archives, Quotas, and Audit Logs |
+
+### Mandatory Enforcement Rules
+1. **Zero Public Faculty Self-Registration:**
+   - `/sign-up` accepts **Students only**.
+   - `registerUniversityAccount()` MUST return `FORBIDDEN` for any `accountType !== "STUDENT"`.
+   - `completeOnboarding()` MUST restrict `role` strictly to `STUDENT`.
+   - External/unknown users can NEVER create or log into a faculty account unless provisioned in Supabase by an Admin.
+2. **Defense-in-Depth Route Guards:**
+   - Every portal route group MUST enforce server-side session verification in its `layout.tsx` (`profile/layout.tsx`, `recommendations/layout.tsx`, `supervisors/layout.tsx`, `roadmaps/layout.tsx`, `supervisor/layout.tsx`, `coordinator/layout.tsx`, `admin/layout.tsx`).
+   - Client sidebar filtering (`AppShell`) is strictly UX ergonomics — never the security boundary.
+3. **Zero Cross-Account Client Leakage:**
+   - `clearWorkspaceStorage()` (`src/lib/workspace-store.ts`) MUST execute on every sign-out so zero student `localStorage` data survives account switches on shared devices.
+
+---
+
+## 2. Database Integrity & Fail-Closed Persistence Rules
+
+1. **Never Swallow Production Database Errors:**
+   - In `NODE_ENV === "production"`, NO Server Action may catch a Prisma write failure and return `{ ok: true }`.
+   - Every write (`upsertStudentProfile`, `upsertSupervisorProfile`, `provisionFacultyAccount`, `createArchiveRecord`) MUST verify persisted rows/IDs before returning `{ ok: true }`, and return `{ ok: false, error }` with an actionable user message on failure.
+2. **Never Write Optimistically to `localStorage` Before Server Verification:**
+   - Client caches may only be updated *after* the Server Action confirms `res.ok === true`.
+3. **Production Session Signing Fail-Closed:**
+   - `src/lib/auth/token-signer.ts` MUST throw a fatal error in production if `AUTH_SECRET` is missing, shorter than 16 characters, or a placeholder.
 4. **Local-Only Demo Data:**
-   - Production deployments (Vercel + Supabase) contain only the reference catalog (`Department`, `Skill`, `SeedIdeaTemplate`, `MarketTrendSnapshot`) and real user data. Demo accounts and sample archives are restricted to local/CI environments (`SEED_DEMO_DATA=true` and `NODE_ENV !== "production"`).
+   - Production Supabase & Vercel deployments contain ONLY the reference catalog (`Department`, `Skill`, `SeedIdeaTemplate`, `MarketTrendSnapshot`) and real user data. Demo data requires `SEED_DEMO_DATA=true` in non-production environments only.
+5. **Supabase Row Level Security (RLS):**
+   - All `21/21` `public` tables MUST have `ENABLE ROW LEVEL SECURITY` with zero permissive `anon`/`authenticated` PostgREST policies.
 
 ---
 
-## 2. TypeScript & Code Quality Standards
+## 3. Performance & Query Optimization Rules
 
-- Strict TypeScript (`strict: true`, `noUncheckedIndexedAccess: true`) with zero `any` types and zero `@ts-ignore` directives.
-- All Server Action and Route Handler inputs are validated with Zod (`safeParse`) and return structured `{ ok: true, data } | { ok: false, error }` results.
-- All environment variables are validated through `src/lib/env.ts`; production session signing fails closed if `AUTH_SECRET` is missing or invalid.
-- Zero `console.log` statements in production server code; use structured logging via `src/lib/logger.ts` with PII stripped.
-
----
-
-## 3. UI/UX & Accessibility Standards
-
-- **Design Tokens:** Use CSS custom properties defined in `src/app/globals.css` (`--bg-canvas`, `--bg-surface`, `--text-primary`, `--brand-primary`, etc.) rather than hardcoded hex colors.
-- **Accessibility:** Maintain WCAG 2.1 Level AA contrast (`>= 4.5:1` text, `>= 3:1` controls), keyboard navigation, and proper ARIA attributes (`combobox` / `listbox` on `Select`, focus-visible rings on interactive elements).
-- **Responsive Contract:** Every route must render cleanly at `375px` (mobile), `768px` (tablet), and `1280px+` (desktop) with zero horizontal overflow (`scrollWidth <= innerWidth`).
-- **Complete Route States:** Every data-driven screen implements Loading, Empty, Error (with retry), and Populated states.
+1. **Zero N+1 Loops Inside Transactions:**
+   - Never run `for (const item of items) { await tx.model.upsert(...) }` inside a Prisma interactive transaction. Always batch with `findMany({ where: { in } })` + `createMany({ skipDuplicates: true })`.
+2. **Parallelize Independent Queries:**
+   - Always use `Promise.all([...])` for independent reads (e.g., `persistRecommendationRunToDb`, `getAdminWorkspaceData`, `generateRecommendations` pre-checks).
+3. **Bound All List Queries:**
+   - Never run unbounded `findMany()` on growing tables (`User`, `ProjectArchive`, `RecommendedIdea`, `AuditLog`) without explicit `take` limits.
+4. **Non-Blocking Save Paths:**
+   - Profile save actions must complete in `< 1s` without blocking on external 25s LLM synthesis calls. Heavy LLM synthesis runs only when explicitly triggered on `/dashboard/recommendations` with `AbortSignal.timeout(25000)` and `COMPLETED_FALLBACK` resilience.
+5. **Prisma Singleton Reuse:**
+   - `src/lib/db.ts` caches `globalForPrisma.prisma = db` across warm serverless invocations.
 
 ---
 
-## 4. Verification Gate (Required Before Merging)
+## 4. Verification Gate (Mandatory Before Every Push)
 
-Every change must pass:
 ```bash
-pnpm typecheck   # tsc --noEmit
-pnpm lint        # eslint . --max-warnings=0
-pnpm test        # Vitest unit, integration & security suites
-pnpm build       # Production Next.js build
-pnpm test:e2e    # Playwright E2E golden-path, RBAC & responsive checks
+pnpm typecheck   # tsc --noEmit (0 errors)
+pnpm lint        # eslint . --max-warnings=0 (0 errors, 0 warnings)
+pnpm test        # Vitest unit, integration & security penetration suites
+pnpm build       # Next.js 15.5 production build
 ```

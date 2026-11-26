@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
-import { readAccountsStore, syncRoleInAccountsStore } from "@/lib/auth/account-registry";
+import {
+  readAccountsStore,
+  registerFacultyAccountInDb,
+  syncRoleInAccountsStore,
+} from "@/lib/auth/account-registry";
 import {
   readInstitutionalDb,
   writeInstitutionalDb,
@@ -309,6 +313,188 @@ export async function overrideSupervisorQuota(
       error: {
         code: "INTERNAL_ERROR",
         message: "Failed to override supervisor quota.",
+      },
+    };
+  }
+}
+
+const provisionFacultySchema = z.object({
+  fullName: z.string().min(3, "Full name must be at least 3 characters").max(80),
+  universityEmail: z
+    .string()
+    .email("Enter a valid official university email address")
+    .max(120),
+  departmentCode: z.enum(["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"]),
+  designation: z.string().min(2).max(80).default("Assistant Professor"),
+  maxSlots: z.coerce.number().int().min(1).max(15).default(5),
+  pin: z.string().regex(/^\d{4}$/, "Initial 4-digit PIN must be exactly 4 numeric digits"),
+  researchDomains: z
+    .array(z.string().min(2).max(60))
+    .min(1, "Select at least one research domain")
+    .max(8),
+});
+
+/**
+ * Admin-only faculty hiring & database provisioning.
+ * Creates User (SUPERVISOR) + FacultyAccount + SupervisorProfile + AuditLog.
+ * Public faculty self-registration is strictly disabled.
+ */
+export async function provisionFacultyAccount(rawInput: unknown): Promise<
+  ActionResult<{
+    userId: string;
+    fullName: string;
+    universityEmail: string;
+    departmentCode: string;
+    designation: string;
+    maxSlots: number;
+  }>
+> {
+  try {
+    const actor = await requireRole(["ADMIN"]);
+    const parsed = provisionFacultySchema.safeParse(rawInput);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message:
+            parsed.error.issues[0]?.message ?? "Invalid faculty provisioning details.",
+          fieldErrors: parsed.error.flatten().fieldErrors,
+        },
+      };
+    }
+
+    const input = parsed.data;
+    const reg = await registerFacultyAccountInDb({
+      identifier: input.universityEmail.trim().toLowerCase(),
+      fullName: input.fullName.trim(),
+      designation: input.designation.trim(),
+      departmentCode: input.departmentCode,
+      maxSlots: input.maxSlots,
+      researchDomains: input.researchDomains,
+      pin: input.pin,
+    });
+
+    if (!reg.ok) {
+      return {
+        ok: false,
+        error: {
+          code: reg.code,
+          message: reg.message,
+        },
+      };
+    }
+
+    try {
+      await db.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "FACULTY_PROVISIONED",
+          entityType: "FacultyAccount",
+          entityId: reg.account.userId,
+          metadataJson: {
+            universityEmail: reg.account.universityEmail,
+            departmentCode: reg.account.departmentCode,
+            designation: reg.account.designation,
+            maxSlots: reg.account.maxSlots,
+          },
+        },
+      });
+    } catch {
+      // Non-blocking audit log write if local DB is offline
+    }
+
+    revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard/supervisors");
+
+    return {
+      ok: true,
+      data: {
+        userId: reg.account.userId,
+        fullName: reg.account.fullName,
+        universityEmail: reg.account.universityEmail,
+        departmentCode: reg.account.departmentCode,
+        designation: reg.account.designation,
+        maxSlots: reg.account.maxSlots,
+      },
+    };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return {
+        ok: false,
+        error: { code: err.code, message: err.message },
+      };
+    }
+    return {
+      ok: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Failed to provision faculty account.",
+      },
+    };
+  }
+}
+
+const toggleUserStatusSchema = z.object({
+  targetUserId: z.string().min(4).max(64),
+  isActive: z.boolean(),
+});
+
+export async function toggleUserActiveStatus(
+  rawInput: unknown
+): Promise<ActionResult<{ targetUserId: string; isActive: boolean }>> {
+  try {
+    const actor = await requireRole(["ADMIN"]);
+    const parsed = toggleUserStatusSchema.safeParse(rawInput);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Invalid user status request.",
+        },
+      };
+    }
+
+    const { targetUserId, isActive } = parsed.data;
+    if (targetUserId === actor.id && !isActive) {
+      return {
+        ok: false,
+        error: {
+          code: "FORBIDDEN",
+          message: "Cannot deactivate your own active Admin account.",
+        },
+      };
+    }
+
+    await db.$transaction([
+      db.user.update({
+        where: { id: targetUserId },
+        data: { isActive },
+      }),
+      db.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: isActive ? "USER_ACTIVATED" : "USER_DEACTIVATED",
+          entityType: "User",
+          entityId: targetUserId,
+          metadataJson: { isActive },
+        },
+      }),
+    ]);
+
+    revalidatePath("/dashboard/admin");
+    return { ok: true, data: { targetUserId, isActive } };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    return {
+      ok: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Failed to update user active status.",
       },
     };
   }

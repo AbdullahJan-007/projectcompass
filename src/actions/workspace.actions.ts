@@ -321,6 +321,33 @@ export async function getCoordinatorWorkspaceData(): Promise<{
   }
 }
 
+export interface AdminStudentRow {
+  userId: string;
+  fullName: string;
+  email: string;
+  registrationNo: string;
+  batchLabel: string;
+  departmentCode: string;
+  profileStatus: "DRAFT" | "READY" | "NOT_STARTED";
+  skillsCount: number;
+  careerGoal: string;
+  ideasCount: number;
+  isActive: boolean;
+}
+
+export interface AdminProjectRow {
+  id: string;
+  title: string;
+  track: string;
+  status: string;
+  feasibilityScore: number;
+  studentName: string;
+  studentRegNo: string;
+  departmentCode: string;
+  supervisorName: string | null;
+  createdAt: string;
+}
+
 export async function getAdminWorkspaceData(): Promise<{
   users: Array<{
     id: string;
@@ -328,14 +355,22 @@ export async function getAdminWorkspaceData(): Promise<{
     email: string;
     role: "STUDENT" | "SUPERVISOR" | "COORDINATOR" | "ADMIN";
     departmentCode: string;
+    isActive: boolean;
   }>;
+  students: AdminStudentRow[];
   supervisors: Array<{
     id: string;
+    userId: string;
     fullName: string;
+    email: string;
+    designation: string;
     programCode: string;
     activeSlots: number;
     maxSlots: number;
+    isAccepting: boolean;
+    isActive: boolean;
   }>;
+  projects: AdminProjectRow[];
   auditLogs: Array<{
     id: string;
     timestamp: string;
@@ -349,7 +384,7 @@ export async function getAdminWorkspaceData(): Promise<{
   await requireRole(["ADMIN"]);
 
   try {
-    const [dbUsers, dbSupervisors, dbLogs] = await Promise.all([
+    const [dbUsers, dbSupervisors, dbStudents, dbIdeas, dbLogs] = await Promise.all([
       db.user.findMany({
         include: { department: { select: { code: true } } },
         orderBy: { createdAt: "desc" },
@@ -357,15 +392,57 @@ export async function getAdminWorkspaceData(): Promise<{
       }),
       db.supervisorProfile.findMany({
         include: {
-          user: { select: { fullName: true } },
+          user: { select: { fullName: true, email: true, isActive: true } },
           department: { select: { code: true } },
         },
         orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+      db.user.findMany({
+        where: { role: "STUDENT" },
+        include: {
+          department: { select: { code: true } },
+          studentAccount: true,
+          studentProfile: {
+            include: {
+              _count: { select: { skills: true, recommendationRuns: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }),
+      db.recommendedIdea.findMany({
+        include: {
+          run: {
+            include: {
+              studentProfile: {
+                include: {
+                  user: {
+                    include: {
+                      studentAccount: true,
+                      department: { select: { code: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          supervisionRequests: {
+            where: { status: "ACCEPTED" },
+            include: {
+              supervisorProfile: { include: { user: { select: { fullName: true } } } },
+            },
+            take: 1,
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
       }),
       db.auditLog.findMany({
         include: { actor: { select: { fullName: true } } },
         orderBy: { createdAt: "desc" },
-        take: 30,
+        take: 40,
       }),
     ]);
 
@@ -376,14 +453,56 @@ export async function getAdminWorkspaceData(): Promise<{
         email: u.email,
         role: u.role,
         departmentCode: u.department?.code ?? resolveDepartmentCodeById(u.departmentId),
+        isActive: u.isActive,
       })),
+      students: dbStudents.map((s) => {
+        const acc = s.studentAccount;
+        return {
+          userId: s.id,
+          fullName: s.fullName,
+          email: s.email,
+          registrationNo: acc?.registrationNo ?? "—",
+          batchLabel: acc ? `${acc.intakeTerm} ${acc.batchYear}` : "Unassigned",
+          departmentCode:
+            acc?.departmentCode ?? s.department?.code ?? resolveDepartmentCodeById(s.departmentId),
+          profileStatus: s.studentProfile ? s.studentProfile.status : "NOT_STARTED",
+          skillsCount: s.studentProfile?._count.skills ?? 0,
+          careerGoal: s.studentProfile?.careerGoal || "Not specified yet",
+          ideasCount: (s.studentProfile?._count.recommendationRuns ?? 0) * 3,
+          isActive: s.isActive,
+        };
+      }),
       supervisors: dbSupervisors.map((s) => ({
         id: s.id,
+        userId: s.userId,
         fullName: s.user.fullName,
+        email: s.user.email,
+        designation: s.title,
         programCode: s.department.code,
         activeSlots: s.activeSlots,
         maxSlots: s.maxSlots,
+        isAccepting: s.isAccepting,
+        isActive: s.user.isActive,
       })),
+      projects: dbIdeas.map((idea) => {
+        const stu = idea.run.studentProfile.user;
+        const acceptedSup = idea.supervisionRequests[0]?.supervisorProfile.user.fullName ?? null;
+        return {
+          id: idea.id,
+          title: idea.title,
+          track: idea.track,
+          status: idea.status,
+          feasibilityScore: idea.feasibilityScore,
+          studentName: stu.fullName,
+          studentRegNo: stu.studentAccount?.registrationNo ?? "—",
+          departmentCode:
+            stu.studentAccount?.departmentCode ??
+            stu.department?.code ??
+            resolveDepartmentCodeById(stu.departmentId),
+          supervisorName: acceptedSup,
+          createdAt: idea.createdAt.toISOString().slice(0, 10),
+        };
+      }),
       auditLogs: dbLogs.map((l) => ({
         id: l.id,
         timestamp: l.createdAt.toISOString().slice(0, 16).replace("T", " "),
@@ -400,7 +519,7 @@ export async function getAdminWorkspaceData(): Promise<{
       })),
     };
   } catch {
-    return { users: [], supervisors: [], auditLogs: [] };
+    return { users: [], students: [], supervisors: [], projects: [], auditLogs: [] };
   }
 }
 

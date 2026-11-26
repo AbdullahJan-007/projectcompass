@@ -79,7 +79,19 @@ describe("Red-Team Security Penetration Suite", () => {
     clearPinAttempts(targetId);
   });
 
-  it("Exploit 3 Defense: blocks self-registration privilege escalation to COORDINATOR or ADMIN", async () => {
+  it("Exploit 3 Defense: blocks ALL public faculty self-registration (SUPERVISOR, COORDINATOR, ADMIN) with FORBIDDEN", async () => {
+    const attemptSupervisor = await registerUniversityAccount({
+      accountType: "FACULTY",
+      fullName: "External Attacker",
+      identifier: "external.attacker@university.edu",
+      pin: "9999",
+    });
+
+    expect(attemptSupervisor.ok).toBe(false);
+    if (!attemptSupervisor.ok) {
+      expect(attemptSupervisor.error.code).toBe("FORBIDDEN");
+    }
+
     const attemptCoordinator = await registerUniversityAccount({
       accountType: "FACULTY",
       fullName: "Attacker Faculty",
@@ -90,7 +102,7 @@ describe("Red-Team Security Penetration Suite", () => {
 
     expect(attemptCoordinator.ok).toBe(false);
     if (!attemptCoordinator.ok) {
-      expect(attemptCoordinator.error.code).toBe("VALIDATION_ERROR");
+      expect(attemptCoordinator.error.code).toBe("FORBIDDEN");
     }
 
     const attemptAdmin = await registerUniversityAccount({
@@ -103,7 +115,7 @@ describe("Red-Team Security Penetration Suite", () => {
 
     expect(attemptAdmin.ok).toBe(false);
     if (!attemptAdmin.ok) {
-      expect(attemptAdmin.error.code).toBe("VALIDATION_ERROR");
+      expect(attemptAdmin.error.code).toBe("FORBIDDEN");
     }
   });
 

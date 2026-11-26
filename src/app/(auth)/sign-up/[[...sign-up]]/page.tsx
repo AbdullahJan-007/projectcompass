@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   Compass,
   GraduationCap,
-  Briefcase,
+  ShieldCheck,
   UserPlus,
   CheckCircle2,
   AlertCircle,
@@ -17,106 +17,39 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import {
   parseStudentRegNo,
-  parseFacultyIdentifier,
   validateFourDigitPin,
 } from "@/lib/auth/university-id";
 import { registerUniversityAccount } from "@/actions/auth.actions";
 
-const FACULTY_DOMAIN_OPTIONS = [
-  "DevTools",
-  "Cybersecurity",
-  "Applied AI",
-  "EdTech",
-  "HealthTech",
-  "FinTech",
-  "Cloud & Distributed Systems",
-  "Data Engineering",
-  "Computer Vision",
-  "IoT & Embedded",
-];
-
 export default function SignUpPage() {
   const router = useRouter();
-  const [accountType, setAccountType] = useState<"STUDENT" | "FACULTY">("STUDENT");
-
-  // Student Fields
   const [studentName, setStudentName] = useState("");
   const [studentRegNo, setStudentRegNo] = useState("");
   const [studentPin, setStudentPin] = useState("");
-
-  // Faculty Fields
-  const [facultyName, setFacultyName] = useState("");
-  const [facultyEmail, setFacultyEmail] = useState("");
-  const [designation, setDesignation] = useState("Assistant Professor");
-  const [departmentCode, setDepartmentCode] = useState<
-    "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS" | "BSIT"
-  >("BSCS");
-  const [maxSlots, setMaxSlots] = useState(5);
-  const [selectedDomains, setSelectedDomains] = useState<string[]>([
-    "Applied AI",
-    "Cybersecurity",
-  ]);
-  const [facultyPin, setFacultyPin] = useState("");
-
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const parsedReg = useMemo(() => parseStudentRegNo(studentRegNo), [studentRegNo]);
-  const parsedFaculty = useMemo(
-    () => parseFacultyIdentifier(facultyEmail),
-    [facultyEmail]
-  );
 
   const isStudentFormValid =
     studentName.trim().length >= 3 &&
     parsedReg !== null &&
     validateFourDigitPin(studentPin);
 
-  const isFacultyFormValid =
-    facultyName.trim().length >= 3 &&
-    parsedFaculty !== null &&
-    !parseStudentRegNo(facultyEmail) &&
-    validateFourDigitPin(facultyPin) &&
-    selectedDomains.length >= 1;
-
-  function toggleFacultyDomain(domain: string) {
-    setSelectedDomains((prev) =>
-      prev.includes(domain)
-        ? prev.filter((d) => d !== domain)
-        : prev.length < 5
-          ? [...prev, domain]
-          : prev
-    );
-  }
-
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrorMessage(null);
     setIsPending(true);
 
-    const payload =
-      accountType === "STUDENT"
-        ? {
-            accountType: "STUDENT" as const,
-            fullName: studentName.trim(),
-            identifier: studentRegNo.trim().toUpperCase(),
-            pin: studentPin.trim(),
-          }
-        : {
-            accountType: "FACULTY" as const,
-            fullName: facultyName.trim(),
-            identifier: facultyEmail.trim().toLowerCase(),
-            pin: facultyPin.trim(),
-            designation,
-            departmentCode,
-            maxSlots,
-            researchDomains: selectedDomains,
-          };
+    const res = await registerUniversityAccount({
+      accountType: "STUDENT",
+      fullName: studentName.trim(),
+      identifier: studentRegNo.trim().toUpperCase(),
+      pin: studentPin.trim(),
+    });
 
-    const res = await registerUniversityAccount(payload);
     setIsPending(false);
 
     if (!res.ok) {
@@ -129,306 +62,145 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-canvas px-4 py-12">
-      <div className="w-full max-w-lg space-y-5">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-[8px] bg-brand-primary text-bg-surface">
+    <div className="min-h-screen bg-bg-canvas px-4 py-8 sm:py-12">
+      <div className="mx-auto max-w-lg space-y-6">
+        <div className="flex flex-col items-center text-center space-y-2">
+          <Link href="/" className="inline-flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-brand-primary text-bg-surface shadow-sm">
               <Compass className="h-5 w-5" strokeWidth={1.75} />
             </div>
-            <div>
-              <span className="text-base font-semibold tracking-tight text-text-primary">
-                ProjectCompass
-              </span>
-              <span className="ml-2 rounded-[6px] bg-bg-subtle px-2 py-0.5 text-xs font-medium text-text-muted">
-                University Portal
-              </span>
-            </div>
+            <span className="font-heading text-xl font-bold tracking-tight text-text-primary">
+              ProjectCompass
+            </span>
           </Link>
-
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/sign-in">
-              <KeyRound className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Sign In
-            </Link>
-          </Button>
+          <Badge variant="default">Department of Information Technology &amp; Computing</Badge>
+          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+            Student Account Registration
+          </h1>
+          <p className="text-sm text-text-secondary max-w-md">
+            Register with your University Registration Number and a 4-digit Portal PIN across all
+            Fall &amp; Spring batches (`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS`).
+          </p>
         </div>
 
-        <Card>
-          <CardHeader className="border-b border-border-default bg-bg-surface pb-5">
-            <CardTitle className="text-[20px]">Create University Account</CardTitle>
-            <CardDescription>
-              Register your Student Registration Number or Faculty account to access the FYP
-              workspace.
-            </CardDescription>
-
-            <div className="mt-4 grid grid-cols-2 gap-2 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountType("STUDENT");
-                  setErrorMessage(null);
-                }}
-                data-testid="register-tab-student"
-                className={`flex items-center justify-center gap-2 rounded-[8px] border px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  accountType === "STUDENT"
-                    ? "border-brand-primary bg-brand-primary text-bg-surface"
-                    : "border-border-strong bg-bg-surface text-text-secondary hover:bg-bg-subtle"
-                }`}
-              >
-                <GraduationCap className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                <span>Student</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setAccountType("FACULTY");
-                  setErrorMessage(null);
-                }}
-                data-testid="register-tab-faculty"
-                className={`flex items-center justify-center gap-2 rounded-[8px] border px-3 py-2.5 text-xs font-semibold transition-colors ${
-                  accountType === "FACULTY"
-                    ? "border-brand-primary bg-brand-primary text-bg-surface"
-                    : "border-border-strong bg-bg-surface text-text-secondary hover:bg-bg-subtle"
-                }`}
-              >
-                <Briefcase className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                <span>Faculty</span>
-              </button>
+        <Card className="border-border-default shadow-sm">
+          <CardHeader className="border-b border-border-default bg-bg-subtle/60 pb-4">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
+              <CardTitle className="text-base">Final-Year Student Self-Registration</CardTitle>
             </div>
+            <CardDescription>
+              Your batch year, intake semester, IT program, and roll number are decoded
+              automatically from your University Registration Number.
+            </CardDescription>
           </CardHeader>
 
           <CardContent className="pt-6">
             <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              {accountType === "STUDENT" ? (
-                <>
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Full Name
-                    </label>
-                    <Input
-                      data-testid="register-student-name"
-                      value={studentName}
-                      onChange={(e) => setStudentName(e.target.value)}
-                      placeholder="Enter your full name"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Registration Number
-                    </label>
-                    <Input
-                      data-testid="register-student-regno"
-                      value={studentRegNo}
-                      onChange={(e) => setStudentRegNo(e.target.value.toUpperCase())}
-                      placeholder="e.g., B22F0418IT019 or B23F0184CS042"
-                      className="font-mono-tabular text-sm uppercase"
-                      required
-                    />
-
-                    {parsedReg && (
-                      <div className="flex items-center justify-between rounded-[6px] border border-brand-primary/25 bg-brand-tint/30 px-3 py-2 text-xs">
-                        <span className="flex items-center gap-1.5 font-medium text-brand-primary-hover">
-                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                          <span>
-                            {parsedReg.program} · {parsedReg.intakeTerm} {parsedReg.batchYear} ·{" "}
-                            {parsedReg.departmentName}
-                          </span>
-                        </span>
-                        <Badge variant="default" className="font-mono-tabular">
-                          {parsedReg.departmentCode}
-                        </Badge>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      4-Digit PIN
-                    </label>
-                    <Input
-                      data-testid="register-student-pin"
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={studentPin}
-                      onChange={(e) =>
-                        setStudentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                      }
-                      placeholder="••••"
-                      className="font-mono-tabular text-base tracking-[0.35em]"
-                      required
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Full Name
-                      </label>
-                      <Input
-                        data-testid="register-faculty-name"
-                        value={facultyName}
-                        onChange={(e) => setFacultyName(e.target.value)}
-                        placeholder="Dr. Full Name"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Designation
-                      </label>
-                      <Select
-                        aria-label="Academic Designation"
-                        value={designation}
-                        onChange={(e) => setDesignation(e.target.value)}
-                      >
-                        <option value="Assistant Professor">Assistant Professor</option>
-                        <option value="Associate Professor">Associate Professor</option>
-                        <option value="Professor">Professor</option>
-                        <option value="Senior Lecturer">Senior Lecturer</option>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Official University Email
-                    </label>
-                    <Input
-                      data-testid="register-faculty-email"
-                      value={facultyEmail}
-                      onChange={(e) => setFacultyEmail(e.target.value)}
-                      placeholder="firstname.lastname@university.edu"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Department
-                      </label>
-                      <Select
-                        aria-label="Faculty Department"
-                        value={departmentCode}
-                        onChange={(e) =>
-                          setDepartmentCode(
-                            e.target.value as
-                              | "BSCS"
-                              | "BSSE"
-                              | "BSAI"
-                              | "BSCY"
-                              | "BSDS"
-                              | "BSIT"
-                          )
-                        }
-                      >
-                        <option value="BSIT">BSIT — Information Technology</option>
-                        <option value="BSCS">BSCS — Computer Science</option>
-                        <option value="BSSE">BSSE — Software Engineering</option>
-                        <option value="BSAI">BSAI — Artificial Intelligence</option>
-                        <option value="BSCY">BSCY — Cybersecurity</option>
-                        <option value="BSDS">BSDS — Data Science</option>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Supervision Slots
-                      </label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={15}
-                        value={maxSlots}
-                        onChange={(e) => setMaxSlots(Number(e.target.value) || 5)}
-                        className="font-mono-tabular"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Research Domains (Select 1–5)
-                    </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {FACULTY_DOMAIN_OPTIONS.map((d) => {
-                        const active = selectedDomains.includes(d);
-                        return (
-                          <button
-                            key={d}
-                            type="button"
-                            onClick={() => toggleFacultyDomain(d)}
-                            className={`rounded-[6px] border px-2.5 py-1 text-xs font-medium transition-colors ${
-                              active
-                                ? "border-brand-primary bg-brand-tint text-brand-primary-hover"
-                                : "border-border-default bg-bg-surface text-text-secondary hover:bg-bg-subtle"
-                            }`}
-                          >
-                            {d}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      4-Digit PIN
-                    </label>
-                    <Input
-                      data-testid="register-faculty-pin"
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={facultyPin}
-                      onChange={(e) =>
-                        setFacultyPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                      }
-                      placeholder="••••"
-                      className="font-mono-tabular text-base tracking-[0.35em]"
-                      required
-                    />
-                  </div>
-                </>
-              )}
-
               {errorMessage && (
                 <div
-                  data-testid="register-error-banner"
-                  className="flex items-center gap-2 rounded-[6px] border border-status-error/30 bg-status-error-tint p-3 text-xs font-medium text-status-error-text"
+                  className="flex items-start gap-2 rounded-[6px] border border-status-error/30 bg-status-error-tint p-3 text-xs text-status-error-text"
+                  role="alert"
                 >
-                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  Full Name
+                </label>
+                <Input
+                  data-testid="register-student-name"
+                  placeholder="e.g., Zainab Malik"
+                  value={studentName}
+                  onChange={(e) => setStudentName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  University Registration Number
+                </label>
+                <Input
+                  data-testid="register-student-regno"
+                  placeholder="e.g., B22F0512IT042 or B24F0184CS031"
+                  value={studentRegNo}
+                  onChange={(e) => setStudentRegNo(e.target.value.toUpperCase())}
+                  className="font-mono-tabular uppercase"
+                  required
+                />
+                {parsedReg ? (
+                  <div className="flex flex-wrap items-center gap-1.5 rounded-[6px] border border-status-success/30 bg-status-success-tint px-3 py-2 text-xs text-status-success-text">
+                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="font-medium">
+                      {parsedReg.intakeTerm} {parsedReg.batchYear} · {parsedReg.departmentName} (
+                      {parsedReg.departmentCode}) · Roll #{parsedReg.rollNumber}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-text-muted">
+                    Format: <code className="font-mono-tabular">B[YY][F/S][4-Digits][DEPT][3-Digits]</code>{" "}
+                    (supports IT, CS, SE, AI, CY, DS across any batch year).
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
+                  Create 4-Digit Portal PIN
+                </label>
+                <div className="relative">
+                  <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                  <Input
+                    data-testid="register-student-pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    placeholder="4 numeric digits (e.g., 4821)"
+                    value={studentPin}
+                    onChange={(e) =>
+                      setStudentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                    }
+                    className="pl-9 font-mono-tabular tracking-widest"
+                    required
+                  />
+                </div>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full"
-                disabled={
-                  isPending ||
-                  (accountType === "STUDENT" ? !isStudentFormValid : !isFacultyFormValid)
-                }
+                disabled={!isStudentFormValid || isPending}
                 data-testid="register-submit-btn"
               >
-                <UserPlus className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-                <span>{isPending ? "Creating Account..." : "Create Account"}</span>
-                <ArrowRight className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                <UserPlus className="h-4 w-4" strokeWidth={1.75} />
+                {isPending ? "Creating Student Account..." : "Create Student Account"}
+                <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
               </Button>
             </form>
 
-            <p className="mt-5 border-t border-border-default pt-4 text-center text-xs text-text-muted">
-              Already have an account?{" "}
+            <div className="mt-6 rounded-[6px] border border-border-default bg-bg-subtle p-3.5 text-xs text-text-secondary space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold text-text-primary">
+                <ShieldCheck className="h-4 w-4 text-brand-primary shrink-0" />
+                <span>Faculty &amp; Supervisor Access Policy</span>
+              </div>
+              <p className="leading-relaxed">
+                Faculty supervisors cannot self-register. All faculty accounts are provisioned
+                exclusively by the University Admin Panel and sign in directly on the{" "}
+                <Link href="/sign-in" className="font-medium text-brand-primary hover:underline">
+                  Portal Sign-In
+                </Link>{" "}
+                page.
+              </p>
+            </div>
+
+            <p className="mt-5 text-center text-xs text-text-secondary">
+              Already have a Student, Faculty, or Admin account?{" "}
               <Link href="/sign-in" className="font-semibold text-brand-primary hover:underline">
-                Sign in →
+                Sign in here
               </Link>
             </p>
           </CardContent>

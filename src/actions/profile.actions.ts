@@ -26,7 +26,7 @@ import {
 import type { ActionResult } from "@/types/actions";
 
 const onboardingInputSchema = z.object({
-  role: z.enum(["STUDENT", "SUPERVISOR"]),
+  role: z.enum(["STUDENT"]),
   departmentId: z.string().min(5).max(64),
   cohortId: z.string().min(5).max(64).optional(),
 });
