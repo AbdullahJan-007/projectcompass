@@ -103,6 +103,15 @@ const REGISTRY_FILE_PATH = path.join(
 );
 
 export function buildDefaultAccountsDb(): AccountsDatabaseStore {
+  const bootstrapAdminEmail = (
+    process.env.BOOTSTRAP_ADMIN_EMAIL || "admin@projectcompass.edu"
+  )
+    .trim()
+    .toLowerCase();
+  const bootstrapAdminHandle = bootstrapAdminEmail.split("@")[0] || "admin";
+  const bootstrapAdminName = (
+    process.env.BOOTSTRAP_ADMIN_NAME || "University System Administrator"
+  ).trim();
   const bootstrapAdminPin =
     process.env.BOOTSTRAP_ADMIN_PIN && /^\d{4}$/.test(process.env.BOOTSTRAP_ADMIN_PIN.trim())
       ? process.env.BOOTSTRAP_ADMIN_PIN.trim()
@@ -149,9 +158,9 @@ export function buildDefaultAccountsDb(): AccountsDatabaseStore {
       {
         id: "cm0facacc_bootstrap_admin",
         userId: "cm0userbootstrapadmin0001",
-        facultyHandle: "admin",
-        universityEmail: "admin@projectcompass.edu",
-        fullName: "University System Administrator",
+        facultyHandle: bootstrapAdminHandle,
+        universityEmail: bootstrapAdminEmail,
+        fullName: bootstrapAdminName,
         designation: "University Administrator",
         role: "ADMIN",
         departmentCode: "BSCS",

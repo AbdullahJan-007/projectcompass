@@ -108,12 +108,23 @@ async function seedBootstrapAdminAccount() {
   )
     .trim()
     .toLowerCase();
+  const bootstrapHandle = bootstrapEmail.split("@")[0] || "admin";
+  const bootstrapName = (
+    process.env.BOOTSTRAP_ADMIN_NAME || "University System Administrator"
+  ).trim();
   const bootstrapPin = (process.env.BOOTSTRAP_ADMIN_PIN || "2026").trim();
   const pinHash = hashFourDigitPin(bootstrapPin);
   const bsitDeptId = resolveDepartmentByCode("BSIT").id;
 
-  const existingAdminFaculty = await prisma.facultyAccount.findUnique({
-    where: { facultyHandle: "admin" },
+  const existingAdminFaculty = await prisma.facultyAccount.findFirst({
+    where: {
+      OR: [
+        { facultyHandle: bootstrapHandle },
+        { facultyHandle: "admin" },
+        { universityEmail: bootstrapEmail },
+        { user: { role: "ADMIN" } },
+      ],
+    },
     include: { user: true },
   });
 
@@ -123,7 +134,7 @@ async function seedBootstrapAdminAccount() {
         where: { id: existingAdminFaculty.userId },
         data: {
           email: bootstrapEmail,
-          fullName: "University System Administrator",
+          fullName: bootstrapName,
           role: "ADMIN",
           departmentId: bsitDeptId,
           isActive: true,
@@ -132,6 +143,7 @@ async function seedBootstrapAdminAccount() {
       prisma.facultyAccount.update({
         where: { id: existingAdminFaculty.id },
         data: {
+          facultyHandle: bootstrapHandle,
           universityEmail: bootstrapEmail,
           designation: "University Administrator",
           departmentCode: "BSIT",
