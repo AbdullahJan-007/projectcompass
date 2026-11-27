@@ -1,37 +1,30 @@
 # Resume / CV & Portfolio Bullet Points — ProjectCompass
 
 **Candidate:** Abdullah Jan  
-**Project:** ProjectCompass — AI-Powered FYP Idea & Supervisor Recommendation System
+**Project:** ProjectCompass — Decoupled 3-Portal FYP Idea, Feasibility & Supervisor Recommendation Platform
 
 ---
 
 ## 1. Portfolio One-Liner (GitHub / Portfolio Card)
 
-> **ProjectCompass** — Production-grade FYP ideation, anti-duplicate archive search, and availability-aware supervisor matching platform engineered with Next.js App Router, TypeScript, Prisma, Supabase PostgreSQL (`pgvector`), Vercel AI SDK, and Inngest.
+> **ProjectCompass** — Production-grade decoupled 3-portal FYP ideation, anti-duplicate `pgvector` archive verification, availability-aware supervisor matching, and calibrated 24-week roadmap platform engineered with Next.js 15.5 App Router, strict TypeScript, Prisma 6, Supabase PostgreSQL 17 (`pgvector` + 21/21 RLS), and Vercel AI SDK (Google Gemini / OpenAI).
 
 ---
 
 ## 2. Full-Stack Engineer CV Bullets (ATS-Optimized)
 
-- **Architected ProjectCompass**, a modular multi-role FYP recommendation and planning platform (Student, Supervisor, Coordinator, Admin) using **Next.js 15.5 App Router, React 19, strict TypeScript 5.9, Tailwind CSS v4, custom-themed shadcn/ui, Prisma ORM 6.19, and Supabase PostgreSQL 16 (`pgvector`)**.
-- **Designed a dual-schema institutional authentication engine (`StudentAccount` & `FacultyAccount`)** that deterministically decodes University Registration Numbers (`B23F0184CS042` -> Program, Batch Year, Fall/Spring Intake, Department `BSIT`/`BSCS`/`BSSE`/`BSAI`/`BSCY`/`BSDS`, Roll No) and Faculty emails with SHA-256 salted 4-digit PIN verification (`XXXX`) and HttpOnly session isolation.
-- **Engineered a 3-stage hybrid recommendation engine** combining SQL capacity filtering, `pgvector` HNSW cosine similarity search across 42 curated CS archetypes, deterministic 4-factor explainable feasibility scoring (`40/30/20/10`), and Maximal Marginal Relevance (MMR) diversity ranking to eliminate generic recommendations and cold-start failure.
-- **Built an institutional anti-duplicate detection pipeline** using UploadThing and **Inngest** asynchronous workflows to extract and embed historical FYP PDFs (`1536`-dim vectors), flagging near-duplicate proposals (`>= 0.82` cosine similarity) and enforcing grounded differentiation angles.
-- **Eliminated supervisor over-allocation race conditions** by implementing atomic conditional PostgreSQL updates inside Prisma transactions paired with database-level `CHECK` invariants, validated under concurrent acceptance tests in **Vitest**.
-- **Designed a resilient, provider-agnostic AI synthesis layer** via **Vercel AI SDK** (`generateObject` + Zod) with prompt-injection delimiter isolation, `25s` timeout guards, and a deterministic fallback synthesizer achieving zero-downtime degradation during LLM outages.
-- **Established production-grade observability and QA gates**, pairing **24 Vitest** unit/integration tests, **Playwright** real-browser E2E suites, **Sentry** exception monitoring, **PostHog** funnel analytics, and GitHub Actions CI (`typecheck -> lint -> test -> build`).
+- **Architected ProjectCompass**, a decoupled 3-portal FYP platform (**Student Portal**, **Faculty Supervisor Portal**, **Admin Command Center**) using **Next.js 15.5 App Router, React 19, strict TypeScript 5.9, Tailwind CSS v4, Radix UI, Prisma ORM 6.19, and Supabase PostgreSQL 17 (`pgvector`)**.
+- **Built a custom HMAC-SHA256 institutional authentication & RBAC engine (`StudentAccount` & `FacultyAccount`)** that deterministically decodes University Registration Numbers (`B23F0184CS042` → Batch, Fall/Spring Intake, Department `BSIT`–`BSDS`, Roll No) for student-only self-registration while restricting Faculty provisioning exclusively to the Admin Command Center with fail-closed `AUTH_SECRET` and deactivated-account login blocking.
+- **Engineered a 3-stage hybrid recommendation engine** combining SQL capacity filtering, `pgvector` HNSW cosine similarity search across 42 curated IT & Computing archetypes, deterministic 4-factor explainable feasibility scoring (`40/30/20/10`), and Maximal Marginal Relevance (MMR) diversity ranking.
+- **Hardened PostgreSQL 17 + `pgvector` for production scale** with `21/21` Row Level Security (RLS) lockdown, covering foreign-key indexes (`0` unindexed FKs), `>= 0.82` anti-duplicate archive verification via async Inngest indexing, and atomic Prisma-transaction supervisor slot locking (`activeSlots < maxSlots`).
+- **Designed a resilient, provider-agnostic AI synthesis layer** via **Vercel AI SDK** (`generateObject` + Zod) supporting Google Gemini (`gemini-3.8-flash` / `gemini-embedding-001`) and OpenAI-compatible providers with prompt-injection delimiter isolation, `25s` timeout guards, and `COMPLETED_FALLBACK` resilience.
+- **Delivered an Academic Navy design system & live PKT localization**, featuring a custom SVG astrolabe logo, zero-network Lucide inline SVG icons, a single collapsible `PanelLeft` sidebar (`Ctrl+B`), and live Pakistan Standard Time (Islamabad · `Asia/Karachi`) clocks and roadmap calendars.
+- **Established automated QA & CI/CD gates**, pairing **31 Vitest** unit/integration/red-team security tests, **3 Playwright** real-browser E2E suites (`375px`, `768px`, `1280px+`), and GitHub Actions CI (`prisma → typecheck → lint → test → build → e2e`).
 
 ---
 
 ## 3. Compact 3-Bullet Version (For 1-Page Resume)
 
-- **ProjectCompass (Next.js, TypeScript, Prisma, PostgreSQL `pgvector`, Vercel AI SDK, Inngest, Clerk):** Architected a modular 4-role FYP recommendation and supervisor-matching SaaS module replacing generic LLM prompting with a 3-stage hybrid SQL + vector + deterministic scoring engine.
-- Implemented `pgvector` HNSW anti-duplicate archive search (`>= 0.82` similarity gate), atomic Prisma-transaction supervisor quota protection, and async PDF embedding pipelines via UploadThing + Inngest with zero serverless timeout failures.
-- Delivered WCAG 2.1 AA light-theme UI, Zod-validated Server Actions & Svix-verified webhooks, deterministic LLM fallback resilience, and automated Vitest + Playwright CI verification.
-
----
-
-## 4. LinkedIn / GitHub Project Highlights (Technical Talking Points)
-
-- **Why it stands out:** Shows Staff-level system judgment—explicit separation of Server Actions vs. Webhook Route Handlers, `pgvector` unified relational-vector querying instead of unnecessary Pinecone sprawl, Clerk abstracted behind an internal auth adapter for zero lock-in, and explainable math instead of black-box AI scores.
-- **Verified Metrics to Fill After Deployment:** Replace brackets with measured numbers from your live deployment: `[X]ms` p95 `pgvector` query latency, `[X]%` unit test coverage on scoring engine, `[X]` seeded CS archetypes, `[X]` seconds median end-to-end recommendation latency.
+- **ProjectCompass (Next.js 15, TypeScript, Prisma, Supabase PostgreSQL `pgvector`, Vercel AI SDK):** Architected a decoupled 3-portal FYP recommendation and supervisor-matching platform replacing black-box LLM prompting with a 3-stage hybrid SQL + `pgvector` + deterministic feasibility engine.
+- Implemented `21/21` Supabase RLS lockdown, `pgvector` HNSW anti-duplicate archive search (`>= 0.82` similarity gate), Admin-only faculty provisioning, atomic Prisma-transaction supervisor quota locking, and PostgreSQL-persisted 24-week execution roadmaps.
+- Delivered WCAG 2.1 AA Academic Navy UI with collapsible navigation, live Islamabad (`PKT`) timezone integration, fail-closed HMAC-SHA256 sessions, and automated CI verification (**31 Vitest** + **3 Playwright E2E** specs).

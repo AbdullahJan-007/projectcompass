@@ -2,64 +2,47 @@
 
 All notable changes to ProjectCompass are documented here.
 
-## 2026-11-26 — Decoupled 3-Portal Restructure, Admin Faculty Provisioning & Audit Remediation
+## 2026-11-27 — v2.0.0: Stitch Academic Navy Rebuild, Live Islamabad PKT, SVG Brand & Repo Cleanup
 
 ### Added
-- **Admin Command Center (`/dashboard/admin`):** 4-tab centralized control panel with **Hire & Provision Faculty** (`provisionFacultyAccount`), **Student Data Explorer**, **Department Projects & Supervision Oversight**, and **Role Governance & Immutable Audit Trail**.
-- **Strict Server-Side Portal Route Guards:** Added student-only layouts on `/dashboard/profile`, `/dashboard/recommendations`, `/dashboard/supervisors`, and `/dashboard/roadmaps`, plus `clearWorkspaceStorage()` on sign-out to eliminate cross-account `localStorage` leakage.
-- **`AUDIT_REPORT.md`:** Full evidence-based performance, silent-save, and role-isolation diagnostic report.
-- **Supabase FK Indexes:** Applied `idx_student_skill_profile_id`, `idx_supervisor_skill_profile_id`, and `idx_supervisor_request_student_created`.
-
-### Security & Breaking Boundaries
-- **Disabled Public Faculty Self-Registration:** Removed Faculty tab from `/sign-up` and locked `registerUniversityAccount()` to reject any non-`STUDENT` request with `FORBIDDEN`. Faculty accounts are now provisioned exclusively by the Admin Panel.
-- **Fail-Closed DB Writes:** Eliminated silent `catch {}` error swallowing in `upsertStudentProfile()` and `upsertSupervisorProfile()`, adding post-write row verification and removing premature `localStorage` writes.
-
-### Performance
-- Eliminated N+1 per-skill SQL loops inside interactive Prisma transactions (replaced with batched `findMany` + `createMany`), decoupled slow external LLM calls from `Save Skill Profile` (`< 1s` save), parallelized independent DB lookups with `Promise.all()`, and cached Prisma singleton in production.
-
-## 2026-11-25 — Production Readiness, Gemini AI Support & Documentation Overhaul
-
-### Added
-- Provider-agnostic AI key detection supporting **Google Gemini** (`gemini-3.8-flash` & `gemini-embedding-001` at `1536` dimensions via OpenAI-compatible endpoint) alongside OpenAI and compatible providers.
-- Live Supabase PostgreSQL 17 + `pgvector` schema, HNSW indexes, and `21/21` Row Level Security (RLS) lockdown.
-
-### Security & Production Hardening
-- Enforced **fail-closed `AUTH_SECRET`** validation in `src/lib/auth/token-signer.ts` when `NODE_ENV === "production"` (verified by `Exploit 7 Defense` unit test; 31/31 tests passing).
-- Restricted all demo accounts, sample supervisors, and sample archives to **local/CI environments only** (`SEED_DEMO_DATA=true` and `NODE_ENV !== "production"`), keeping production Supabase & Vercel strictly on real reference catalog + real user data.
-
-### Documentation
-- Redesigned `README.md`, `ANTIGRAVITY_RULES.md`, `docs/specs/07-design-system.md`, and `docs/specs/11-roadmap-and-execution-plan.md` for crisp, production-grade engineering clarity.
-
-## 2026-11-24 — Department-Wide, Multi-Batch & Responsive Release (`2257da8`)
-
-### Added
-- Support for **all Fall & Spring batches** — batch year and intake are decoded from any Registration Number (`B21F…`, `B22F…`, `B23S…`, `B24F…`); dynamic `batchLabel` replaces hardcoded cohort text.
-- Full **Department of Information Technology & Computing** coverage: `BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS` in sign-up, onboarding, supervisor filters, coordinator archives, and admin governance.
-- `programCode` on seed supervisors and an IT-program faculty filter.
-- `PortalSessionProvider` / `usePortalSession()` session context for dashboard screens.
-- Responsive app shell: mobile/tablet sticky header and slide-over navigation drawer.
-- Playwright spec for multi-batch BSIT registration and zero horizontal overflow at `375px` and `768px`.
+- **Google Stitch Academic Navy UI Rebuild:** Rebuilt all 8 primary platform screens (`/`, `/sign-in`, `/sign-up`, `/dashboard/recommendations`, `/dashboard/supervisors`, `/dashboard/roadmaps/[id]`, `/dashboard/supervisor`, `/dashboard/admin`) plus `profile`, `coordinator`, and `market-trends` with cohesive Academic Navy (`#112D4E` / `#3F72AF` / `#71C9CE` / `#F9F7F7`) tokens.
+- **Official SVG Astrolabe Logo & Favicon:** Integrated the Stitch `ProjectCompass Minimal Icon-Only Mark` as `public/projectcompass-logo.svg`, `src/app/icon.svg`, and `<ProjectCompassLogo />` across all headers and footers.
+- **Single Collapsible `PanelLeft` Sidebar:** Upgraded `AppShell` with a smooth collapsible desktop sidebar (`PanelLeftClose` inside sidebar when open; single `PanelLeft` expand button in top bar when hidden), synchronized zero-overlap padding, `localStorage` persistence, and `Ctrl+B` / `Cmd+B` keyboard shortcut.
+- **Zero-Network Inline SVG `<AppIcon />`:** Replaced all 142 external `material-symbols-outlined` spans with inline `lucide-react` SVGs so broken icon ligatures can never appear.
+- **Live Pakistan, Islamabad (`Asia/Karachi`, PKT / UTC+5) Time & Calendar Engine:** Added `src/lib/time/pakistan-time.ts` and live ticking `<PakistanClock />` across AppShell, Landing, Sign-In, Sign-Up, Admin/Coordinator default archive years, PKT audit trail timestamps, and live roadmap milestone calendar date ranges.
+- **PostgreSQL Roadmap Persistence:** Persisted `ProjectRoadmap` and `RoadmapMilestone` status transitions atomically in PostgreSQL with strict student ownership checks.
+- **Custom Bootstrap Admin via `.env`:** Added `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, and `BOOTSTRAP_ADMIN_PIN` support across `prisma/seed.ts` and `src/lib/auth/account-registry.ts`.
+- **Performance & Cache Hygiene:** Enabled `optimizePackageImports` in `next.config.ts` and added self-unregistering `public/sw.js` + `<SwCleanup />` to prevent stale browser service worker caching on localhost.
 
 ### Changed
-- Market trends use a rolling `Current Benchmark` label instead of `2026-Q4`.
-- Tabs wrap on small screens; dialogs are viewport-safe; filters go full width on mobile.
-- Local fallback stores moved to the OS temp directory so writes no longer trigger `next dev` reloads.
+- **Typography Overhaul:** Replaced slashed-zero `JetBrains Mono` / Consolas across the entire project with clean `Plus Jakarta Sans` + `Inter` (`tabular-nums`).
+- **Database Rebuild & Hardening:** Rebuilt live Supabase PostgreSQL 17 with covering FK indexes (`0` unindexed foreign keys), `3` `pgvector` HNSW indexes, `21/21` RLS lockdown, and clean reference-only seeding (zero dummy students/supervisors/archives in production).
+- **Direct Role Redirects:** Updated portal `layout.tsx` guards so unauthorized cross-role visits redirect directly to the caller's role home without double-hopping.
 
-### Fixed
-- Interactive Prisma `$transaction` no longer stalls ~5s when local PostgreSQL is offline.
+### Removed
+- Removed obsolete/unused files from GitHub: `AUDIT_REPORT.md`, `public/.gitkeep`, `src/app/onboarding/page.tsx`, `src/lib/analytics/posthog.ts`, `src/app/api/uploadthing/route.ts`, and `src/app/api/webhooks/clerk/route.ts`.
 
-## 2026-11-23 — CI, Security Hardening & UI Fixes (`5f4b121`, `20f978f`)
+---
+
+## 2026-11-26 — Decoupled 3-Portal Restructure & Admin Faculty Provisioning
 
 ### Added
-- GitHub Actions CI with a `pgvector/pgvector:pg16` service, schema push + seed, typecheck, lint, Vitest, production build, health check, and Playwright E2E.
-- `AUTH_SECRET`, 7-day session expiry, and canonical pre-DB login rate limiting.
-- Custom accessible `Select` component.
+- **Admin Command Center (`/dashboard/admin`):** Centralized 5-tab console for **Hire & Manage Faculty** (`provisionFacultyAccount`), **Student Data**, **Projects**, **Past FYP Archives**, and **Roles & Audit Logs**.
+- **Strict Server-Side Portal Route Guards:** Added student-only layouts on `/dashboard/profile`, `/dashboard/recommendations`, `/dashboard/supervisors`, and `/dashboard/roadmaps`, plus `clearWorkspaceStorage()` on sign-out.
 
-### Fixed
-- CI build failure caused by build-time `next/font/google` fetch and duplicate `next lint` pass.
-- `Dockerfile` lockfile usage and missing `public/` directory; idempotent migration constraints.
-- Black arrow artifact in native selects on Windows Chromium; dev overlay noise from offline Prisma errors.
+### Security & Performance
+- Disabled public faculty self-registration (`/sign-up` accepts `STUDENT` only; backend returns `FORBIDDEN` for non-student payloads).
+- Eliminated N+1 per-skill SQL loops inside interactive Prisma transactions and decoupled slow external LLM calls from `Save Skill Profile`.
 
-### Security
-- Removed pre-filled credentials and personal data from UI and runtime stores.
-- Per-user isolation in recommendation and profile actions; `escapeHtml()` for exported content.
+---
+
+## 2026-11-25 — Production Readiness & Google Gemini AI Support
+
+- Added provider-agnostic AI support for **Google Gemini** (`gemini-3.8-flash` & `gemini-embedding-001` at `1536` dimensions via OpenAI-compatible endpoint).
+- Enforced fail-closed `AUTH_SECRET` validation in production (`src/lib/auth/token-signer.ts`) and restricted demo data strictly to local/CI (`SEED_DEMO_DATA=true` && `NODE_ENV !== "production"`).
+
+---
+
+## 2026-11-24 — Multi-Batch IT & Computing Coverage & Responsive Release
+
+- Added support for all Fall/Spring intakes and all 6 IT & Computing programs (`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS`), `PortalSessionProvider`, mobile/tablet responsive layouts (`375px` & `768px`), and Playwright E2E coverage.
