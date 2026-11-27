@@ -7,6 +7,8 @@ import type { UserRole } from "@prisma/client";
 import { LogOut, PanelLeft, PanelLeftClose, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppIcon } from "@/components/ui/app-icon";
+import { ProjectCompassLogo } from "@/components/ui/project-compass-logo";
+import { PakistanClock } from "@/components/ui/pakistan-clock";
 import { PortalSessionProvider } from "@/components/layout/portal-session-context";
 import { signOutUniversitySession } from "@/actions/auth.actions";
 import { clearWorkspaceStorage } from "@/lib/workspace-store";
@@ -213,9 +215,7 @@ export function AppShell({
             </button>
 
             <Link href="/" className="flex items-center gap-2 min-w-0">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-base font-bold shadow-sm">
-                P
-              </div>
+              <ProjectCompassLogo className="h-8 w-8 rounded-lg shadow-xs" />
               <div className="min-w-0">
                 <span className="block truncate font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
                   ProjectCompass
@@ -260,9 +260,7 @@ export function AppShell({
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2.5 min-w-0"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-base font-bold shadow-sm">
-                  P
-                </div>
+                <ProjectCompassLogo className="h-9 w-9 rounded-lg shadow-xs" />
                 <div className="min-w-0">
                   <span className="block truncate font-headline-sm text-[15px] font-bold tracking-tight text-[#112D4E] leading-tight">
                     ProjectCompass
@@ -421,9 +419,7 @@ export function AppShell({
                   href="/"
                   className="flex items-center gap-2 pr-2 border-r border-[#DBE2EF] shrink-0"
                 >
-                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#112D4E] text-white font-headline-sm text-sm font-bold">
-                    P
-                  </div>
+                  <ProjectCompassLogo className="h-7 w-7 rounded-md shadow-2xs" />
                   <span className="font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
                     ProjectCompass
                   </span>
@@ -442,6 +438,7 @@ export function AppShell({
             </div>
 
             <div className="flex items-center gap-3 shrink-0">
+              <PakistanClock />
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DBE2EF] bg-surface-container-lowest px-3 py-1 font-label-md text-label-md font-semibold text-[#112D4E] shadow-xs">
                 <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-[#3F72AF]" />
                 {getRoleViewChip(userRole)}

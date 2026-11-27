@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { AppIcon } from "@/components/ui/app-icon";
+import { ProjectCompassLogo } from "@/components/ui/project-compass-logo";
+import { PakistanClock } from "@/components/ui/pakistan-clock";
+import { getPakistanAcademicCycle, getPakistanYear } from "@/lib/time/pakistan-time";
 
 const DEGREE_PROGRAMS = [
   {
@@ -59,9 +62,7 @@ export default function HomePage() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-surface/90 backdrop-blur-xl border-b border-[#DBE2EF] shadow-[0_1px_8px_rgba(17,45,78,0.04)]">
         <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
-            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#112D4E] text-white shadow-sm shrink-0">
-              <AppIcon name="explore" className="text-[20px]" />
-            </div>
+            <ProjectCompassLogo className="w-9 h-9 rounded-lg shadow-xs shrink-0" />
             <span className="font-headline-sm text-base sm:text-[18px] font-bold tracking-tight text-[#112D4E] truncate">
               ProjectCompass
             </span>
@@ -701,14 +702,13 @@ export default function HomePage() {
       <footer className="w-full bg-surface-container-low border-t border-[#DBE2EF]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-on-surface-variant">
           <div className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-7 h-7 rounded bg-[#112D4E] text-white font-headline-sm font-bold">
-              P
-            </div>
+            <ProjectCompassLogo className="w-7 h-7 rounded-md shrink-0" />
             <span>
-              ProjectCompass · Department of Information Technology &amp; Computing
+              © {getPakistanYear()} ProjectCompass · {getPakistanAcademicCycle()} · Dept. of IT &amp; Computing
             </span>
           </div>
-          <div className="flex items-center gap-5 font-medium">
+          <div className="flex flex-wrap items-center gap-4 font-medium">
+            <PakistanClock compact />
             <Link href="/sign-up" className="hover:text-[#112D4E] transition-colors">
               Student Registration
             </Link>

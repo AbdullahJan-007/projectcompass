@@ -10,6 +10,9 @@ import {
 } from "@/lib/auth/university-id";
 import { signInWithUniversityCredentials } from "@/actions/auth.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { ProjectCompassLogo } from "@/components/ui/project-compass-logo";
+import { PakistanClock } from "@/components/ui/pakistan-clock";
+import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -67,9 +70,7 @@ export default function SignInPage() {
       <header className="fixed top-0 w-full z-50 bg-[#F9F7F7]/90 backdrop-blur-xl border-b border-[#DBE2EF]/80">
         <div className="h-16 w-full px-4 sm:px-6 flex items-center justify-between max-w-7xl mx-auto">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-[#112D4E] text-[#E3FDFD] flex items-center justify-center font-headline-sm text-lg font-bold shadow-sm shrink-0">
-              P
-            </div>
+            <ProjectCompassLogo className="w-9 h-9 rounded-lg shadow-xs shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="font-title-md text-base sm:text-[18px] text-[#112D4E] font-bold tracking-tight leading-tight truncate">
                 ProjectCompass
@@ -363,7 +364,10 @@ export default function SignInPage() {
             <span>·</span>
             <span>All Computing Specializations</span>
           </div>
-          <div>© ProjectCompass Academic Portal</div>
+          <div className="flex items-center gap-3">
+            <PakistanClock compact />
+            <span>© {getPakistanYear()} ProjectCompass Academic Portal</span>
+          </div>
         </div>
       </footer>
     </div>

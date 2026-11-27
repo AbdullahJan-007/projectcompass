@@ -25,6 +25,7 @@ import {
   type LiveArchiveItem,
 } from "@/actions/workspace.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 const IT_PROGRAMS = ["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"] as const;
 type ItProgram = (typeof IT_PROGRAMS)[number];
@@ -123,7 +124,7 @@ export default function AdminDashboardPage() {
   // Archive Ingestion State (Unified Admin Archive Tab)
   const [archTitle, setArchTitle] = useState("");
   const [archAbstract, setArchAbstract] = useState("");
-  const [archYear, setArchYear] = useState(2025);
+  const [archYear, setArchYear] = useState(() => getPakistanYear());
   const [archProgram, setArchProgram] = useState<ItProgram>("BSIT");
   const [archDomain, setArchDomain] = useState("DevTools");
   const [archStack, setArchStack] = useState("");
@@ -1174,7 +1175,7 @@ export default function AdminDashboardPage() {
                         min={2010}
                         max={2035}
                         value={archYear}
-                        onChange={(e) => setArchYear(Number(e.target.value) || 2025)}
+                        onChange={(e) => setArchYear(Number(e.target.value) || getPakistanYear())}
                         className="font-mono-tabular"
                       />
                     </div>

@@ -13,6 +13,10 @@ import {
   buildCalibratedProjectRoadmap,
   type PlannedRoadmapResult,
 } from "@/lib/recommendation/roadmap-planner";
+import {
+  formatPakistanDate,
+  formatPakistanDateTime,
+} from "@/lib/time/pakistan-time";
 
 export interface LiveSupervisorDirectoryItem {
   id: string;
@@ -521,7 +525,7 @@ export async function getAdminWorkspaceData(): Promise<{
             stu.department?.code ??
             resolveDepartmentCodeById(stu.departmentId),
           supervisorName: acceptedSup,
-          createdAt: idea.createdAt.toISOString().slice(0, 10),
+          createdAt: formatPakistanDate(idea.createdAt),
         };
       }),
       archives: dbArchives.map((a) => ({
@@ -537,7 +541,7 @@ export async function getAdminWorkspaceData(): Promise<{
       })),
       auditLogs: dbLogs.map((l) => ({
         id: l.id,
-        timestamp: l.createdAt.toISOString().slice(0, 16).replace("T", " "),
+        timestamp: formatPakistanDateTime(l.createdAt),
         actor: l.actor?.fullName ?? "System",
         action: l.action,
         entityType: l.entityType,

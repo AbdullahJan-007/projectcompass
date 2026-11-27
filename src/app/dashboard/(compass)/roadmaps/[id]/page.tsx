@@ -26,6 +26,7 @@ import {
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 import { AppIcon } from "@/components/ui/app-icon";
+import { formatPakistanRoadmapPhaseDates } from "@/lib/time/pakistan-time";
 
 export default function RoadmapDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -573,6 +574,10 @@ export default function RoadmapDetailPage() {
                         }`}
                       >
                         {weekBadge} ({ms.weeksAllocated} Wks)
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] px-2.5 py-0.5 text-[11px] font-medium text-[#43474E] font-mono-tabular">
+                        <AppIcon name="calendar_month" className="text-[13px] text-[#3F72AF]" />
+                        {formatPakistanRoadmapPhaseDates(ms.weekStart, ms.weekEnd)} (PKT)
                       </span>
                       <span className="text-xs font-bold uppercase tracking-wider text-[#3F72AF]">
                         {ms.phaseTitle}

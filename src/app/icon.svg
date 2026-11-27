@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background subtle radiant lux glow -->
+    <radialGradient id="iconLuxGlow" cx="50%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#E3FDFD" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#F9F7F7" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Squircle container glass fill -->
+    <linearGradient id="squircleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="45%" stop-color="#F9F7F7"/>
+      <stop offset="100%" stop-color="#EAF0F8"/>
+    </linearGradient>
+
+    <!-- Squircle border gradient -->
+    <linearGradient id="squircleBorder" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#A6E3E9"/>
+      <stop offset="75%" stop-color="#DBE2EF"/>
+      <stop offset="100%" stop-color="#3F72AF"/>
+    </linearGradient>
+
+    <!-- Precision ring track gradient -->
+    <linearGradient id="trackRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#71C9CE"/>
+      <stop offset="50%" stop-color="#3F72AF"/>
+      <stop offset="100%" stop-color="#112D4E"/>
+    </linearGradient>
+
+    <!-- North Needle: Dark Facet (Deep Navy) -->
+    <linearGradient id="needleNorthDark" x1="50%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3E62"/>
+      <stop offset="60%" stop-color="#112D4E"/>
+      <stop offset="100%" stop-color="#0B1A30"/>
+    </linearGradient>
+
+    <!-- North Needle: Light Highlight Facet (Mint Cyan / Aqua) -->
+    <linearGradient id="needleNorthLight" x1="0%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#3F72AF"/>
+      <stop offset="35%" stop-color="#71C9CE"/>
+      <stop offset="100%" stop-color="#CBF1F5"/>
+    </linearGradient>
+
+    <!-- South Needle: Light Shading -->
+    <linearGradient id="needleSouthLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#DBE2EF"/>
+    </linearGradient>
+
+    <!-- South Needle: Dark Shading -->
+    <linearGradient id="needleSouthDark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3F72AF"/>
+      <stop offset="100%" stop-color="#1B385D"/>
+    </linearGradient>
+
+    <!-- Subtle Shadows -->
+    <filter id="iconSoftShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#112D4E" flood-opacity="0.10"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#3F72AF" flood-opacity="0.08"/>
+    </filter>
+
+    <filter id="needleElevation" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#112D4E" flood-opacity="0.22"/>
+    </filter>
+
+    <filter id="apexBeaconGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="5" flood-color="#71C9CE" flood-opacity="0.7"/>
+    </filter>
+  </defs>
+
+  <!-- Clean Canvas Backdrop -->
+  <rect width="512" height="512" rx="112" fill="#FFFFFF"/>
+  <rect width="512" height="512" rx="112" fill="url(#iconLuxGlow)"/>
+
+  <!-- ==================== MAIN ICON CONTAINER SQUIRCLE ==================== -->
+  <g filter="url(#iconSoftShadow)">
+    <rect x="48" y="48" width="416" height="416" rx="104" fill="url(#squircleGrad)" stroke="url(#squircleBorder)" stroke-width="3.5"/>
+    <!-- Specular Inset Rim -->
+    <rect x="56" y="56" width="400" height="400" rx="96" fill="none" stroke="#FFFFFF" stroke-width="2" opacity="0.9"/>
+  </g>
+
+  <!-- ==================== PRECISION ASTROLABE CALIBRATION RINGS ==================== -->
+  <g transform="translate(256, 256)">
+    <!-- Outer Minimal Latitude Ring -->
+    <circle cx="0" cy="0" r="160" fill="none" stroke="#DBE2EF" stroke-width="1.75" stroke-dasharray="6 8" opacity="0.75"/>
+    
+    <!-- Dynamic Segmented Orbital Track -->
+    <circle cx="0" cy="0" r="136" fill="none" stroke="url(#trackRingGrad)" stroke-width="3" stroke-dasharray="48 16 64 16 32 16"/>
+
+    <!-- Cardinal Coordinates / Precision Ticks -->
+    <!-- North Point Ticks -->
+    <line x1="0" y1="-172" x2="0" y2="-152" stroke="#71C9CE" stroke-width="4.5" stroke-linecap="round"/>
+    <circle cx="0" cy="-180" r="4.5" fill="#71C9CE"/>
+
+    <!-- South Point Ticks -->
+    <line x1="0" y1="152" x2="0" y2="172" stroke="#3F72AF" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- East & West Ticks -->
+    <line x1="-172" y1="0" x2="-152" y2="0" stroke="#3F72AF" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1="152" y1="0" x2="172" y2="0" stroke="#3F72AF" stroke-width="3.5" stroke-linecap="round"/>
+
+    <!-- 45-degree Quadrant Calibration Pips -->
+    <circle cx="106" cy="-106" r="3.5" fill="#3F72AF" opacity="0.5"/>
+    <circle cx="-106" cy="-106" r="3.5" fill="#71C9CE" opacity="0.6"/>
+    <circle cx="106" cy="106" r="3.5" fill="#3F72AF" opacity="0.5"/>
+    <circle cx="-106" cy="106" r="3.5" fill="#3F72AF" opacity="0.5"/>
+
+    <!-- Minimal Guiding Cross-Lattice (Geometric Diamond Guide) -->
+    <path d="M 0 -115 L 12 -12 L 115 0 L 12 12 L 0 115 L -12 12 L -115 0 L -12 -12 Z" fill="#CBF1F5" opacity="0.4"/>
+
+    <!-- ==================== FACETED 3D NAVIGATIONAL COMPASS NEEDLE ==================== -->
+    <g filter="url(#needleElevation)">
+      <!-- North-East Facet: Deep Navy -->
+      <polygon points="0,0 0,-144 48,0" fill="url(#needleNorthDark)"/>
+      
+      <!-- North-West Facet: Vibrant Cyan / Mint Highlight -->
+      <polygon points="0,0 0,-144 -48,0" fill="url(#needleNorthLight)"/>
+
+      <!-- South-West Facet: Crisp Light Slate White -->
+      <polygon points="0,0 0,140 -48,0" fill="url(#needleSouthLight)"/>
+
+      <!-- South-East Facet: Slate Navy Shadow -->
+      <polygon points="0,0 0,140 48,0" fill="url(#needleSouthDark)"/>
+
+      <!-- Lateral Horizontal Wing Stabilizers (Refined Aero Lines) -->
+      <polygon points="0,0 128,0 0,14" fill="#3F72AF" opacity="0.9"/>
+      <polygon points="0,0 -128,0 0,-14" fill="#71C9CE" opacity="0.95"/>
+    </g>
+
+    <!-- ==================== MECHANICAL PIVOT PIN (MINIMAL INSTRUMENT - NO EYE) ==================== -->
+    <!-- Base elevation ring -->
+    <circle cx="0" cy="0" r="32" fill="#FFFFFF" stroke="#DBE2EF" stroke-width="4" filter="url(#iconSoftShadow)"/>
+    <!-- Navy precision collar ring -->
+    <circle cx="0" cy="0" r="22" fill="#112D4E"/>
+    <!-- Mint accent groove -->
+    <circle cx="0" cy="0" r="14" fill="#71C9CE"/>
+    <!-- Pure polished center metallic rivet pin -->
+    <circle cx="0" cy="0" r="6.5" fill="#FFFFFF"/>
+
+    <!-- ==================== NORTH APEX GUIDING BEACON ==================== -->
+    <g filter="url(#apexBeaconGlow)">
+      <polygon points="0,-162 4,-148 16,-144 4,-140 0,-126 -4,-140 -16,-144 -4,-148" fill="#71C9CE"/>
+      <circle cx="0,-144" r="3" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>

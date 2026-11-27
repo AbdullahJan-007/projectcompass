@@ -9,6 +9,9 @@ import {
 } from "@/lib/auth/university-id";
 import { registerUniversityAccount } from "@/actions/auth.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { ProjectCompassLogo } from "@/components/ui/project-compass-logo";
+import { PakistanClock } from "@/components/ui/pakistan-clock";
+import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -54,9 +57,7 @@ export default function SignUpPage() {
       <header className="fixed top-0 w-full z-50 bg-[#F9F7F7]/90 backdrop-blur-xl border-b border-[#DBE2EF]/80 shadow-[0_1px_8px_rgba(17,45,78,0.04)]">
         <div className="h-16 w-full max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-lg bg-[#112D4E] text-[#E3FDFD] flex items-center justify-center font-headline-sm text-lg font-bold shadow-sm shrink-0">
-              P
-            </div>
+            <ProjectCompassLogo className="w-9 h-9 rounded-lg shadow-xs shrink-0" />
             <div className="flex flex-col min-w-0">
               <span className="font-title-md text-base sm:text-[18px] leading-tight text-[#112D4E] font-bold tracking-tight truncate">
                 ProjectCompass
@@ -328,7 +329,10 @@ export default function SignUpPage() {
             <span className="w-2 h-2 rounded-full bg-[#71C9CE]" />
             Faculty of IT &amp; Computing Sciences
           </span>
-          <span>© ProjectCompass Academic Portal</span>
+          <div className="flex items-center gap-3">
+            <PakistanClock compact />
+            <span>© {getPakistanYear()} ProjectCompass Academic Portal</span>
+          </div>
         </div>
       </footer>
     </div>

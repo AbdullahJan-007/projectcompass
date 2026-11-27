@@ -13,6 +13,7 @@ import {
 } from "@/actions/archive.actions";
 import { getCoordinatorWorkspaceData } from "@/actions/workspace.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 type IngestStatus =
   | "READY"
@@ -50,7 +51,7 @@ export default function CoordinatorDashboardPage() {
 
   const [title, setTitle] = useState("");
   const [abstractText, setAbstractText] = useState("");
-  const [academicYear, setAcademicYear] = useState(2025);
+  const [academicYear, setAcademicYear] = useState(() => getPakistanYear());
   const [programCode, setProgramCode] = useState<
     "BSIT" | "BSCS" | "BSSE" | "BSAI" | "BSCY" | "BSDS"
   >("BSIT");
@@ -394,7 +395,7 @@ export default function CoordinatorDashboardPage() {
                     min={2010}
                     max={2035}
                     value={academicYear}
-                    onChange={(e) => setAcademicYear(Number(e.target.value) || 2025)}
+                    onChange={(e) => setAcademicYear(Number(e.target.value) || getPakistanYear())}
                     className="font-mono-tabular"
                   />
                 </div>
