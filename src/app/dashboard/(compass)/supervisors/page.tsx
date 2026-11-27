@@ -33,6 +33,7 @@ import {
   type StoredSupervisionRequest,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
+import { AppIcon } from "@/components/ui/app-icon";
 
 function getInitials(name: string): string {
   const cleaned = name.replace(/^(Dr\.|Prof\.|Engr\.)\s*/i, "").trim();
@@ -340,21 +341,14 @@ function StudentSupervisorsWorkspace() {
               </span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-lowest border border-[#DBE2EF] text-xs shadow-xs">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[16px] text-[#3F72AF]"
-              >
-                analytics
-              </span>
+              <AppIcon name="analytics" className="text-[16px] text-[#3F72AF]" />
               <span className="text-on-surface-variant">Open Slots:</span>
               <span className="font-mono-tabular font-semibold text-[#112D4E]">
                 {totalOpenSlots} <span className="text-outline font-normal">/ {totalMaxSlots}</span>
               </span>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#E3FDFD] border border-[#71C9CE]/50 text-[#004F53] text-xs font-semibold shadow-xs">
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                verified_user
-              </span>
+              <AppIcon name="verified_user" className="text-[16px]" />
               <span>Pending Requests: {activePendingCount} / 3 Max</span>
             </div>
           </div>
@@ -417,12 +411,7 @@ function StudentSupervisorsWorkspace() {
               Search Faculty or Topics
             </label>
             <div className="relative flex items-center">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined absolute left-3 text-[18px] text-[#3F72AF] pointer-events-none"
-              >
-                search
-              </span>
+              <AppIcon name="search" className="absolute left-3 text-[18px] text-[#3F72AF] pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
@@ -449,17 +438,13 @@ function StudentSupervisorsWorkspace() {
               }`}
             >
               {onlyStrongFit && (
-                <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                  check
-                </span>
+                <AppIcon name="check" className="text-[14px]" />
               )}
               <span>Strong Fit (&gt;= 80%)</span>
             </button>
 
             <span className="px-3 py-1 rounded-full bg-[#E3FDFD] border border-[#71C9CE]/50 text-[#004F53] text-xs font-semibold flex items-center gap-1">
-              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                check_circle
-              </span>
+              <AppIcon name="check_circle" className="text-[14px]" />
               <span>Open Capacity Verified ({visibleMatches.length})</span>
             </span>
           </div>
@@ -479,9 +464,7 @@ function StudentSupervisorsWorkspace() {
               : "border-error/30 bg-error-container/60 text-on-error-container"
           }`}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
-            {bannerMessage.type === "success" ? "check_circle" : "error"}
-          </span>
+          <AppIcon name={bannerMessage.type === "success" ? "check_circle" : "error"} className="text-[18px] shrink-0" />
           <span>{bannerMessage.text}</span>
         </div>
       )}
@@ -571,12 +554,7 @@ function StudentSupervisorsWorkspace() {
                       <div className="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-[#DBE2EF]/60">
                         <div className="flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#112D4E] text-white font-mono-tabular text-xs font-semibold">
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined text-[14px] text-[#71C9CE]"
-                            >
-                              verified
-                            </span>
+                            <AppIcon name="verified" className="text-[14px] text-[#71C9CE]" />
                             {match.matchPercentage}% Match
                           </span>
                           <span className="text-xs text-[#3F72AF] font-medium">
@@ -642,12 +620,7 @@ function StudentSupervisorsWorkspace() {
                       <div className="mt-4 p-3 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF]/70 space-y-2">
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <span className="flex items-center gap-1.5 text-[#3F72AF] font-medium shrink-0">
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined text-[16px]"
-                            >
-                              layers
-                            </span>
+                            <AppIcon name="layers" className="text-[16px]" />
                             Preferred Stack:
                           </span>
                           <span className="font-mono-tabular text-xs font-semibold text-[#112D4E] truncate">
@@ -689,9 +662,7 @@ function StudentSupervisorsWorkspace() {
                         }
                         className="flex-1 h-10 px-4 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 disabled:pointer-events-none text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors shadow-xs"
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[17px]">
-                          send
-                        </span>
+                        <AppIcon name="send" className="text-[17px]" />
                         <span>
                           {alreadyRequested
                             ? "Supervision Request Pending"
@@ -714,14 +685,9 @@ function StudentSupervisorsWorkspace() {
               className="w-full flex flex-wrap items-center justify-between gap-2 p-4 cursor-pointer bg-[#DBE2EF]/35 hover:bg-[#DBE2EF]/60 transition-colors text-left"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className={`material-symbols-outlined text-[20px] text-[#3F72AF] transition-transform duration-200 ${
+                <AppIcon name="expand_circle_down" className={`text-[20px] text-[#3F72AF] transition-transform duration-200 ${
                     showFullCapacity ? "rotate-180" : ""
-                  }`}
-                >
-                  expand_circle_down
-                </span>
+                  }`} />
                 <span className="font-title-md text-sm sm:text-base font-semibold text-[#112D4E]">
                   Currently at Full Capacity
                 </span>
@@ -779,12 +745,7 @@ function StudentSupervisorsWorkspace() {
           <section className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
             <div className="border-b border-[#DBE2EF]/70 pb-3">
               <div className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#3F72AF] text-[20px]"
-                >
-                  send
-                </span>
+                <AppIcon name="send" className="text-[#3F72AF] text-[20px]" />
                 <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                   Your Submitted Supervision Interest Requests
                 </h2>

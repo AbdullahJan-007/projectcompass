@@ -18,6 +18,7 @@ import {
   saveStoredIdeas,
   saveStoredShortlistedIds,
 } from "@/lib/workspace-store";
+import { AppIcon } from "@/components/ui/app-icon";
 
 type Proficiency = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
@@ -327,9 +328,7 @@ export default function StudentProfilePage() {
 
           <Button asChild disabled={!isReadyForRecommendations} size="sm">
             <Link href="/dashboard/recommendations">
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                auto_awesome
-              </span>
+              <AppIcon name="auto_awesome" className="text-[16px]" />
               <span>View FYP Recommendations</span>
             </Link>
           </Button>
@@ -361,9 +360,7 @@ export default function StudentProfilePage() {
           data-testid="profile-error-state"
         >
           <div className="flex items-center gap-2 text-on-error-container font-semibold">
-            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-              error
-            </span>
+            <AppIcon name="error" className="text-[20px]" />
             <span>Profile Synchronization Interrupted</span>
           </div>
           <p className="text-xs text-on-error-container">
@@ -398,12 +395,7 @@ export default function StudentProfilePage() {
             <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 sm:p-6 shadow-xs space-y-4">
               <div className="border-b border-[#DBE2EF]/70 pb-3">
                 <div className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#3F72AF] text-[20px]"
-                  >
-                    terminal
-                  </span>
+                  <AppIcon name="terminal" className="text-[#3F72AF] text-[20px]" />
                   <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                     1. Verified Technical Skills &amp; Proficiency Levels
                   </h2>
@@ -446,9 +438,7 @@ export default function StudentProfilePage() {
                   data-testid="add-custom-skill-btn"
                   className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[#DBE2EF]/70 hover:bg-[#DBE2EF] px-3.5 text-xs font-semibold text-[#112D4E] transition-colors shrink-0"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    add
-                  </span>
+                  <AppIcon name="add" className="text-[16px]" />
                   <span>Add Custom</span>
                 </button>
               </div>
@@ -462,9 +452,7 @@ export default function StudentProfilePage() {
                       : "border-[#71C9CE]/50 bg-[#E3FDFD] text-[#004F53]"
                   }`}
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    {skillFeedback.type === "warning" ? "warning" : "check_circle"}
-                  </span>
+                  <AppIcon name={skillFeedback.type === "warning" ? "warning" : "check_circle"} className="text-[16px]" />
                   <span>{skillFeedback.text}</span>
                 </div>
               )}
@@ -479,12 +467,7 @@ export default function StudentProfilePage() {
                     onClick={() => addSkill(s.slug, s.displayName)}
                     className="inline-flex items-center gap-1 rounded-md border border-[#DBE2EF] bg-[#F9F7F7] px-2.5 py-1 text-xs font-medium text-[#112D4E] hover:border-[#3F72AF] hover:bg-[#DBE2EF]/50 transition-colors"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[14px] text-[#3F72AF]"
-                    >
-                      add
-                    </span>
+                    <AppIcon name="add" className="text-[14px] text-[#3F72AF]" />
                     <span>{s.displayName}</span>
                   </button>
                 ))}
@@ -537,12 +520,7 @@ export default function StudentProfilePage() {
                           className="rounded-lg p-1.5 text-on-surface-variant hover:bg-error-container/60 hover:text-error transition-colors"
                           aria-label={`Remove ${skill.displayName}`}
                         >
-                          <span
-                            aria-hidden="true"
-                            className="material-symbols-outlined text-[18px]"
-                          >
-                            delete
-                          </span>
+                          <AppIcon name="delete" className="text-[18px]" />
                         </button>
                       </div>
                     </div>
@@ -555,12 +533,7 @@ export default function StudentProfilePage() {
             <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 sm:p-6 shadow-xs space-y-5">
               <div className="border-b border-[#DBE2EF]/70 pb-3">
                 <div className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#3F72AF] text-[20px]"
-                  >
-                    explore
-                  </span>
+                  <AppIcon name="explore" className="text-[#3F72AF] text-[20px]" />
                   <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                     2. Domain Interests &amp; Career Trajectory
                   </h2>
@@ -635,12 +608,7 @@ export default function StudentProfilePage() {
             <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 sm:p-6 shadow-xs space-y-4">
               <div className="border-b border-[#DBE2EF]/70 pb-3">
                 <div className="flex items-center gap-2">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#3F72AF] text-[20px]"
-                  >
-                    schedule
-                  </span>
+                  <AppIcon name="schedule" className="text-[#3F72AF] text-[20px]" />
                   <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                     3. Time Budget, Semester Duration &amp; Team Composition
                   </h2>
@@ -794,14 +762,9 @@ export default function StudentProfilePage() {
                     <span className="text-on-surface-variant">Minimum 3 Verified Skills</span>
                     <span className="inline-flex items-center gap-1.5 font-mono-tabular font-semibold text-[#112D4E]">
                       <span>{skills.length} / 3</span>
-                      <span
-                        aria-hidden="true"
-                        className={`material-symbols-outlined text-[16px] ${
+                      <AppIcon name={skills.length >= 3 ? "check_circle" : "pending"} className={`text-[16px] ${
                           skills.length >= 3 ? "text-[#004F53]" : "text-[#B45309]"
-                        }`}
-                      >
-                        {skills.length >= 3 ? "check_circle" : "pending"}
-                      </span>
+                        }`} />
                     </span>
                   </div>
 
@@ -809,14 +772,9 @@ export default function StudentProfilePage() {
                     <span className="text-on-surface-variant">Domain Interests Selected</span>
                     <span className="inline-flex items-center gap-1.5 font-mono-tabular font-semibold text-[#112D4E]">
                       <span>{interests.length} / 6</span>
-                      <span
-                        aria-hidden="true"
-                        className={`material-symbols-outlined text-[16px] ${
+                      <AppIcon name={interests.length >= 1 ? "check_circle" : "pending"} className={`text-[16px] ${
                           interests.length >= 1 ? "text-[#004F53]" : "text-[#B45309]"
-                        }`}
-                      >
-                        {interests.length >= 1 ? "check_circle" : "pending"}
-                      </span>
+                        }`} />
                     </span>
                   </div>
 
@@ -824,14 +782,9 @@ export default function StudentProfilePage() {
                     <span className="text-on-surface-variant">Target Career Goal</span>
                     <span className="inline-flex items-center gap-1.5 font-mono-tabular font-semibold text-[#112D4E]">
                       <span>{careerGoal.trim().length >= 3 ? "Ready" : "Required"}</span>
-                      <span
-                        aria-hidden="true"
-                        className={`material-symbols-outlined text-[16px] ${
+                      <AppIcon name={careerGoal.trim().length >= 3 ? "check_circle" : "pending"} className={`text-[16px] ${
                           careerGoal.trim().length >= 3 ? "text-[#004F53]" : "text-[#B45309]"
-                        }`}
-                      >
-                        {careerGoal.trim().length >= 3 ? "check_circle" : "pending"}
-                      </span>
+                        }`} />
                     </span>
                   </div>
 
@@ -862,9 +815,7 @@ export default function StudentProfilePage() {
                     disabled={isSaving}
                     className="w-full h-11 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors"
                   >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                      save
-                    </span>
+                    <AppIcon name="save" className="text-[18px]" />
                     <span>{isSaving ? "Saving Profile..." : "Save Skill Profile"}</span>
                   </button>
 
@@ -874,9 +825,7 @@ export default function StudentProfilePage() {
                     onClick={handleNavigateToRecommendations}
                     className="w-full h-10 rounded-lg border border-[#DBE2EF] bg-[#DBE2EF]/40 hover:bg-[#DBE2EF] disabled:opacity-50 text-[#112D4E] text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                   >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[17px]">
-                      auto_awesome
-                    </span>
+                    <AppIcon name="auto_awesome" className="text-[17px]" />
                     <span>
                       {isSaving ? "Saving & Generating..." : "Generate FYP Recommendations"}
                     </span>

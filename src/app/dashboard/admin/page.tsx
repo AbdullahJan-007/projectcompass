@@ -24,6 +24,7 @@ import {
   type AdminProjectRow,
   type LiveArchiveItem,
 } from "@/actions/workspace.actions";
+import { AppIcon } from "@/components/ui/app-icon";
 
 const IT_PROGRAMS = ["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"] as const;
 type ItProgram = (typeof IT_PROGRAMS)[number];
@@ -408,12 +409,7 @@ export default function AdminDashboardPage() {
               Admin Command Center
             </span>
             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-surface-container text-on-surface-variant text-[11px] font-medium">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[14px] text-[#2A609C]"
-              >
-                domain
-              </span>
+              <AppIcon name="domain" className="text-[14px] text-[#2A609C]" />
               Department of IT &amp; Computing (All 6 Programs)
             </span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50 text-[11px] font-semibold">
@@ -436,12 +432,7 @@ export default function AdminDashboardPage() {
             onClick={() => setActiveTab("archives")}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-lowest border border-[#DBE2EF] text-[#112D4E] text-xs font-semibold shadow-xs hover:bg-[#DBE2EF]/50 transition-colors"
           >
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-[18px] text-[#2A609C]"
-            >
-              inventory_2
-            </span>
+            <AppIcon name="inventory_2" className="text-[18px] text-[#2A609C]" />
             <span>Manage Past FYP Archives</span>
           </button>
 
@@ -450,9 +441,7 @@ export default function AdminDashboardPage() {
             onClick={handleExportAuditCsv}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#112D4E] text-white text-xs font-semibold shadow-xs hover:bg-[#001833] transition-colors"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-              download_for_offline
-            </span>
+            <AppIcon name="download_for_offline" className="text-[18px]" />
             <span>Export Audit Dossier</span>
           </button>
         </div>
@@ -469,9 +458,7 @@ export default function AdminDashboardPage() {
               Registered Students
             </span>
             <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                group
-              </span>
+              <AppIcon name="group" className="text-[18px]" />
             </div>
           </div>
           <div>
@@ -493,9 +480,7 @@ export default function AdminDashboardPage() {
               Provisioned Faculty
             </span>
             <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                how_to_reg
-              </span>
+              <AppIcon name="how_to_reg" className="text-[18px]" />
             </div>
           </div>
           <div>
@@ -522,9 +507,7 @@ export default function AdminDashboardPage() {
               Active FYP Proposals
             </span>
             <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                description
-              </span>
+              <AppIcon name="description" className="text-[18px]" />
             </div>
           </div>
           <div>
@@ -546,9 +529,7 @@ export default function AdminDashboardPage() {
               Governance Audit Events
             </span>
             <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                verified
-              </span>
+              <AppIcon name="verified" className="text-[18px]" />
             </div>
           </div>
           <div>
@@ -574,9 +555,7 @@ export default function AdminDashboardPage() {
               : "border-error/30 bg-error-container/60 text-on-error-container"
           }`}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
-            {banner.type === "success" ? "check_circle" : "error"}
-          </span>
+          <AppIcon name={banner.type === "success" ? "check_circle" : "error"} className="text-[18px] shrink-0" />
           <span>{banner.text}</span>
         </div>
       )}
@@ -635,9 +614,7 @@ export default function AdminDashboardPage() {
                   : "text-on-surface-variant hover:bg-surface-container hover:text-[#112D4E]"
               }`}
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[17px]">
-                {tab.icon}
-              </span>
+              <AppIcon name={tab.icon} className="text-[17px]" />
               <span>{tab.label}</span>
               <span
                 className={`font-mono-tabular px-2 py-0.5 rounded-full text-[11px] ${
@@ -675,9 +652,7 @@ export default function AdminDashboardPage() {
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#DBE2EF]/70 text-[#112D4E] text-[11px] font-semibold">
-                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                      sync
-                    </span>
+                    <AppIcon name="sync" className="text-[14px]" />
                     Directory Sync
                   </span>
                 </div>
@@ -790,12 +765,7 @@ export default function AdminDashboardPage() {
                           aria-label="Toggle Faculty PIN visibility"
                           className="absolute right-2 text-on-surface-variant hover:text-[#112D4E]"
                         >
-                          <span
-                            aria-hidden="true"
-                            className="material-symbols-outlined text-[16px]"
-                          >
-                            {showFacPin ? "visibility_off" : "visibility"}
-                          </span>
+                          <AppIcon name={showFacPin ? "visibility_off" : "visibility"} className="text-[16px]" />
                         </button>
                       </div>
                     </div>
@@ -837,9 +807,7 @@ export default function AdminDashboardPage() {
                         ? "Provisioning Faculty Account..."
                         : "Hire & Provision Faculty Supervisor"}
                     </span>
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                      arrow_forward
-                    </span>
+                    <AppIcon name="arrow_forward" className="text-[18px]" />
                   </button>
                 </form>
               </section>
@@ -871,7 +839,7 @@ export default function AdminDashboardPage() {
                         aria-label="Filter Roster Program"
                         value={facultyProgramFilter}
                         onChange={(e) => setFacultyProgramFilter(e.target.value)}
-                        className="w-32"
+                        className="w-44"
                       >
                         <option value="ALL">All Programs</option>
                         {IT_PROGRAMS.map((p) => (
@@ -950,12 +918,7 @@ export default function AdminDashboardPage() {
                 <div className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] border-l-4 border-l-[#112D4E] p-5 sm:p-6 shadow-xs space-y-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
-                      <span
-                        aria-hidden="true"
-                        className="material-symbols-outlined text-[#112D4E] text-[22px]"
-                      >
-                        gavel
-                      </span>
+                      <AppIcon name="gavel" className="text-[#112D4E] text-[22px]" />
                       <h3 className="font-title-md text-base font-bold text-[#112D4E]">
                         Slot Quota Override Governance
                       </h3>
@@ -1017,12 +980,7 @@ export default function AdminDashboardPage() {
                         type="submit"
                         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-xs font-semibold shadow-xs transition-colors"
                       >
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[16px]"
-                        >
-                          verified_user
-                        </span>
+                        <AppIcon name="verified_user" className="text-[16px]" />
                         <span>Commit Quota Override &amp; Record</span>
                       </button>
                     </div>
@@ -1057,7 +1015,7 @@ export default function AdminDashboardPage() {
                     aria-label="Filter Student Program"
                     value={studentProgramFilter}
                     onChange={(e) => setStudentProgramFilter(e.target.value)}
-                    className="w-full sm:w-36"
+                    className="w-full sm:w-44"
                   >
                     <option value="ALL">All Programs</option>
                     {IT_PROGRAMS.map((p) => (
@@ -1279,9 +1237,7 @@ export default function AdminDashboardPage() {
                     type="submit"
                     className="w-full h-10 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
                   >
-                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                      cloud_upload
-                    </span>
+                    <AppIcon name="cloud_upload" className="text-[18px]" />
                     <span>Ingest &amp; Index Archive</span>
                   </button>
                 </form>
@@ -1346,12 +1302,7 @@ export default function AdminDashboardPage() {
                               aria-label={`Delete ${item.title}`}
                               className="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/40"
                             >
-                              <span
-                                aria-hidden="true"
-                                className="material-symbols-outlined text-[18px]"
-                              >
-                                delete
-                              </span>
+                              <AppIcon name="delete" className="text-[18px]" />
                             </button>
                           </div>
                         </div>
@@ -1449,9 +1400,7 @@ export default function AdminDashboardPage() {
                     </p>
                   </div>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] text-[11px] font-semibold">
-                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                      lock
-                    </span>
+                    <AppIcon name="lock" className="text-[14px]" />
                     Verified
                   </span>
                 </div>

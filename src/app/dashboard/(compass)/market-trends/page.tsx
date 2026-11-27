@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Select } from "@/components/ui/select";
 import { MARKET_TREND_SNAPSHOTS } from "@/lib/recommendation/seed-data";
+import { AppIcon } from "@/components/ui/app-icon";
 
 export default function MarketTrendsPage() {
   const [demandFilter, setDemandFilter] = useState<string>("ALL");
@@ -89,12 +90,7 @@ export default function MarketTrendsPage() {
                         {trend.demandLevel} DEMAND
                       </span>
                       <span className="inline-flex items-center gap-1 font-mono-tabular text-xs font-semibold text-[#2A609C]">
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[15px]"
-                        >
-                          trending_up
-                        </span>
+                        <AppIcon name="trending_up" className="text-[15px]" />
                         {trend.trendDirection}
                       </span>
                     </div>
@@ -116,9 +112,7 @@ export default function MarketTrendsPage() {
 
                 <div className="px-5 pb-5 pt-3 border-t border-[#DBE2EF]/60 space-y-2 bg-[#F9F7F7]/50">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#3F72AF]">
-                    <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                      layers
-                    </span>
+                    <AppIcon name="layers" className="text-[15px]" />
                     <span>In-Demand Stack Pairings</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">

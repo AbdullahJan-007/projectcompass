@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppIcon } from "@/components/ui/app-icon";
 
 const DEGREE_PROGRAMS = [
   {
@@ -59,9 +60,7 @@ export default function HomePage() {
         <div className="h-16 max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between gap-2">
           <Link href="/" className="flex items-center gap-2.5 min-w-0">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-[#112D4E] text-white shadow-sm shrink-0">
-              <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                explore
-              </span>
+              <AppIcon name="explore" className="text-[20px]" />
             </div>
             <span className="font-headline-sm text-base sm:text-[18px] font-bold tracking-tight text-[#112D4E] truncate">
               ProjectCompass
@@ -149,23 +148,13 @@ export default function HomePage() {
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#112D4E] text-white text-sm font-semibold hover:bg-[#001833] transition-all duration-200 shadow-md group"
                 >
                   <span>Student Sign Up</span>
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[18px] transition-transform group-hover:translate-x-0.5"
-                  >
-                    arrow_forward
-                  </span>
+                  <AppIcon name="arrow_forward" className="text-[18px] transition-transform group-hover:translate-x-0.5" />
                 </Link>
                 <Link
                   href="/sign-in"
                   className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-surface-container-lowest border border-[#DBE2EF] text-[#112D4E] text-sm font-semibold shadow-xs hover:bg-[#DBE2EF]/40 transition-all duration-200"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[18px] text-[#2A609C]"
-                  >
-                    lock
-                  </span>
+                  <AppIcon name="lock" className="text-[18px] text-[#2A609C]" />
                   <span>Portal Sign In (Student / Faculty / Admin)</span>
                 </Link>
               </div>
@@ -184,9 +173,7 @@ export default function HomePage() {
                   </span>
                 ))}
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/40 text-xs font-semibold">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                    calendar_month
-                  </span>
+                  <AppIcon name="calendar_month" className="text-[14px]" />
                   All Active Intakes
                 </span>
               </div>
@@ -204,9 +191,7 @@ export default function HomePage() {
                 <div className="flex items-center justify-between gap-2 pb-4">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="inline-flex p-2 rounded-lg bg-[#2A609C]/50 text-[#99F1F6] shrink-0">
-                      <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                        verified_user
-                      </span>
+                      <AppIcon name="verified_user" className="text-[20px]" />
                     </span>
                     <div className="min-w-0">
                       <span className="block font-mono-tabular text-[11px] text-[#7DD4D9] font-medium tracking-wider">
@@ -393,9 +378,7 @@ export default function HomePage() {
             <div className="bg-surface-container-lowest border border-[#DBE2EF] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all">
               <div className="flex flex-col gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#DBE2EF] text-[#112D4E] flex items-center justify-center">
-                  <span aria-hidden="true" className="material-symbols-outlined">
-                    analytics
-                  </span>
+                  <AppIcon name="analytics" />
                 </div>
                 <h3 className="font-headline-sm text-lg font-semibold text-[#001833]">
                   Clear Feasibility Scoring
@@ -449,9 +432,7 @@ export default function HomePage() {
             <div className="bg-surface-container-lowest border border-[#DBE2EF] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all">
               <div className="flex flex-col gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#DBE2EF] text-[#112D4E] flex items-center justify-center">
-                  <span aria-hidden="true" className="material-symbols-outlined">
-                    library_books
-                  </span>
+                  <AppIcon name="library_books" />
                 </div>
                 <h3 className="font-headline-sm text-lg font-semibold text-[#001833]">
                   Archive Originality Check
@@ -464,9 +445,7 @@ export default function HomePage() {
                 <div className="mt-1 p-3.5 rounded-lg bg-surface-container-low border border-[#DBE2EF]/60 space-y-2">
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-error flex items-center gap-1">
-                      <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                        warning
-                      </span>
+                      <AppIcon name="warning" className="text-[15px]" />
                       High Overlap Alert
                     </span>
                     <span className="font-mono-tabular font-bold text-[#112D4E]">&gt;= 82%</span>
@@ -480,9 +459,7 @@ export default function HomePage() {
                     </p>
                   </div>
                   <div className="p-2 rounded bg-[#E3FDFD] text-[#004F53] text-[11px] font-medium flex items-center gap-1.5">
-                    <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                      lightbulb
-                    </span>
+                    <AppIcon name="lightbulb" className="text-[15px]" />
                     <span className="truncate">
                       Enforces deterministic root-cause clustering pivot
                     </span>
@@ -500,9 +477,7 @@ export default function HomePage() {
             <div className="bg-surface-container-lowest border border-[#DBE2EF] rounded-xl p-6 flex flex-col justify-between shadow-xs hover:shadow-md transition-all">
               <div className="flex flex-col gap-3">
                 <div className="w-10 h-10 rounded-lg bg-[#DBE2EF] text-[#112D4E] flex items-center justify-center">
-                  <span aria-hidden="true" className="material-symbols-outlined">
-                    supervisor_account
-                  </span>
+                  <AppIcon name="supervisor_account" />
                 </div>
                 <h3 className="font-headline-sm text-lg font-semibold text-[#001833]">
                   Balanced Supervision &amp; Roadmaps
@@ -615,12 +590,7 @@ export default function HomePage() {
               </p>
               <div className="space-y-2.5 pt-2">
                 <div className="flex items-start gap-2.5">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#2A609C] text-[20px] shrink-0 mt-0.5"
-                  >
-                    check_circle
-                  </span>
+                  <AppIcon name="check_circle" className="text-[#2A609C] text-[20px] shrink-0 mt-0.5" />
                   <div>
                     <span className="text-sm font-semibold text-[#112D4E] block">
                       Student Self-Registration via Roll Number
@@ -631,12 +601,7 @@ export default function HomePage() {
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#2A609C] text-[20px] shrink-0 mt-0.5"
-                  >
-                    check_circle
-                  </span>
+                  <AppIcon name="check_circle" className="text-[#2A609C] text-[20px] shrink-0 mt-0.5" />
                   <div>
                     <span className="text-sm font-semibold text-[#112D4E] block">
                       Admin-Provisioned Faculty Accounts
@@ -652,12 +617,7 @@ export default function HomePage() {
 
             <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl border border-[#DBE2EF] bg-[#112D4E] text-white p-5 space-y-2 shadow-sm">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#7DD4D9] text-[24px]"
-                >
-                  school
-                </span>
+                <AppIcon name="school" className="text-[#7DD4D9] text-[24px]" />
                 <h3 className="font-headline-sm text-base font-bold text-white">Student Portal</h3>
                 <p className="text-xs text-[#D4E3FF] leading-relaxed">
                   Calibrate technical skills &amp; effort budget, evaluate 3 diversified tracks,
@@ -665,12 +625,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 space-y-2 shadow-xs">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#2A609C] text-[24px]"
-                >
-                  assignment_ind
-                </span>
+                <AppIcon name="assignment_ind" className="text-[#2A609C] text-[24px]" />
                 <h3 className="font-headline-sm text-base font-bold text-[#112D4E]">
                   Faculty Supervisor Portal
                 </h3>
@@ -680,12 +635,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 space-y-2 shadow-xs">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#2A609C] text-[24px]"
-                >
-                  inventory_2
-                </span>
+                <AppIcon name="inventory_2" className="text-[#2A609C] text-[24px]" />
                 <h3 className="font-headline-sm text-base font-bold text-[#112D4E]">
                   Coordinator Archive Ledger
                 </h3>
@@ -695,12 +645,7 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="rounded-xl border border-[#DBE2EF] bg-[#E3FDFD]/70 p-5 space-y-2 shadow-xs">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#004F53] text-[24px]"
-                >
-                  admin_panel_settings
-                </span>
+                <AppIcon name="admin_panel_settings" className="text-[#004F53] text-[24px]" />
                 <h3 className="font-headline-sm text-base font-bold text-[#112D4E]">
                   Admin Command Center
                 </h3>
@@ -719,9 +664,7 @@ export default function HomePage() {
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-2 max-w-xl">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/15 text-[#99F1F6] text-xs font-semibold">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                    how_to_reg
-                  </span>
+                  <AppIcon name="how_to_reg" className="text-[15px]" />
                   Onboarding Open · All Computing Cohorts
                 </span>
                 <h2 className="font-headline-md text-2xl sm:text-[28px] font-bold text-white">
@@ -739,18 +682,14 @@ export default function HomePage() {
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white text-[#001833] text-sm font-bold shadow hover:bg-[#E3FDFD] transition-colors"
                 >
                   <span>Register Student Account</span>
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                    badge
-                  </span>
+                  <AppIcon name="badge" className="text-[18px]" />
                 </Link>
                 <Link
                   href="/sign-in"
                   className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white/15 text-white border border-white/25 text-sm font-semibold hover:bg-white/25 transition-colors"
                 >
                   <span>Portal Sign In</span>
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                    login
-                  </span>
+                  <AppIcon name="login" className="text-[18px]" />
                 </Link>
               </div>
             </div>

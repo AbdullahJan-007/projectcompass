@@ -12,6 +12,7 @@ import {
   deleteArchiveRecord,
 } from "@/actions/archive.actions";
 import { getCoordinatorWorkspaceData } from "@/actions/workspace.actions";
+import { AppIcon } from "@/components/ui/app-icon";
 
 type IngestStatus =
   | "READY"
@@ -280,12 +281,7 @@ export default function CoordinatorDashboardPage() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
           <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
             <span>Indexed Archives (READY)</span>
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-[18px] text-[#2A609C]"
-            >
-              database
-            </span>
+            <AppIcon name="database" className="text-[18px] text-[#2A609C]" />
           </div>
           <p className="font-mono-tabular text-2xl font-bold text-[#001833]">{readyCount}</p>
           <p className="text-[11px] text-on-surface-variant">HNSW cosine index active</p>
@@ -294,12 +290,7 @@ export default function CoordinatorDashboardPage() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
           <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
             <span>Pending / Needs Abstract</span>
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-[18px] text-[#B45309]"
-            >
-              warning
-            </span>
+            <AppIcon name="warning" className="text-[18px] text-[#B45309]" />
           </div>
           <p className="font-mono-tabular text-2xl font-bold text-[#001833]">{attentionCount}</p>
           <p className="text-[11px] text-on-surface-variant">Async Inngest remediation queue</p>
@@ -308,12 +299,7 @@ export default function CoordinatorDashboardPage() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
           <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
             <span>Department Slot Utilization</span>
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-[18px] text-[#2A609C]"
-            >
-              group
-            </span>
+            <AppIcon name="group" className="text-[18px] text-[#2A609C]" />
           </div>
           <p className="font-mono-tabular text-2xl font-bold text-[#001833]">
             {filledSupervisorSlots} / {totalSupervisorsSlots}
@@ -327,12 +313,7 @@ export default function CoordinatorDashboardPage() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
           <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
             <span>Anti-Duplicate Gate</span>
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined text-[18px] text-[#004F53]"
-            >
-              verified
-            </span>
+            <AppIcon name="verified" className="text-[18px] text-[#004F53]" />
           </div>
           <p className="font-mono-tabular text-2xl font-bold text-[#001833]">&gt;= 0.82</p>
           <p className="text-[11px] text-on-surface-variant">Forces mandatory differentiation</p>
@@ -348,9 +329,7 @@ export default function CoordinatorDashboardPage() {
               : "border-error/30 bg-error-container/60 text-on-error-container"
           }`}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
-            {feedback.type === "success" ? "check_circle" : "error"}
-          </span>
+          <AppIcon name={feedback.type === "success" ? "check_circle" : "error"} className="text-[18px] shrink-0" />
           <span>{feedback.text}</span>
         </div>
       )}
@@ -383,12 +362,7 @@ export default function CoordinatorDashboardPage() {
           <section className="lg:col-span-5 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
             <div className="pb-3 border-b border-[#DBE2EF]/70">
               <div className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#2A609C] text-[20px]"
-                >
-                  cloud_upload
-                </span>
+                <AppIcon name="cloud_upload" className="text-[#2A609C] text-[20px]" />
                 <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                   Ingest Past FYP Abstract
                 </h2>
@@ -502,9 +476,7 @@ export default function CoordinatorDashboardPage() {
                 type="submit"
                 className="w-full h-11 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                  inventory_2
-                </span>
+                <AppIcon name="inventory_2" className="text-[18px]" />
                 <span>Ingest &amp; Generate pgvector Embedding</span>
               </button>
             </form>
@@ -566,12 +538,7 @@ export default function CoordinatorDashboardPage() {
                           aria-label={`Delete ${item.title}`}
                           className="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors"
                         >
-                          <span
-                            aria-hidden="true"
-                            className="material-symbols-outlined text-[18px]"
-                          >
-                            delete
-                          </span>
+                          <AppIcon name="delete" className="text-[18px]" />
                         </button>
                       </div>
                     </div>
@@ -582,12 +549,7 @@ export default function CoordinatorDashboardPage() {
 
                     {item.ingestError && (
                       <div className="flex items-center gap-2 rounded-lg border border-[#B45309]/30 bg-[#FEF3C7] px-3 py-2 text-xs text-[#92400E]">
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[16px] shrink-0"
-                        >
-                          warning
-                        </span>
+                        <AppIcon name="warning" className="text-[16px] shrink-0" />
                         <span>{item.ingestError}</span>
                       </div>
                     )}

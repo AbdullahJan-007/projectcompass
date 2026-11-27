@@ -25,6 +25,7 @@ import {
   formatTrackLabel,
 } from "@/lib/workspace-store";
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
+import { AppIcon } from "@/components/ui/app-icon";
 
 export default function RoadmapDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -293,9 +294,7 @@ export default function RoadmapDetailPage() {
           {/* High-Contrast White Headline & Summary */}
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-[#E3FDFD] text-xs uppercase tracking-wider font-semibold">
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                alt_route
-              </span>
+              <AppIcon name="alt_route" className="text-[16px]" />
               <span>Sprint Roadmap · {portalSession.identifier || "Student Workspace"}</span>
             </div>
             <h1 className="font-headline-lg text-2xl sm:text-3xl !text-white font-bold tracking-tight max-w-4xl leading-snug">
@@ -310,12 +309,7 @@ export default function RoadmapDetailPage() {
           <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 space-y-3 border border-white/15">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white">
               <span className="flex items-center gap-1.5 font-semibold">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[16px] text-[#71C9CE]"
-                >
-                  timelapse
-                </span>
+                <AppIcon name="timelapse" className="text-[16px] text-[#71C9CE]" />
                 Overall Progress:{" "}
                 <strong className="font-mono-tabular text-[#E3FDFD]">
                   {progressPercent}% Complete
@@ -363,12 +357,7 @@ export default function RoadmapDetailPage() {
           {/* Banner Action Row */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
             <div className="flex items-center gap-1.5 text-xs text-white/90">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[16px] text-[#71C9CE]"
-              >
-                verified
-              </span>
+              <AppIcon name="verified" className="text-[16px] text-[#71C9CE]" />
               <span>Deterministic Sum Invariant: Sum(Phase Weeks) = {baseRoadmap.durationWeeks}</span>
             </div>
 
@@ -378,9 +367,7 @@ export default function RoadmapDetailPage() {
               data-testid="export-markdown-btn"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E3FDFD] hover:bg-white text-[#112D4E] text-xs font-bold transition-all shadow-sm"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                download_for_offline
-              </span>
+              <AppIcon name="download_for_offline" className="text-[18px]" />
               <span>Export Markdown (.md)</span>
             </button>
           </div>
@@ -459,9 +446,7 @@ export default function RoadmapDetailPage() {
           </div>
           {syncMessage && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E3FDFD] text-[#004F53] text-xs font-semibold">
-              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                check_circle
-              </span>
+              <AppIcon name="check_circle" className="text-[14px]" />
               {syncMessage}
             </span>
           )}
@@ -563,12 +548,7 @@ export default function RoadmapDetailPage() {
                   }`}
                 >
                   {isDone ? (
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[14px] font-bold"
-                    >
-                      check
-                    </span>
+                    <AppIcon name="check" className="text-[14px] font-bold" />
                   ) : (
                     <span className="font-mono-tabular text-[11px] font-bold">
                       {ms.phaseNumber}
@@ -622,12 +602,7 @@ export default function RoadmapDetailPage() {
                         data-testid={`toggle-milestone-${ms.phaseNumber}`}
                         className="inline-flex items-center gap-1 rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] hover:bg-[#DBE2EF]/60 px-2.5 py-1 text-xs font-semibold text-[#112D4E] transition-colors"
                       >
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[15px] text-[#3F72AF]"
-                        >
-                          sync
-                        </span>
+                        <AppIcon name="sync" className="text-[15px] text-[#3F72AF]" />
                         <span>Toggle Status</span>
                       </button>
                     </div>
@@ -656,12 +631,7 @@ export default function RoadmapDetailPage() {
                                 : "bg-[#DBE2EF] text-[#3F72AF]"
                           }`}
                         >
-                          <span
-                            aria-hidden="true"
-                            className="material-symbols-outlined text-[13px]"
-                          >
-                            {isDone ? "check" : isActive ? "pending" : "radio_button_unchecked"}
-                          </span>
+                          <AppIcon name={isDone ? "check" : isActive ? "pending" : "radio_button_unchecked"} className="text-[13px]" />
                         </div>
                         <p className="text-xs sm:text-sm text-on-surface leading-snug">
                           <strong className="font-mono-tabular text-[#112D4E] font-semibold mr-1.5">
@@ -677,12 +647,7 @@ export default function RoadmapDetailPage() {
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 text-xs space-y-1">
                       <div className="flex items-center gap-1.5 font-semibold text-[#112D4E]">
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[16px] text-[#004F53]"
-                        >
-                          verified
-                        </span>
+                        <AppIcon name="verified" className="text-[16px] text-[#004F53]" />
                         <span>Verification Criteria</span>
                       </div>
                       <p className="text-on-surface-variant leading-relaxed">
@@ -692,12 +657,7 @@ export default function RoadmapDetailPage() {
 
                     <div className="p-3 rounded-lg bg-error-container/35 border border-error/20 text-xs space-y-1">
                       <div className="flex items-center gap-1.5 font-semibold text-on-error-container">
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[16px] text-error"
-                        >
-                          warning
-                        </span>
+                        <AppIcon name="warning" className="text-[16px] text-error" />
                         <span>Milestone Risk Checkpoint</span>
                       </div>
                       <p className="text-on-surface-variant leading-relaxed">{ms.riskNote}</p>

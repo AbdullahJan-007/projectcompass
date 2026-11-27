@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { UserRole } from "@prisma/client";
+import { LogOut, PanelLeft, PanelLeftClose, ShieldCheck, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AppIcon } from "@/components/ui/app-icon";
 import { PortalSessionProvider } from "@/components/layout/portal-session-context";
 import { signOutUniversitySession } from "@/actions/auth.actions";
 import { clearWorkspaceStorage } from "@/lib/workspace-store";
@@ -15,6 +17,8 @@ interface NavItem {
   iconName: string;
   roles: readonly UserRole[];
 }
+
+const SIDEBAR_STORAGE_KEY = "projectcompass_sidebar_collapsed";
 
 const NAV_ITEMS: readonly NavItem[] = [
   {
@@ -123,6 +127,50 @@ export function AppShell({
   const router = useRouter();
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+
+  // Restore saved desktop sidebar preference after mount (hydration-safe)
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true") {
+        setDesktopCollapsed(true);
+      }
+    } catch {
+      // Ignore storage access restrictions
+    }
+  }, []);
+
+  // Support Ctrl+B / Cmd+B shortcut to toggle sidebar
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        setDesktopCollapsed((prev) => {
+          const next = !prev;
+          try {
+            window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+          } catch {
+            // Ignore storage errors
+          }
+          return next;
+        });
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  function toggleDesktopSidebar() {
+    setDesktopCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // Ignore storage errors
+      }
+      return next;
+    });
+  }
 
   const visibleItems = NAV_ITEMS.filter((item) => item.roles.includes(userRole));
   const initials = extractInitials(userName);
@@ -149,62 +197,74 @@ export function AppShell({
       <div className="flex min-h-screen flex-col lg:flex-row bg-[#F9F7F7] text-on-surface overflow-x-hidden">
         {/* Mobile & Tablet Sticky Header (< lg) */}
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/95 backdrop-blur-xl px-4 lg:hidden">
-          <Link href="/" className="flex items-center gap-2 min-w-0">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-base font-bold shadow-sm">
-              P
-            </div>
-            <div className="min-w-0">
-              <span className="block truncate font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
-                ProjectCompass
-              </span>
-              <span className="block truncate font-label-sm text-[10px] font-semibold uppercase tracking-wider text-[#3F72AF]">
-                {departmentCode}
-              </span>
-            </div>
-          </Link>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label="Toggle workspace navigation"
+              aria-expanded={mobileOpen}
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#DBE2EF] bg-surface-container-lowest text-[#112D4E] hover:bg-[#DBE2EF]/60 transition-colors shadow-2xs"
+            >
+              {mobileOpen ? (
+                <X aria-hidden="true" className="h-[18px] w-[18px]" />
+              ) : (
+                <PanelLeft aria-hidden="true" className="h-[18px] w-[18px]" />
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setMobileOpen((prev) => !prev)}
-            aria-label="Toggle workspace navigation"
-            aria-expanded={mobileOpen}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#DBE2EF] bg-surface-container-lowest text-[#112D4E] hover:bg-[#DBE2EF]/60 transition-colors"
-          >
-            <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-              {mobileOpen ? "close" : "menu"}
-            </span>
-          </button>
+            <Link href="/" className="flex items-center gap-2 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-base font-bold shadow-sm">
+                P
+              </div>
+              <div className="min-w-0">
+                <span className="block truncate font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
+                  ProjectCompass
+                </span>
+                <span className="block truncate font-label-sm text-[10px] font-semibold uppercase tracking-wider text-[#3F72AF]">
+                  {departmentCode}
+                </span>
+              </div>
+            </Link>
+          </div>
+
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#112D4E] text-white font-headline-sm text-xs font-bold ring-2 ring-[#DBE2EF]">
+            {initials}
+          </div>
         </header>
 
         {/* Mobile / Tablet Backdrop Overlay */}
         {mobileOpen && (
           <div
-            className="fixed inset-0 z-30 bg-[#001833]/40 backdrop-blur-[2px] lg:hidden"
+            className="fixed inset-0 z-40 bg-[#001833]/40 backdrop-blur-[2px] lg:hidden"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
         )}
 
-        {/* Stitch 248px Responsive Sidebar / Slide-over Drawer */}
+        {/* Collapsible 248px Sidebar (Desktop Toggleable + Mobile Slide-over Drawer) */}
         <aside
+          data-collapsed={desktopCollapsed ? "true" : "false"}
           className={cn(
-            "fixed inset-y-0 left-0 z-40 flex w-[248px] max-w-[84vw] flex-col justify-between border-r border-[#DBE2EF] bg-[#F5F3F3] transition-transform duration-200 ease-out lg:w-[248px] lg:max-w-none lg:translate-x-0",
-            mobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full lg:shadow-none"
+            "fixed inset-y-0 left-0 z-50 flex w-[248px] max-w-[84vw] flex-col justify-between border-r border-[#DBE2EF] bg-[#F5F3F3] transition-transform duration-200 ease-out lg:z-40 lg:w-[248px] lg:max-w-none",
+            mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+            desktopCollapsed
+              ? "lg:-translate-x-full lg:shadow-none"
+              : "lg:translate-x-0 lg:shadow-none"
           )}
         >
           <div className="flex flex-col min-h-0 flex-1 overflow-y-auto">
-            {/* Brand Header */}
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-[#DBE2EF]/80 bg-surface-container-lowest/70 px-4">
+            {/* Brand Header with Dedicated PanelLeft Collapse Toggle */}
+            <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-[#DBE2EF]/80 bg-surface-container-lowest/80 px-3.5">
               <Link
                 href="/"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-2.5 min-w-0"
               >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-lg font-bold shadow-sm">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#112D4E] text-white font-headline-sm text-base font-bold shadow-sm">
                   P
                 </div>
                 <div className="min-w-0">
-                  <span className="block truncate font-headline-sm text-base font-bold tracking-tight text-[#112D4E] leading-tight">
+                  <span className="block truncate font-headline-sm text-[15px] font-bold tracking-tight text-[#112D4E] leading-tight">
                     ProjectCompass
                   </span>
                   <span className="block truncate font-label-sm text-[10px] font-semibold uppercase tracking-wider text-[#3F72AF]">
@@ -213,32 +273,40 @@ export function AppShell({
                 </div>
               </Link>
 
-              <div className="flex items-center gap-1.5 shrink-0">
-                <span className="rounded bg-[#DBE2EF]/80 px-2 py-0.5 font-mono-tabular text-[11px] font-semibold text-[#112D4E]">
-                  {departmentCode}
-                </span>
+              <div className="flex items-center gap-1 shrink-0">
+                {/* Desktop Collapse Sidebar Button */}
+                <button
+                  type="button"
+                  onClick={toggleDesktopSidebar}
+                  title="Hide sidebar (Ctrl+B)"
+                  aria-label="Hide sidebar"
+                  data-testid="sidebar-collapse-btn"
+                  className="hidden lg:inline-flex h-8 w-8 items-center justify-center rounded-lg border border-transparent text-[#43474E] hover:border-[#DBE2EF] hover:bg-white hover:text-[#112D4E] active:scale-95 transition-all"
+                >
+                  <PanelLeftClose aria-hidden="true" className="h-[17px] w-[17px]" />
+                </button>
+
+                {/* Mobile Close Drawer Button */}
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
                   aria-label="Close navigation drawer"
-                  className="rounded-lg p-1 text-on-surface-variant hover:bg-[#DBE2EF]/60 hover:text-[#112D4E] lg:hidden"
+                  className="inline-flex lg:hidden h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant hover:bg-[#DBE2EF]/60 hover:text-[#112D4E]"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                    close
-                  </span>
+                  <X aria-hidden="true" className="h-[18px] w-[18px]" />
                 </button>
               </div>
             </div>
 
             {/* Active Role Context Pill */}
-            <div className="px-4 pt-3.5 pb-1.5">
-              <div className="flex items-center justify-between rounded-lg bg-[#DBE2EF]/60 px-3 py-1.5 font-label-sm text-label-sm">
-                <span className="font-semibold uppercase tracking-wider text-[#112D4E]">
+            <div className="px-3.5 pt-3.5 pb-1.5">
+              <div className="flex items-center justify-between rounded-lg bg-[#DBE2EF]/65 px-3 py-1.5 font-label-sm text-label-sm">
+                <span className="font-semibold uppercase tracking-wider text-[#112D4E] truncate">
                   {getPortalSectionLabel(userRole)}
                 </span>
-                <span className="inline-flex items-center gap-1 font-semibold text-[#004f53]">
+                <span className="inline-flex items-center gap-1.5 font-mono-tabular text-[10px] font-semibold text-[#004f53] shrink-0">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#71C9CE]" />
-                  Active
+                  {departmentCode}
                 </span>
               </div>
             </div>
@@ -260,15 +328,13 @@ export function AppShell({
                         : "font-medium text-on-surface-variant hover:bg-[#DBE2EF]/60 hover:text-[#112D4E]"
                     )}
                   >
-                    <span
-                      aria-hidden="true"
+                    <AppIcon
+                      name={item.iconName}
                       className={cn(
-                        "material-symbols-outlined text-[18px] shrink-0",
+                        "h-[17px] w-[17px] shrink-0",
                         active ? "text-[#71C9CE]" : "text-[#3F72AF]"
                       )}
-                    >
-                      {item.iconName}
-                    </span>
+                    />
                     <span className="truncate">{item.label}</span>
                   </Link>
                 );
@@ -311,24 +377,63 @@ export function AppShell({
                 data-testid="sidebar-signout-btn"
                 className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#DBE2EF] bg-[#F9F7F7] px-2.5 py-1.5 text-[11px] font-semibold text-[#112D4E] transition-colors hover:border-error/40 hover:bg-error-container/50 hover:text-on-error-container"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                  logout
-                </span>
+                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
                 <span>Sign Out</span>
               </button>
             </div>
           </div>
         </aside>
 
-        {/* Main Workspace Container */}
-        <div className="flex min-w-0 flex-1 flex-col lg:pl-[248px]">
+        {/* Main Workspace Container — Synchronized Padding Prevents Any Sidebar Overlap */}
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out",
+            desktopCollapsed ? "lg:pl-0" : "lg:pl-[248px]"
+          )}
+        >
           {/* Desktop Top Chrome Header (>= lg) */}
-          <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/90 backdrop-blur-xl px-8 lg:flex">
+          <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/92 backdrop-blur-xl px-6 lg:flex">
             <div className="flex items-center gap-3 min-w-0">
-              <span className="font-headline-sm text-base font-semibold text-[#112D4E]">
+              {/* Sleek Sidebar Toggle Button (PanelLeft icon matching Antigravity/Linear style) */}
+              <button
+                type="button"
+                onClick={toggleDesktopSidebar}
+                title={desktopCollapsed ? "Show sidebar (Ctrl+B)" : "Hide sidebar (Ctrl+B)"}
+                aria-label={desktopCollapsed ? "Show sidebar" : "Hide sidebar"}
+                aria-expanded={!desktopCollapsed}
+                data-testid="desktop-sidebar-toggle-btn"
+                className={cn(
+                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all active:scale-95",
+                  desktopCollapsed
+                    ? "border-[#112D4E]/20 bg-[#112D4E] text-white shadow-xs hover:bg-[#001833]"
+                    : "border-[#DBE2EF] bg-white text-[#43474E] hover:border-[#3F72AF]/50 hover:bg-[#DBE2EF]/50 hover:text-[#112D4E]"
+                )}
+              >
+                {desktopCollapsed ? (
+                  <PanelLeft aria-hidden="true" className="h-[17px] w-[17px]" />
+                ) : (
+                  <PanelLeftClose aria-hidden="true" className="h-[17px] w-[17px]" />
+                )}
+              </button>
+
+              {desktopCollapsed && (
+                <Link
+                  href="/"
+                  className="flex items-center gap-2 pr-2 border-r border-[#DBE2EF] shrink-0"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[#112D4E] text-white font-headline-sm text-sm font-bold">
+                    P
+                  </div>
+                  <span className="font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
+                    ProjectCompass
+                  </span>
+                </Link>
+              )}
+
+              <span className="font-headline-sm text-base font-semibold text-[#112D4E] truncate">
                 Dept of IT &amp; Computing
               </span>
-              <span className="rounded-full border border-[#71C9CE]/50 bg-[#E3FDFD] px-2.5 py-0.5 font-label-sm text-label-sm font-semibold text-[#004f53]">
+              <span className="rounded-full border border-[#71C9CE]/50 bg-[#E3FDFD] px-2.5 py-0.5 font-label-sm text-label-sm font-semibold text-[#004f53] shrink-0">
                 HEC-NCEAC Verified
               </span>
               <span className="hidden xl:inline-block font-mono-tabular text-xs text-on-surface-variant truncate">
@@ -338,12 +443,7 @@ export function AppShell({
 
             <div className="flex items-center gap-3 shrink-0">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DBE2EF] bg-surface-container-lowest px-3 py-1 font-label-md text-label-md font-semibold text-[#112D4E] shadow-xs">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[15px] text-[#3F72AF]"
-                >
-                  verified_user
-                </span>
+                <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-[#3F72AF]" />
                 {getRoleViewChip(userRole)}
               </span>
 

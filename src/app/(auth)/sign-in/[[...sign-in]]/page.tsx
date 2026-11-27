@@ -9,6 +9,7 @@ import {
   validateFourDigitPin,
 } from "@/lib/auth/university-id";
 import { signInWithUniversityCredentials } from "@/actions/auth.actions";
+import { AppIcon } from "@/components/ui/app-icon";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -84,9 +85,7 @@ export default function SignInPage() {
               href="/"
               className="font-label-md text-xs text-on-surface-variant hover:text-[#112D4E] transition-colors flex items-center gap-1 font-medium"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                arrow_back
-              </span>
+              <AppIcon name="arrow_back" className="text-[16px]" />
               <span>Public Portal</span>
             </Link>
             <Link
@@ -145,9 +144,7 @@ export default function SignInPage() {
                       : "text-on-surface-variant hover:text-[#112D4E]"
                   }`}
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    school
-                  </span>
+                  <AppIcon name="school" className="text-[16px]" />
                   <span>Student</span>
                 </button>
 
@@ -163,9 +160,7 @@ export default function SignInPage() {
                       : "text-on-surface-variant hover:text-[#112D4E]"
                   }`}
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    badge
-                  </span>
+                  <AppIcon name="badge" className="text-[16px]" />
                   <span>Faculty / Admin</span>
                 </button>
               </div>
@@ -187,9 +182,7 @@ export default function SignInPage() {
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#3F72AF]">
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                          badge
-                        </span>
+                        <AppIcon name="badge" className="text-[18px]" />
                       </div>
                       <input
                         id="student-reg-input"
@@ -200,7 +193,7 @@ export default function SignInPage() {
                         placeholder="e.g. B23F0184CS042"
                         autoComplete="username"
                         required
-                        className="w-full pl-9 pr-3 py-2.5 bg-surface-container-lowest font-mono-tabular text-sm text-[#112D4E] tracking-wide uppercase rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
+                        className="w-full pl-10 pr-3 py-2.5 bg-surface-container-lowest font-mono-tabular text-sm text-[#112D4E] tracking-wide uppercase rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
                       />
                     </div>
 
@@ -216,12 +209,7 @@ export default function SignInPage() {
                             · Roll #{parsedReg.rollNumber}
                           </span>
                         </span>
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[15px] text-[#004F53]"
-                        >
-                          check_circle
-                        </span>
+                        <AppIcon name="check_circle" className="text-[15px] text-[#004F53]" />
                       </div>
                     )}
                   </div>
@@ -240,9 +228,7 @@ export default function SignInPage() {
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#3F72AF]">
-                        <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                          alternate_email
-                        </span>
+                        <AppIcon name="alternate_email" className="text-[18px]" />
                       </div>
                       <input
                         id="faculty-id-input"
@@ -253,7 +239,7 @@ export default function SignInPage() {
                         placeholder="firstname.lastname@university.edu"
                         autoComplete="username"
                         required
-                        className="w-full pl-9 pr-3 py-2.5 bg-surface-container-lowest text-sm text-[#112D4E] rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
+                        className="w-full pl-10 pr-3 py-2.5 bg-surface-container-lowest text-sm text-[#112D4E] rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
                       />
                     </div>
                   </div>
@@ -271,9 +257,7 @@ export default function SignInPage() {
                   </div>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#3F72AF]">
-                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                        lock
-                      </span>
+                      <AppIcon name="lock" className="text-[18px]" />
                     </div>
                     <input
                       id="pin-input"
@@ -286,7 +270,7 @@ export default function SignInPage() {
                       placeholder="••••"
                       autoComplete="current-password"
                       required
-                      className="w-full pl-9 pr-10 py-2.5 bg-surface-container-lowest font-mono-tabular text-base tracking-[0.35em] text-[#112D4E] rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
+                      className="w-full pl-10 pr-10 py-2.5 bg-surface-container-lowest font-mono-tabular text-base tracking-[0.35em] text-[#112D4E] rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:ring-2 focus:ring-[#71C9CE]/40 transition-all outline-none"
                     />
                     <button
                       type="button"
@@ -294,21 +278,14 @@ export default function SignInPage() {
                       aria-label="Toggle PIN Visibility"
                       className="absolute inset-y-0 right-0 pr-3 flex items-center text-on-surface-variant hover:text-[#112D4E] transition-colors"
                     >
-                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                        {showPin ? "visibility_off" : "visibility"}
-                      </span>
+                      <AppIcon name={showPin ? "visibility_off" : "visibility"} className="text-[18px]" />
                     </button>
                   </div>
                 </div>
 
                 {loginMode === "FACULTY" && (
                   <div className="p-3 rounded-lg bg-[#E3FDFD]/70 text-[#112D4E] flex items-start gap-2.5 border border-[#71C9CE]/40">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[#3F72AF] text-[18px] shrink-0 mt-0.5"
-                    >
-                      info
-                    </span>
+                    <AppIcon name="info" className="text-[#3F72AF] text-[18px] shrink-0 mt-0.5" />
                     <p className="text-xs leading-relaxed">
                       Faculty supervisor, coordinator, and admin accounts are provisioned by the
                       department office. Contact the Admin Command Center for PIN resets.
@@ -322,12 +299,7 @@ export default function SignInPage() {
                     role="alert"
                     className="flex items-start gap-2 rounded-lg border border-error/30 bg-error-container/60 p-3 text-xs font-medium text-on-error-container"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[18px] shrink-0"
-                    >
-                      error
-                    </span>
+                    <AppIcon name="error" className="text-[18px] shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
@@ -349,9 +321,7 @@ export default function SignInPage() {
                         ? "Sign In as Student"
                         : "Sign In to Faculty Portal"}
                   </span>
-                  <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                    arrow_forward
-                  </span>
+                  <AppIcon name="arrow_forward" className="text-[18px]" />
                 </button>
               </form>
 
@@ -372,12 +342,7 @@ export default function SignInPage() {
                     <span>Portal Online</span>
                   </span>
                   <span className="flex items-center gap-1 text-[#112D4E] font-medium">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[14px] text-[#3F72AF]"
-                    >
-                      verified_user
-                    </span>
+                    <AppIcon name="verified_user" className="text-[14px] text-[#3F72AF]" />
                     <span>HMAC Session Protected</span>
                   </span>
                 </div>
@@ -396,7 +361,7 @@ export default function SignInPage() {
               Department of IT &amp; Computing
             </span>
             <span>·</span>
-            <span>All ComputingSpecializations</span>
+            <span>All Computing Specializations</span>
           </div>
           <div>© ProjectCompass Academic Portal</div>
         </div>

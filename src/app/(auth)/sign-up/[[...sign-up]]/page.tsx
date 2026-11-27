@@ -8,6 +8,7 @@ import {
   validateFourDigitPin,
 } from "@/lib/auth/university-id";
 import { registerUniversityAccount } from "@/actions/auth.actions";
+import { AppIcon } from "@/components/ui/app-icon";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -71,9 +72,7 @@ export default function SignUpPage() {
               href="/"
               className="text-xs text-on-surface-variant hover:text-[#112D4E] transition-colors flex items-center gap-1 font-medium"
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                arrow_back
-              </span>
+              <AppIcon name="arrow_back" className="text-[16px]" />
               <span>Public Portal</span>
             </Link>
             <Link
@@ -99,12 +98,7 @@ export default function SignUpPage() {
                   Student Onboarding · All Intakes
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] text-[#112D4E] font-semibold bg-[#E3FDFD] border border-[#71C9CE]/50 px-2.5 py-0.5 rounded-full">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[14px] text-[#3F72AF]"
-                  >
-                    school
-                  </span>
+                  <AppIcon name="school" className="text-[14px] text-[#3F72AF]" />
                   Student Portal
                 </span>
               </div>
@@ -127,12 +121,7 @@ export default function SignUpPage() {
                     role="alert"
                     className="flex items-start gap-2 rounded-lg border border-error/30 bg-error-container/60 p-3 text-xs font-medium text-on-error-container"
                   >
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined text-[18px] shrink-0"
-                    >
-                      error
-                    </span>
+                    <AppIcon name="error" className="text-[18px] shrink-0" />
                     <span>{errorMessage}</span>
                   </div>
                 )}
@@ -149,12 +138,7 @@ export default function SignUpPage() {
                     </span>
                   </label>
                   <div className="relative flex items-center">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none"
-                    >
-                      badge
-                    </span>
+                    <AppIcon name="badge" className="absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none" />
                     <input
                       id="fullName"
                       data-testid="register-student-name"
@@ -196,12 +180,7 @@ export default function SignUpPage() {
                     </span>
                   </p>
                   <div className="relative flex items-center">
-                    <span
-                      aria-hidden="true"
-                      className="material-symbols-outlined absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none"
-                    >
-                      fingerprint
-                    </span>
+                    <AppIcon name="fingerprint" className="absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none" />
                     <input
                       id="regNumber"
                       data-testid="register-student-regno"
@@ -212,25 +191,15 @@ export default function SignUpPage() {
                       required
                       className="w-full pl-9 pr-10 py-2.5 uppercase bg-[#F9F7F7] focus:bg-white text-[#112D4E] font-mono-tabular text-sm tracking-wider rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:outline-none focus:ring-2 focus:ring-[#71C9CE]/40 transition-all font-semibold"
                     />
-                    <span
-                      aria-hidden="true"
-                      className={`material-symbols-outlined absolute right-3 text-[20px] ${
+                    <AppIcon name={parsedReg ? "check_circle" : "radio_button_unchecked"} className={`absolute right-3 text-[20px] ${
                         parsedReg ? "text-[#004F53]" : "text-outline"
-                      }`}
-                    >
-                      {parsedReg ? "check_circle" : "radio_button_unchecked"}
-                    </span>
+                      }`} />
                   </div>
 
                   {/* Live Aqua Decoded Badge Pill */}
                   {parsedReg ? (
                     <div className="mt-1 p-3 rounded-lg bg-[#E3FDFD] border border-[#71C9CE]/60 text-[#112D4E] flex items-start gap-2.5 transition-all">
-                      <span
-                        aria-hidden="true"
-                        className="material-symbols-outlined text-[#004F53] text-[18px] mt-0.5 shrink-0"
-                      >
-                        verified
-                      </span>
+                      <AppIcon name="verified" className="text-[#004F53] text-[18px] mt-0.5 shrink-0" />
                       <div className="flex flex-col text-xs">
                         <span className="font-semibold">
                           {parsedReg.intakeTerm} {parsedReg.batchYear} · {parsedReg.departmentName} (
@@ -260,12 +229,7 @@ export default function SignUpPage() {
                         htmlFor="primaryPin"
                         className="text-xs font-semibold text-[#112D4E] flex items-center gap-1.5"
                       >
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[#3F72AF] text-[18px]"
-                        >
-                          lock
-                        </span>
+                        <AppIcon name="lock" className="text-[#3F72AF] text-[18px]" />
                         <span>Create 4-Digit Portal PIN</span>
                       </label>
                       <span
@@ -302,9 +266,7 @@ export default function SignUpPage() {
                       aria-label="Toggle PIN visibility"
                       className="absolute right-2.5 text-[#3F72AF] hover:text-[#112D4E] p-1 rounded-md hover:bg-[#DBE2EF]/50 transition-colors"
                     >
-                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                        {showPin ? "visibility_off" : "visibility"}
-                      </span>
+                      <AppIcon name={showPin ? "visibility_off" : "visibility"} className="text-[18px]" />
                     </button>
                   </div>
                 </div>
@@ -316,27 +278,15 @@ export default function SignUpPage() {
                   disabled={!isStudentFormValid || isPending}
                   className="w-full h-11 bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 flex items-center justify-center gap-2 group"
                 >
-                  <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
-                    how_to_reg
-                  </span>
+                  <AppIcon name="how_to_reg" className="text-[20px]" />
                   <span>{isPending ? "Creating Student Account..." : "Create Student Account"}</span>
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[18px] transition-transform group-hover:translate-x-0.5"
-                  >
-                    arrow_forward
-                  </span>
+                  <AppIcon name="arrow_forward" className="text-[18px] transition-transform group-hover:translate-x-0.5" />
                 </button>
               </form>
 
               {/* Friendly Faculty Notice (Strict Student-Only Boundary) */}
               <div className="mt-6 p-3.5 rounded-lg bg-[#DBE2EF]/40 border border-[#DBE2EF] text-[#112D4E] flex items-start gap-3">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#3F72AF] text-[20px] shrink-0 mt-0.5"
-                >
-                  info
-                </span>
+                <AppIcon name="info" className="text-[#3F72AF] text-[20px] shrink-0 mt-0.5" />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-[#112D4E]">
                     Are you a Faculty Advisor or Coordinator?
@@ -364,9 +314,7 @@ export default function SignUpPage() {
                 className="text-[#2A609C] hover:text-[#112D4E] font-semibold hover:underline inline-flex items-center gap-0.5 transition-colors"
               >
                 <span>Sign in here</span>
-                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                  chevron_right
-                </span>
+                <AppIcon name="chevron_right" className="text-[15px]" />
               </Link>
             </div>
           </div>

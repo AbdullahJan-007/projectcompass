@@ -18,6 +18,7 @@ import {
   saveStoredShortlistedIds,
   type StoredStudentProfile,
 } from "@/lib/workspace-store";
+import { AppIcon } from "@/components/ui/app-icon";
 
 const LOADING_STAGES = [
   "Stage 1: Filtering supervisor slot quotas (activeSlots < maxSlots) & effort ceiling...",
@@ -176,9 +177,7 @@ export default function RecommendationsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-on-error-container text-white flex items-center justify-center shrink-0">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                  report_problem
-                </span>
+                <AppIcon name="report_problem" className="text-[18px]" />
               </div>
               <div>
                 <div className="text-xs font-bold text-on-error-container">
@@ -198,12 +197,7 @@ export default function RecommendationsPage() {
 
           {idea.differentiationAngle && (
             <div className="p-3 rounded-lg bg-surface-container-lowest text-on-surface text-xs flex items-start gap-2 shadow-xs">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5"
-              >
-                crisis_alert
-              </span>
+              <AppIcon name="crisis_alert" className="text-error text-[18px] shrink-0 mt-0.5" />
               <div>
                 <strong className="font-semibold text-error">
                   Required Thesis Differentiation Angle:{" "}
@@ -225,9 +219,7 @@ export default function RecommendationsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-[#DBE2EF] flex items-center justify-center text-[#112D4E] shrink-0">
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                  warning
-                </span>
+                <AppIcon name="warning" className="text-[18px]" />
               </div>
               <div>
                 <div className="text-xs font-semibold text-[#112D4E]">
@@ -246,12 +238,7 @@ export default function RecommendationsPage() {
           </div>
           {idea.differentiationAngle && (
             <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-[#DBE2EF]/60 text-xs text-on-surface flex items-start gap-2">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[#3F72AF] text-[17px] shrink-0 mt-0.5"
-              >
-                tips_and_updates
-              </span>
+              <AppIcon name="tips_and_updates" className="text-[#3F72AF] text-[17px] shrink-0 mt-0.5" />
               <div>
                 <strong className="font-semibold text-[#112D4E]">Differentiation Note: </strong>
                 {idea.differentiationAngle}
@@ -269,9 +256,7 @@ export default function RecommendationsPage() {
       >
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-[#71C9CE]/30 flex items-center justify-center text-[#004F53] shrink-0">
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-              verified
-            </span>
+            <AppIcon name="verified" className="text-[18px]" />
           </div>
           <div>
             <div className="text-xs font-semibold text-[#112D4E]">
@@ -338,9 +323,7 @@ export default function RecommendationsPage() {
               <span
                 className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${trackMeta.pillClass}`}
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
-                  {trackMeta.icon}
-                </span>
+                <AppIcon name={trackMeta.icon} className="text-[15px]" />
                 {trackMeta.label}
               </span>
               <span className="text-xs text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-md">
@@ -386,12 +369,7 @@ export default function RecommendationsPage() {
           <div className="p-4 rounded-xl bg-surface-container-low border border-[#DBE2EF]/80 space-y-1.5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-headline-sm text-sm sm:text-base text-[#112D4E] font-semibold flex items-center gap-1.5">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#3F72AF] text-[18px]"
-                >
-                  terminal
-                </span>
+                <AppIcon name="terminal" className="text-[#3F72AF] text-[18px]" />
                 Grounded Engineering Deliverable
               </h3>
               <span className="text-[11px] font-semibold text-[#3F72AF]">{idea.domain}</span>
@@ -481,9 +459,7 @@ export default function RecommendationsPage() {
             <div className="rounded-xl bg-surface-container-low border border-[#DBE2EF]/70 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#3F72AF] flex items-center gap-1.5">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    school
-                  </span>
+                  <AppIcon name="school" className="text-[16px]" />
                   Skill-Gap Preparation
                 </span>
                 <span className="font-mono-tabular text-[11px] text-on-surface-variant">
@@ -523,9 +499,7 @@ export default function RecommendationsPage() {
             <div className="rounded-xl bg-surface-container-low border border-[#DBE2EF]/70 p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#3F72AF] flex items-center gap-1.5">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                    layers
-                  </span>
+                  <AppIcon name="layers" className="text-[16px]" />
                   Recommended Technology Stack
                 </span>
                 <span className="text-[11px] text-on-surface-variant">Grounded Stack</span>
@@ -556,12 +530,7 @@ export default function RecommendationsPage() {
             <div className="rounded-xl bg-[#F9F7F7] border border-[#DBE2EF] p-3.5 space-y-2.5">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="font-semibold text-[#112D4E] flex items-center gap-1.5">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[17px] text-[#3F72AF]"
-                  >
-                    person_search
-                  </span>
+                  <AppIcon name="person_search" className="text-[17px] text-[#3F72AF]" />
                   Matched Faculty Supervisors with Open Capacity
                 </span>
                 <Link
@@ -602,12 +571,7 @@ export default function RecommendationsPage() {
           {/* Card Action Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#DBE2EF]">
             <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[17px] text-[#004F53]"
-              >
-                verified
-              </span>
+              <AppIcon name="verified" className="text-[17px] text-[#004F53]" />
               <span>Calibrated to Departmental Capstone Guidelines</span>
             </div>
 
@@ -622,9 +586,7 @@ export default function RecommendationsPage() {
                     : "bg-surface-container-low hover:bg-[#DBE2EF] text-[#112D4E] border border-[#DBE2EF]"
                 }`}
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                  {isShortlisted ? "bookmark_added" : "bookmark"}
-                </span>
+                <AppIcon name={isShortlisted ? "bookmark_added" : "bookmark"} className="text-[16px]" />
                 <span>{isShortlisted ? "Shortlisted ✓" : "Shortlist Idea"}</span>
               </button>
 
@@ -632,9 +594,7 @@ export default function RecommendationsPage() {
                 href={`/dashboard/supervisors?ideaId=${encodeURIComponent(idea.id)}`}
                 className="px-3.5 py-2 rounded-lg bg-[#DBE2EF]/70 hover:bg-[#DBE2EF] text-[#112D4E] text-xs font-semibold transition-colors flex items-center gap-1.5"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                  person_search
-                </span>
+                <AppIcon name="person_search" className="text-[16px]" />
                 <span>Match Supervisor</span>
               </Link>
 
@@ -644,9 +604,7 @@ export default function RecommendationsPage() {
                 data-testid={`generate-roadmap-btn-${idea.track}`}
                 className="px-4 py-2 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] text-white text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
-                  alt_route
-                </span>
+                <AppIcon name="alt_route" className="text-[16px]" />
                 <span>Build {studentProfile?.durationWeeks ?? 24}-Wk Roadmap</span>
               </button>
             </div>
@@ -677,12 +635,7 @@ export default function RecommendationsPage() {
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="px-2.5 py-1 rounded bg-[#DBE2EF]/60 text-[#112D4E] font-medium flex items-center gap-1">
-              <span
-                aria-hidden="true"
-                className="material-symbols-outlined text-[15px] text-[#3F72AF]"
-              >
-                bolt
-              </span>
+              <AppIcon name="bolt" className="text-[15px] text-[#3F72AF]" />
               Daily Proposal Runs:{" "}
               <strong className="font-mono-tabular font-semibold">{runsLeftToday} / 5</strong>{" "}
               remaining
@@ -703,12 +656,7 @@ export default function RecommendationsPage() {
         {/* Focus Note Input Strip */}
         <div className="p-2.5 rounded-xl bg-surface-container-low border border-[#DBE2EF] flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
           <div className="relative flex-1 min-w-0">
-            <span
-              aria-hidden="true"
-              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#3F72AF] text-[18px]"
-            >
-              psychology
-            </span>
+            <AppIcon name="psychology" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#3F72AF] text-[18px]" />
             <input
               type="text"
               value={focusNote}
@@ -724,9 +672,7 @@ export default function RecommendationsPage() {
             disabled={runsLeftToday <= 0 || viewState === "LOADING"}
             className="px-4 h-10 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs shrink-0"
           >
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-              auto_awesome
-            </span>
+            <AppIcon name="auto_awesome" className="text-[18px]" />
             <span>Run Hybrid Analysis</span>
           </button>
         </div>
@@ -738,9 +684,7 @@ export default function RecommendationsPage() {
           className="flex items-center justify-between gap-2 rounded-xl border border-[#71C9CE]/60 bg-[#E3FDFD] px-4 py-3 text-xs font-medium text-[#004F53]"
         >
           <div className="flex items-center gap-2">
-            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-              check_circle
-            </span>
+            <AppIcon name="check_circle" className="text-[18px]" />
             <span>{actionToast}</span>
           </div>
           <button
@@ -758,12 +702,7 @@ export default function RecommendationsPage() {
           className="flex items-center gap-2.5 rounded-xl border border-[#DBE2EF] bg-surface-container-lowest px-4 py-3 text-xs text-[#112D4E]"
           data-testid="fallback-status-banner"
         >
-          <span
-            aria-hidden="true"
-            className="material-symbols-outlined text-[18px] text-[#3F72AF] shrink-0"
-          >
-            info
-          </span>
+          <AppIcon name="info" className="text-[18px] text-[#3F72AF] shrink-0" />
           <span>
             <strong>Deterministic Matching Active:</strong> Proposals and 4-factor feasibility
             scores were computed directly by the verified TypeScript hybrid engine.
@@ -797,9 +736,7 @@ export default function RecommendationsPage() {
           data-testid="recommendations-empty-state"
         >
           <div className="w-11 h-11 rounded-xl bg-[#E3FDFD] text-[#004F53] flex items-center justify-center">
-            <span aria-hidden="true" className="material-symbols-outlined text-[24px]">
-              lightbulb
-            </span>
+            <AppIcon name="lightbulb" className="text-[24px]" />
           </div>
           <div className="space-y-1">
             <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">

@@ -10,6 +10,7 @@ import {
 } from "@/actions/supervisor.actions";
 import { getFacultySupervisorWorkspace } from "@/actions/workspace.actions";
 import { formatTrackLabel } from "@/lib/workspace-store";
+import { AppIcon } from "@/components/ui/app-icon";
 
 interface IncomingRequestItem {
   id: string;
@@ -303,9 +304,7 @@ export default function SupervisorPortalPage() {
           <div className="bg-surface-container-lowest rounded-xl p-4 border border-[#DBE2EF] shadow-xs flex items-center justify-between gap-5 shrink-0">
             <div className="flex items-center gap-3.5">
               <div className="relative flex items-center justify-center w-10 h-10 rounded-lg bg-[#E3FDFD] text-[#004F53]">
-                <span aria-hidden="true" className="material-symbols-outlined text-[22px]">
-                  dataset_linked
-                </span>
+                <AppIcon name="dataset_linked" className="text-[22px]" />
                 <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#71C9CE] opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#004F53]" />
@@ -351,12 +350,7 @@ export default function SupervisorPortalPage() {
                 <span className="font-title-md text-base font-bold text-[#112D4E]">
                   {portalSession.userName}
                 </span>
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[16px] text-[#2A609C]"
-                >
-                  verified
-                </span>
+                <AppIcon name="verified" className="text-[16px] text-[#2A609C]" />
               </div>
               <span className="text-xs text-on-surface-variant">
                 {title} · {portalSession.identifier}
@@ -375,9 +369,7 @@ export default function SupervisorPortalPage() {
                   : "bg-surface-container text-on-surface-variant"
               }`}
             >
-              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                {isAccepting ? "check_circle" : "pause_circle"}
-              </span>
+              <AppIcon name={isAccepting ? "check_circle" : "pause_circle"} className="text-[14px]" />
               {isAccepting ? "Active Supervisor" : "Paused"}
             </span>
           </div>
@@ -393,9 +385,7 @@ export default function SupervisorPortalPage() {
               : "border-error/30 bg-error-container/60 text-on-error-container"
           }`}
         >
-          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
-            {statusBanner.type === "success" ? "check_circle" : "error"}
-          </span>
+          <AppIcon name={statusBanner.type === "success" ? "check_circle" : "error"} className="text-[18px] shrink-0" />
           <span>{statusBanner.text}</span>
         </div>
       )}
@@ -433,12 +423,7 @@ export default function SupervisorPortalPage() {
             <div className="pb-3 border-b border-[#DBE2EF]/70">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden="true"
-                    className="material-symbols-outlined text-[#2A609C] text-[20px]"
-                  >
-                    hub
-                  </span>
+                  <AppIcon name="hub" className="text-[#2A609C] text-[20px]" />
                   <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                     Faculty Research Profile
                   </h2>
@@ -510,9 +495,7 @@ export default function SupervisorPortalPage() {
                         aria-label={`Remove ${dom}`}
                         className="text-outline hover:text-error"
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                          close
-                        </span>
+                        <AppIcon name="close" className="text-[14px]" />
                       </button>
                     </span>
                   ))}
@@ -562,9 +545,7 @@ export default function SupervisorPortalPage() {
                         aria-label={`Remove ${st}`}
                         className="text-outline hover:text-error"
                       >
-                        <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
-                          close
-                        </span>
+                        <AppIcon name="close" className="text-[14px]" />
                       </button>
                     </span>
                   ))}
@@ -664,9 +645,7 @@ export default function SupervisorPortalPage() {
                 disabled={isSavingProfile}
                 className="w-full h-11 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
               >
-                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
-                  auto_awesome
-                </span>
+                <AppIcon name="auto_awesome" className="text-[18px]" />
                 <span>
                   {isSavingProfile
                     ? "Saving & Updating Matches..."
@@ -681,12 +660,7 @@ export default function SupervisorPortalPage() {
             {/* Panel Header Strip */}
             <div className="bg-surface-container-lowest rounded-xl p-4 border border-[#DBE2EF] shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <span
-                  aria-hidden="true"
-                  className="material-symbols-outlined text-[#2A609C] text-[22px]"
-                >
-                  inbox
-                </span>
+                <AppIcon name="inbox" className="text-[#2A609C] text-[22px]" />
                 <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                   Incoming Vetted Proposals
                 </h2>
@@ -746,9 +720,7 @@ export default function SupervisorPortalPage() {
             {visibleRequests.length === 0 ? (
               <div className="rounded-xl p-8 bg-surface-container-lowest border border-[#DBE2EF] text-center flex flex-col items-center justify-center gap-2 shadow-xs">
                 <div className="w-12 h-12 rounded-full bg-[#E3FDFD] flex items-center justify-center text-[#004F53] mb-1">
-                  <span aria-hidden="true" className="material-symbols-outlined text-[24px]">
-                    task_alt
-                  </span>
+                  <AppIcon name="task_alt" className="text-[24px]" />
                 </div>
                 <h3 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                   No Matching Student Supervision Requests
@@ -810,12 +782,7 @@ export default function SupervisorPortalPage() {
 
                     {/* Skill Gap Strip */}
                     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container-low text-xs text-on-surface border border-[#DBE2EF]/60">
-                      <span
-                        aria-hidden="true"
-                        className="material-symbols-outlined text-[17px] text-[#2A609C]"
-                      >
-                        bolt
-                      </span>
+                      <AppIcon name="bolt" className="text-[17px] text-[#2A609C]" />
                       <div>
                         <strong className="font-semibold text-[#112D4E]">Skill-Gap Audit: </strong>
                         <span>{req.skillGapsSummary || "Verified profile"}</span>
@@ -824,12 +791,7 @@ export default function SupervisorPortalPage() {
 
                     {/* Student Pitch Quote */}
                     <div className="relative bg-surface-container-low rounded-lg p-3.5 pl-9 text-xs sm:text-[13px] text-on-surface-variant leading-relaxed">
-                      <span
-                        aria-hidden="true"
-                        className="material-symbols-outlined absolute left-2.5 top-3 text-[#2A609C] text-[18px] opacity-75"
-                      >
-                        format_quote
-                      </span>
+                      <AppIcon name="format_quote" className="absolute left-2.5 top-3 text-[#2A609C] text-[18px] opacity-75" />
                       <p>{req.studentPitch}</p>
                     </div>
 
@@ -859,12 +821,7 @@ export default function SupervisorPortalPage() {
                             onClick={() => handleDecision(req.id, "DECLINE")}
                             className="h-9 px-3.5 rounded-lg bg-surface-container-lowest text-error border border-[#DBE2EF] hover:bg-error-container/40 text-xs font-semibold transition-colors flex items-center gap-1"
                           >
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined text-[16px]"
-                            >
-                              close
-                            </span>
+                            <AppIcon name="close" className="text-[16px]" />
                             <span>Decline</span>
                           </button>
                           <button
@@ -873,24 +830,14 @@ export default function SupervisorPortalPage() {
                             onClick={() => handleDecision(req.id, "ACCEPT")}
                             className="h-9 px-4 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-xs"
                           >
-                            <span
-                              aria-hidden="true"
-                              className="material-symbols-outlined text-[16px]"
-                            >
-                              lock
-                            </span>
+                            <AppIcon name="lock" className="text-[16px]" />
                             <span>Accept (Locks 1 Slot)</span>
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] px-3 py-2 text-xs text-on-surface-variant">
-                        <span
-                          aria-hidden="true"
-                          className="material-symbols-outlined text-[16px] text-[#2A609C]"
-                        >
-                          verified
-                        </span>
+                        <AppIcon name="verified" className="text-[16px] text-[#2A609C]" />
                         <span>
                           <strong className="text-[#112D4E]">Recorded Supervisor Note:</strong>{" "}
                           {req.supervisorNote}
