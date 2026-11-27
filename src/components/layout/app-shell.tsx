@@ -392,38 +392,31 @@ export function AppShell({
           {/* Desktop Top Chrome Header (>= lg) */}
           <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/92 backdrop-blur-xl px-6 lg:flex">
             <div className="flex items-center gap-3 min-w-0">
-              {/* Sleek Sidebar Toggle Button (PanelLeft icon matching Antigravity/Linear style) */}
-              <button
-                type="button"
-                onClick={toggleDesktopSidebar}
-                title={desktopCollapsed ? "Show sidebar (Ctrl+B)" : "Hide sidebar (Ctrl+B)"}
-                aria-label={desktopCollapsed ? "Show sidebar" : "Hide sidebar"}
-                aria-expanded={!desktopCollapsed}
-                data-testid="desktop-sidebar-toggle-btn"
-                className={cn(
-                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-all active:scale-95",
-                  desktopCollapsed
-                    ? "border-[#112D4E]/20 bg-[#112D4E] text-white shadow-xs hover:bg-[#001833]"
-                    : "border-[#DBE2EF] bg-white text-[#43474E] hover:border-[#3F72AF]/50 hover:bg-[#DBE2EF]/50 hover:text-[#112D4E]"
-                )}
-              >
-                {desktopCollapsed ? (
-                  <PanelLeft aria-hidden="true" className="h-[17px] w-[17px]" />
-                ) : (
-                  <PanelLeftClose aria-hidden="true" className="h-[17px] w-[17px]" />
-                )}
-              </button>
-
+              {/* Show single expand button in top bar ONLY when sidebar is hidden */}
               {desktopCollapsed && (
-                <Link
-                  href="/"
-                  className="flex items-center gap-2 pr-2 border-r border-[#DBE2EF] shrink-0"
-                >
-                  <ProjectCompassLogo className="h-7 w-7 rounded-md shadow-2xs" />
-                  <span className="font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
-                    ProjectCompass
-                  </span>
-                </Link>
+                <>
+                  <button
+                    type="button"
+                    onClick={toggleDesktopSidebar}
+                    title="Show sidebar (Ctrl+B)"
+                    aria-label="Show sidebar"
+                    aria-expanded="false"
+                    data-testid="desktop-sidebar-toggle-btn"
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#112D4E]/20 bg-[#112D4E] text-white shadow-xs hover:bg-[#001833] transition-all active:scale-95"
+                  >
+                    <PanelLeft aria-hidden="true" className="h-[17px] w-[17px]" />
+                  </button>
+
+                  <Link
+                    href="/"
+                    className="flex items-center gap-2 pr-2 border-r border-[#DBE2EF] shrink-0"
+                  >
+                    <ProjectCompassLogo className="h-7 w-7 rounded-md shadow-2xs" />
+                    <span className="font-headline-sm text-sm font-bold tracking-tight text-[#112D4E]">
+                      ProjectCompass
+                    </span>
+                  </Link>
+                </>
               )}
 
               <span className="font-headline-sm text-base font-semibold text-[#112D4E] truncate">

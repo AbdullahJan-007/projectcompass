@@ -30,17 +30,13 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     ).toBeVisible();
     await expect(page.getByText(/Effective Effort Budget/i)).toBeVisible();
 
-    // Verify collapsible desktop sidebar button hides and restores the sidebar cleanly
+    // Verify single collapsible desktop sidebar button hides and restores the sidebar cleanly
+    await expect(page.getByTestId("desktop-sidebar-toggle-btn")).toBeHidden();
     await page.getByTestId("sidebar-collapse-btn").click();
-    await expect(page.getByTestId("desktop-sidebar-toggle-btn")).toHaveAttribute(
-      "aria-expanded",
-      "false"
-    );
+    await expect(page.getByTestId("desktop-sidebar-toggle-btn")).toBeVisible();
     await page.getByTestId("desktop-sidebar-toggle-btn").click();
-    await expect(page.getByTestId("desktop-sidebar-toggle-btn")).toHaveAttribute(
-      "aria-expanded",
-      "true"
-    );
+    await expect(page.getByTestId("desktop-sidebar-toggle-btn")).toBeHidden();
+    await expect(page.getByTestId("sidebar-collapse-btn")).toBeVisible();
 
     // Verify custom Select combobox opens cleanly without native scrollbar glitches and updates GPA Band
     await page.getByRole("combobox", { name: "GPA Band" }).click();
