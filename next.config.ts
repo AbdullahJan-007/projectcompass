@@ -34,6 +34,14 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   devIndicators: false,
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-select",
+      "@radix-ui/react-tabs",
+    ],
+  },
   output: process.env["DOCKER_BUILD"] === "true" ? "standalone" : undefined,
   eslint: {
     // Explicit strict ESLint (eslint . --max-warnings=0) runs as a dedicated CI gate

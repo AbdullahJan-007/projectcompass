@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SwCleanup } from "@/components/layout/sw-cleanup";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-bg-canvas font-sans text-text-primary antialiased selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
+        <SwCleanup />
         {children}
       </body>
     </html>
