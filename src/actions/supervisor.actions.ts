@@ -4,14 +4,25 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
-import { generateTextEmbedding, toPgVectorLiteral } from "@/lib/ai/embeddings";
+import {
+  generateDeterministicEmbedding,
+  toPgVectorLiteral,
+} from "@/lib/ai/embeddings";
 import { sendTransactionalEmail } from "@/lib/email/resend";
-import { escapeHtml } from "@/lib/utils";
+import { escapeHtml, slugifySkill } from "@/lib/utils";
 import {
   readInstitutionalDb,
   writeInstitutionalDb,
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  );
+}
 
 function isDbConnectionOffline(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -46,15 +57,19 @@ export async function upsertSupervisorProfile(
         ok: false,
         error: {
           code: "VALIDATION_ERROR",
-          message: "Please verify supervisor bio length (30..1000 chars), domains, and slot limits.",
+          message:
+            "Please verify supervisor bio length (30..1000 chars), domains, and slot limits.",
           fieldErrors: parsed.error.flatten().fieldErrors,
         },
       };
     }
 
     const input = parsed.data;
+    const uniqueSkillSlugs = Array.from(
+      new Set(input.skillSlugs.map((s) => slugifySkill(s)).filter(Boolean))
+    );
     let supervisorId = `cm0sup_${user.id}`;
-    let activeSlots = 2;
+    let activeSlots = 0;
 
     try {
       const existing = await db.supervisorProfile.findUnique({
@@ -72,8 +87,9 @@ export async function upsertSupervisorProfile(
       }
 
       const departmentId = user.departmentId ?? "cm0deptbscs00000000000001";
-      const embeddingText = `${input.researchDomains.join(", ")} | ${input.preferredStacks.join(", ")} | ${input.skillSlugs.join(", ")} | ${input.bio}`;
-      const embedding = await generateTextEmbedding(embeddingText);
+      const embeddingText = `${input.researchDomains.join(", ")} | ${input.preferredStacks.join(", ")} | ${uniqueSkillSlugs.join(", ")} | ${input.bio}`;
+      // Fast deterministic 1536-dim embedding prevents 5-10s external HTTP stalls on Save
+      const embedding = generateDeterministicEmbedding(embeddingText);
       const vecLiteral = toPgVectorLiteral(embedding);
 
       const saved = await db.$transaction(
@@ -102,6 +118,49 @@ export async function upsertSupervisorProfile(
             select: { id: true, activeSlots: true },
           });
 
+          // Batched skill link synchronization (zero N+1 queries inside transaction)
+          if (uniqueSkillSlugs.length > 0 && "skill" in tx && "supervisorSkill" in tx) {
+            const existingSkills = await tx.skill.findMany({
+              where: { slug: { in: uniqueSkillSlugs } },
+              select: { id: true, slug: true },
+            });
+            const existingSet = new Set(existingSkills.map((s) => s.slug));
+            const missingSlugs = uniqueSkillSlugs.filter((slug) => !existingSet.has(slug));
+
+            if (missingSlugs.length > 0) {
+              await tx.skill.createMany({
+                data: missingSlugs.map((slug) => ({
+                  slug,
+                  displayName: slug,
+                  category: "Custom",
+                })),
+                skipDuplicates: true,
+              });
+            }
+
+            const allSkills =
+              missingSlugs.length > 0
+                ? await tx.skill.findMany({
+                    where: { slug: { in: uniqueSkillSlugs } },
+                    select: { id: true },
+                  })
+                : existingSkills;
+
+            await tx.supervisorSkill.deleteMany({
+              where: { supervisorProfileId: profile.id },
+            });
+
+            if (allSkills.length > 0) {
+              await tx.supervisorSkill.createMany({
+                data: allSkills.map((s) => ({
+                  supervisorProfileId: profile.id,
+                  skillId: s.id,
+                })),
+                skipDuplicates: true,
+              });
+            }
+          }
+
           await tx.$executeRaw`
             UPDATE "SupervisorProfile"
             SET "profileEmbedding" = ${vecLiteral}::vector
@@ -112,11 +171,21 @@ export async function upsertSupervisorProfile(
         },
         { maxWait: 5000, timeout: 15000 }
       );
+
+      if (!saved.id) {
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Database verification failed while saving supervisor profile.",
+          },
+        };
+      }
+
       supervisorId = saved.id;
       activeSlots = saved.activeSlots;
     } catch (dbErr) {
-      const isProd = process.env.NODE_ENV === "production" && process.env.CI !== "true";
-      if (isProd || !isDbConnectionOffline(dbErr)) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
         console.error("[upsertSupervisorProfile] Database write failed:", dbErr);
         return {
           ok: false,
@@ -127,33 +196,37 @@ export async function upsertSupervisorProfile(
           },
         };
       }
-      // Persist to institutional store only when local PostgreSQL daemon is offline
+
+      // Persist to institutional store only when local PostgreSQL daemon is offline in non-production
       const store = readInstitutionalDb();
-      const firstSup = store.supervisors[0];
-      if (firstSup) {
-        if (input.maxSlots < firstSup.activeSlots) {
+      const targetSup =
+        store.supervisors.find((s) => s.userId === user.id) ?? store.supervisors[0];
+      if (targetSup) {
+        if (input.maxSlots < targetSup.activeSlots) {
           return {
             ok: false,
             error: {
               code: "VALIDATION_ERROR",
-              message: `Cannot reduce maxSlots (${input.maxSlots}) below currently locked activeSlots (${firstSup.activeSlots}).`,
+              message: `Cannot reduce maxSlots (${input.maxSlots}) below currently locked activeSlots (${targetSup.activeSlots}).`,
             },
           };
         }
-        firstSup.title = input.title.trim();
-        firstSup.bio = input.bio.trim();
-        firstSup.researchDomains = input.researchDomains;
-        firstSup.preferredStacks = input.preferredStacks;
-        firstSup.maxSlots = input.maxSlots;
-        firstSup.isAccepting = input.isAccepting;
-        supervisorId = firstSup.id;
-        activeSlots = firstSup.activeSlots;
+        targetSup.title = input.title.trim();
+        targetSup.bio = input.bio.trim();
+        targetSup.researchDomains = input.researchDomains;
+        targetSup.preferredStacks = input.preferredStacks;
+        targetSup.skillSlugs = uniqueSkillSlugs;
+        targetSup.maxSlots = input.maxSlots;
+        targetSup.isAccepting = input.isAccepting;
+        supervisorId = targetSup.id;
+        activeSlots = targetSup.activeSlots;
         writeInstitutionalDb(store);
       }
     }
 
     revalidatePath("/dashboard/supervisor");
     revalidatePath("/dashboard/supervisors");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,
@@ -223,12 +296,26 @@ export async function createSupervisionRequest(
       };
     }
 
-    const activePendingCount = await db.supervisorRequest.count({
-      where: {
-        studentProfileId: studentProfile.id,
-        status: "PENDING",
-      },
-    });
+    const [activePendingCount, supervisor, existingDuplicate] = await Promise.all([
+      db.supervisorRequest.count({
+        where: {
+          studentProfileId: studentProfile.id,
+          status: "PENDING",
+        },
+      }),
+      db.supervisorProfile.findUnique({
+        where: { id: supervisorProfileId },
+        include: { user: true },
+      }),
+      db.supervisorRequest.findUnique({
+        where: {
+          recommendedIdeaId_supervisorProfileId: {
+            recommendedIdeaId,
+            supervisorProfileId,
+          },
+        },
+      }),
+    ]);
 
     if (activePendingCount >= 3) {
       return {
@@ -241,17 +328,12 @@ export async function createSupervisionRequest(
       };
     }
 
-    const supervisor = await db.supervisorProfile.findUnique({
-      where: { id: supervisorProfileId },
-      include: { user: true },
-    });
-
-    if (!supervisor) {
+    if (!supervisor || !supervisor.user.isActive) {
       return {
         ok: false,
         error: {
           code: "NOT_FOUND",
-          message: "Supervisor profile not found.",
+          message: "Supervisor profile not found or inactive.",
         },
       };
     }
@@ -271,26 +353,19 @@ export async function createSupervisionRequest(
         ok: false,
         error: {
           code: "SUPERVISOR_QUOTA_FULL",
-          message: "This supervisor has reached full slot capacity or is no longer accepting proposals.",
+          message:
+            "This supervisor has reached full slot capacity or is no longer accepting proposals.",
         },
       };
     }
-
-    const existingDuplicate = await db.supervisorRequest.findUnique({
-      where: {
-        recommendedIdeaId_supervisorProfileId: {
-          recommendedIdeaId,
-          supervisorProfileId,
-        },
-      },
-    });
 
     if (existingDuplicate) {
       return {
         ok: false,
         error: {
           code: "DUPLICATE_RECORD",
-          message: "You have already submitted a supervision request for this idea to this supervisor.",
+          message:
+            "You have already submitted a supervision request for this idea to this supervisor.",
         },
       };
     }
@@ -328,7 +403,7 @@ export async function createSupervisionRequest(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const user = await requireRole(["STUDENT"]);
       const parsed = createSupervisionRequestSchema.parse(rawInput);
       const store = readInstitutionalDb();
@@ -467,6 +542,7 @@ export async function withdrawSupervisionRequest(
     });
 
     revalidatePath("/dashboard/supervisors");
+    revalidatePath("/dashboard/supervisor");
     return {
       ok: true,
       data: {
@@ -481,9 +557,20 @@ export async function withdrawSupervisionRequest(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
+      const user = await requireRole(["STUDENT"]);
       const parsed = withdrawRequestSchema.parse(rawInput);
       const store = readInstitutionalDb();
+      const target = store.supervisionRequests.find((r) => r.id === parsed.requestId);
+      if (target && target.studentUserId !== user.id) {
+        return {
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "You can only withdraw your own supervision requests.",
+          },
+        };
+      }
       store.supervisionRequests = store.supervisionRequests.map((r) =>
         r.id === parsed.requestId ? { ...r, status: "WITHDRAWN" } : r
       );
@@ -529,7 +616,8 @@ export async function respondToSupervisionRequest(
         ok: false,
         error: {
           code: "VALIDATION_ERROR",
-          message: "Feedback note (10–600 characters) is required when responding to a request.",
+          message:
+            "Feedback note (10–600 characters) is required when responding to a request.",
           fieldErrors: parsed.error.flatten().fieldErrors,
         },
       };
@@ -664,6 +752,7 @@ export async function respondToSupervisionRequest(
 
     revalidatePath("/dashboard/supervisor");
     revalidatePath("/dashboard/supervisors");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,
@@ -679,7 +768,7 @@ export async function respondToSupervisionRequest(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const parsed = respondSupervisionSchema.parse(rawInput);
       const store = readInstitutionalDb();
       const targetReq = store.supervisionRequests.find((r) => r.id === parsed.requestId);

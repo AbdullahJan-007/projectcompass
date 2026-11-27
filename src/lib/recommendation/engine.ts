@@ -98,6 +98,14 @@ export interface EngineExecutionResult {
   ideas: [GeneratedIdeaRecord, GeneratedIdeaRecord, GeneratedIdeaRecord];
 }
 
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  );
+}
+
 function buildDefaultStackItems(
   rawStack: readonly string[],
   domain: string
@@ -154,20 +162,22 @@ export async function executeHybridRecommendationEngine(
   const supervisorPool: SupervisorCandidateInput[] =
     input.customSupervisors !== undefined
       ? [...input.customSupervisors]
-      : DEMO_SUPERVISORS.map((s) => ({
-          id: s.id,
-          fullName: s.fullName,
-          title: s.title,
-          researchDomains: s.researchDomains,
-          preferredStacks: s.preferredStacks,
-          skillSlugs: s.skillSlugs,
-          maxSlots: s.maxSlots,
-          activeSlots: s.activeSlots,
-          isAccepting: s.isAccepting,
-          embedding: generateDeterministicEmbedding(
-            `${s.researchDomains.join(" ")} ${s.preferredStacks.join(" ")} ${s.skillSlugs.join(" ")} ${s.bio}`
-          ),
-        }));
+      : isProductionRuntime()
+        ? []
+        : DEMO_SUPERVISORS.map((s) => ({
+            id: s.id,
+            fullName: s.fullName,
+            title: s.title,
+            researchDomains: s.researchDomains,
+            preferredStacks: s.preferredStacks,
+            skillSlugs: s.skillSlugs,
+            maxSlots: s.maxSlots,
+            activeSlots: s.activeSlots,
+            isAccepting: s.isAccepting,
+            embedding: generateDeterministicEmbedding(
+              `${s.researchDomains.join(" ")} ${s.preferredStacks.join(" ")} ${s.skillSlugs.join(" ")} ${s.bio}`
+            ),
+          }));
 
   const availableSupervisors = supervisorPool.filter(
     (s) => s.isAccepting && s.activeSlots < s.maxSlots && s.maxSlots > 0
@@ -282,14 +292,16 @@ export async function executeHybridRecommendationEngine(
   }> =
     input.customArchives !== undefined
       ? input.customArchives
-      : DEMO_PROJECT_ARCHIVES.map((a) => ({
-          archiveId: a.id,
-          title: a.title,
-          abstract: a.abstract,
-          academicYear: a.academicYear,
-          domain: a.domain,
-          techStack: a.techStack,
-        }));
+      : isProductionRuntime()
+        ? []
+        : DEMO_PROJECT_ARCHIVES.map((a) => ({
+            archiveId: a.id,
+            title: a.title,
+            abstract: a.abstract,
+            academicYear: a.academicYear,
+            domain: a.domain,
+            techStack: a.techStack,
+          }));
 
   const enrichedSelections = selectedTracks.map((sel) => {
     const detail = top15.find(

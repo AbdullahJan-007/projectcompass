@@ -26,7 +26,7 @@ import {
 import type { ActionResult } from "@/types/actions";
 
 const registerAccountInputSchema = z.object({
-  accountType: z.enum(["STUDENT"]),
+  accountType: z.literal("STUDENT"),
   fullName: z.string().min(3, "Full Name must be at least 3 characters").max(80),
   identifier: z.string().min(3, "Enter your University Student Registration Number"),
   pin: z.string().regex(/^\d{4}$/, "Password PIN must be exactly 4 numeric digits (XXXX)"),
@@ -40,21 +40,26 @@ export async function registerUniversityAccount(
     redirectTo: string;
   }>
 > {
-  // Hard boundary: block any public attempt to self-register as Faculty/Supervisor/Coordinator/Admin
-  if (
-    typeof rawInput === "object" &&
-    rawInput !== null &&
-    "accountType" in rawInput &&
-    (rawInput as Record<string, unknown>).accountType !== "STUDENT"
-  ) {
-    return {
-      ok: false,
-      error: {
-        code: "FORBIDDEN",
-        message:
-          "Faculty and staff accounts cannot be self-registered. Faculty supervisors are provisioned exclusively via the University Admin Panel.",
-      },
-    };
+  // Hard boundary: strictly allow accountType === "STUDENT" ONLY.
+  // Reject any FACULTY / SUPERVISOR / COORDINATOR / ADMIN payload with FORBIDDEN.
+  if (typeof rawInput === "object" && rawInput !== null) {
+    const candidate = rawInput as Record<string, unknown>;
+    const requestedType = candidate.accountType;
+    const requestedRole = candidate.role ?? candidate.facultyRole;
+
+    if (
+      (requestedType !== undefined && requestedType !== "STUDENT") ||
+      (requestedRole !== undefined && requestedRole !== "STUDENT")
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "FORBIDDEN",
+          message:
+            "Faculty and staff accounts cannot be self-registered. Faculty supervisors are provisioned exclusively via the University Admin Panel.",
+        },
+      };
+    }
   }
 
   const parsed = registerAccountInputSchema.safeParse(rawInput);
@@ -127,6 +132,9 @@ const signInInputSchema = z.object({
   pin: z.string().regex(/^\d{4}$/, "Password PIN must be exactly 4 digits (XXXX)"),
 });
 
+const DEACTIVATED_ACCOUNT_MESSAGE =
+  "This account has been deactivated by the University Administrator.";
+
 export async function signInWithUniversityCredentials(
   rawInput: unknown
 ): Promise<
@@ -162,7 +170,7 @@ export async function signInWithUniversityCredentials(
   }
 
   let sessionPayload: UniversitySessionPayload;
-  let redirectTo = "/dashboard/recommendations";
+  let redirectTo = "/dashboard/profile";
 
   if (loginMode === "STUDENT") {
     const regInfo = parseStudentRegNo(identifier);
@@ -192,11 +200,30 @@ export async function signInWithUniversityCredentials(
 
     const foundStudent = await findStudentAccountForLogin(regInfo.normalized);
 
-    if (
-      !foundStudent ||
-      !foundStudent.isActive ||
-      !verifyFourDigitPinHash(pin, foundStudent.pinHash)
-    ) {
+    if (!foundStudent) {
+      const failure = recordFailedPinAttempt(rateLimitKey);
+      return {
+        ok: false,
+        error: {
+          code: failure.locked ? "RATE_LIMITED" : "UNAUTHORIZED",
+          message: failure.locked
+            ? "Account locked for 15 minutes after 5 failed PIN attempts."
+            : `Invalid Registration Number or 4-digit PIN (${failure.remainingAttempts} attempts remaining).`,
+        },
+      };
+    }
+
+    if (foundStudent.isActive === false) {
+      return {
+        ok: false,
+        error: {
+          code: "FORBIDDEN",
+          message: DEACTIVATED_ACCOUNT_MESSAGE,
+        },
+      };
+    }
+
+    if (!verifyFourDigitPinHash(pin, foundStudent.pinHash)) {
       const failure = recordFailedPinAttempt(rateLimitKey);
       return {
         ok: false,
@@ -264,11 +291,30 @@ export async function signInWithUniversityCredentials(
 
     const foundFaculty = await findFacultyAccountForLogin(facInfo.email, handle);
 
-    if (
-      !foundFaculty ||
-      !foundFaculty.isActive ||
-      !verifyFourDigitPinHash(pin, foundFaculty.pinHash)
-    ) {
+    if (!foundFaculty) {
+      const failure = recordFailedPinAttempt(rateLimitKey);
+      return {
+        ok: false,
+        error: {
+          code: failure.locked ? "RATE_LIMITED" : "UNAUTHORIZED",
+          message: failure.locked
+            ? "Account locked for 15 minutes after 5 failed PIN attempts."
+            : `Invalid Faculty email or 4-digit PIN (${failure.remainingAttempts} attempts remaining).`,
+        },
+      };
+    }
+
+    if (foundFaculty.isActive === false) {
+      return {
+        ok: false,
+        error: {
+          code: "FORBIDDEN",
+          message: DEACTIVATED_ACCOUNT_MESSAGE,
+        },
+      };
+    }
+
+    if (!verifyFourDigitPinHash(pin, foundFaculty.pinHash)) {
       const failure = recordFailedPinAttempt(rateLimitKey);
       return {
         ok: false,

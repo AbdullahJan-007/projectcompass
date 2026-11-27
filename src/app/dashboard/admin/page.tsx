@@ -1,27 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
-import {
-  UserPlus,
-  Users,
-  GraduationCap,
-  FolderKanban,
-  FileText,
-  Sliders,
-  CheckCircle2,
-  AlertCircle,
-  Search,
-  KeyRound,
-  Archive,
-  ShieldCheck,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortalSession } from "@/components/layout/portal-session-context";
 import {
@@ -31,9 +14,15 @@ import {
   toggleUserActiveStatus,
 } from "@/actions/admin.actions";
 import {
+  createArchiveRecord,
+  retryArchiveEmbedding,
+  deleteArchiveRecord,
+} from "@/actions/archive.actions";
+import {
   getAdminWorkspaceData,
   type AdminStudentRow,
   type AdminProjectRow,
+  type LiveArchiveItem,
 } from "@/actions/workspace.actions";
 
 const IT_PROGRAMS = ["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"] as const;
@@ -51,6 +40,8 @@ const DOMAIN_OPTIONS = [
   "FinTech",
   "IoT & Embedded",
 ];
+
+type AdminTab = "faculty" | "students" | "projects" | "archives" | "audit";
 
 interface UserDirectoryRow {
   id: string;
@@ -84,12 +75,22 @@ interface AuditLogEntry {
   summary: string;
 }
 
+function getInitials(name: string): string {
+  const cleaned = name.replace(/^(Dr\.|Prof\.|Engr\.)\s*/i, "").trim();
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "FC";
+  if (parts.length === 1) return (parts[0] ?? "FC").slice(0, 2).toUpperCase();
+  return `${parts[0]?.[0] ?? "F"}${parts[parts.length - 1]?.[0] ?? "C"}`.toUpperCase();
+}
+
 export default function AdminDashboardPage() {
   const portalSession = usePortalSession();
+  const [activeTab, setActiveTab] = useState<AdminTab>("faculty");
   const [users, setUsers] = useState<UserDirectoryRow[]>([]);
   const [students, setStudents] = useState<AdminStudentRow[]>([]);
   const [supervisors, setSupervisors] = useState<SupervisorRow[]>([]);
   const [projects, setProjects] = useState<AdminProjectRow[]>([]);
+  const [archives, setArchives] = useState<LiveArchiveItem[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -97,20 +98,36 @@ export default function AdminDashboardPage() {
   const [facName, setFacName] = useState("");
   const [facEmail, setFacEmail] = useState("");
   const [facProgram, setFacProgram] = useState<ItProgram>("BSIT");
-  const [facDesignation, setFacDesignation] = useState("Assistant Professor");
+  const [facDesignation, setFacDesignation] = useState("Associate Professor");
+  const [facRole, setFacRole] = useState<"SUPERVISOR" | "COORDINATOR">("SUPERVISOR");
   const [facMaxSlots, setFacMaxSlots] = useState(5);
   const [facPin, setFacPin] = useState("");
+  const [showFacPin, setShowFacPin] = useState(false);
   const [facDomains, setFacDomains] = useState<string[]>(["Applied AI", "DevTools"]);
   const [isHiring, setIsHiring] = useState(false);
+
+  // Faculty Roster Filter
+  const [facultyQuery, setFacultyQuery] = useState("");
+  const [facultyProgramFilter, setFacultyProgramFilter] = useState("ALL");
 
   // Quota Override state
   const [selectedSupervisorId, setSelectedSupervisorId] = useState("");
   const [overrideMaxSlots, setOverrideMaxSlots] = useState(6);
   const [overrideReason, setOverrideReason] = useState("");
 
-  // Filters
+  // Student Explorer Filters
   const [studentQuery, setStudentQuery] = useState("");
   const [studentProgramFilter, setStudentProgramFilter] = useState("ALL");
+
+  // Archive Ingestion State (Unified Admin Archive Tab)
+  const [archTitle, setArchTitle] = useState("");
+  const [archAbstract, setArchAbstract] = useState("");
+  const [archYear, setArchYear] = useState(2025);
+  const [archProgram, setArchProgram] = useState<ItProgram>("BSIT");
+  const [archDomain, setArchDomain] = useState("DevTools");
+  const [archStack, setArchStack] = useState("");
+  const [editingArchiveId, setEditingArchiveId] = useState<string | null>(null);
+  const [manualAbstractPatch, setManualAbstractPatch] = useState("");
 
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(
     null
@@ -122,6 +139,7 @@ export default function AdminDashboardPage() {
     setStudents(data.students);
     setSupervisors(data.supervisors);
     setProjects(data.projects);
+    setArchives(data.archives);
     setAuditLogs(data.auditLogs);
     if (!selectedSupervisorId && data.supervisors[0]) {
       setSelectedSupervisorId(data.supervisors[0].id);
@@ -133,12 +151,26 @@ export default function AdminDashboardPage() {
       .catch(() => {
         setBanner({
           type: "error",
-          text: "Failed to load institutional governance data from Supabase.",
+          text: "Failed to load institutional governance data from PostgreSQL.",
         });
       })
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const filteredSupervisors = useMemo(() => {
+    const q = facultyQuery.trim().toLowerCase();
+    return supervisors.filter((s) => {
+      const matchesProg =
+        facultyProgramFilter === "ALL" || s.programCode === facultyProgramFilter;
+      const matchesQ =
+        !q ||
+        s.fullName.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.designation.toLowerCase().includes(q);
+      return matchesProg && matchesQ;
+    });
+  }, [supervisors, facultyProgramFilter, facultyQuery]);
 
   const filteredStudents = useMemo(() => {
     const q = studentQuery.trim().toLowerCase();
@@ -153,6 +185,15 @@ export default function AdminDashboardPage() {
       return matchesProg && matchesQuery;
     });
   }, [students, studentQuery, studentProgramFilter]);
+
+  const totalMaxSlots = useMemo(
+    () => supervisors.reduce((acc, s) => acc + s.maxSlots, 0),
+    [supervisors]
+  );
+  const totalFilledSlots = useMemo(
+    () => supervisors.reduce((acc, s) => acc + s.activeSlots, 0),
+    [supervisors]
+  );
 
   function toggleFacDomain(domain: string) {
     setFacDomains((prev) =>
@@ -187,6 +228,7 @@ export default function AdminDashboardPage() {
       universityEmail: facEmail.trim().toLowerCase(),
       departmentCode: facProgram,
       designation: facDesignation.trim(),
+      role: facRole,
       maxSlots: facMaxSlots,
       pin: facPin.trim(),
       researchDomains: facDomains,
@@ -203,7 +245,7 @@ export default function AdminDashboardPage() {
     setFacPin("");
     setBanner({
       type: "success",
-      text: `Provisioned faculty supervisor ${res.data.fullName} (${res.data.universityEmail} · ${res.data.departmentCode}). They can now sign in at /sign-in with their assigned PIN.`,
+      text: `Provisioned ${res.data.role.toLowerCase()} ${res.data.fullName} (${res.data.universityEmail} · ${res.data.departmentCode}). They can now sign in at /sign-in with their assigned PIN.`,
     });
     await refreshAdminData();
   }
@@ -271,284 +313,624 @@ export default function AdminDashboardPage() {
     await refreshAdminData();
   }
 
+  async function handleCreateArchive(e: React.FormEvent) {
+    e.preventDefault();
+    setBanner(null);
+    const stack = archStack
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const res = await createArchiveRecord({
+      title: archTitle,
+      abstract: archAbstract,
+      academicYear: archYear,
+      programCode: archProgram,
+      domain: archDomain,
+      techStack: stack.length > 0 ? stack : ["TypeScript"],
+    });
+
+    if (!res.ok) {
+      setBanner({ type: "error", text: res.error.message });
+      return;
+    }
+
+    setArchTitle("");
+    setArchAbstract("");
+    setArchStack("");
+    setBanner({
+      type: "success",
+      text: `Archive record ingested (${res.data.ingestStatus}).`,
+    });
+    await refreshAdminData();
+  }
+
+  async function handleRetryArchive(archiveId: string) {
+    setBanner(null);
+    const res = await retryArchiveEmbedding({
+      archiveId,
+      updatedAbstract: manualAbstractPatch.trim().length >= 100 ? manualAbstractPatch : undefined,
+    });
+    if (!res.ok) {
+      setBanner({ type: "error", text: res.error.message });
+      return;
+    }
+    setEditingArchiveId(null);
+    setManualAbstractPatch("");
+    setBanner({
+      type: "success",
+      text: `Archive ${archiveId} re-indexed (${res.data.ingestStatus}).`,
+    });
+    await refreshAdminData();
+  }
+
+  async function handleDeleteArchive(archiveId: string) {
+    setBanner(null);
+    const res = await deleteArchiveRecord({ archiveId });
+    if (!res.ok) {
+      setBanner({ type: "error", text: res.error.message });
+      return;
+    }
+    setBanner({
+      type: "success",
+      text: `Deleted archive record ${archiveId} and logged to AuditLog.`,
+    });
+    await refreshAdminData();
+  }
+
+  function handleExportAuditCsv() {
+    const header = "Timestamp,Actor,Action,EntityType,EntityId,Summary\n";
+    const rows = auditLogs
+      .map(
+        (l) =>
+          `"${l.timestamp}","${l.actor.replace(/"/g, '""')}","${l.action}","${l.entityType}","${l.entityId}","${l.summary.replace(/"/g, '""')}"`
+      )
+      .join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ProjectCompass-Institutional-Audit.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border-default pb-5">
-        <div>
+      {/* Stitch Page Header & Action Bar */}
+      <header className="flex flex-col xl:flex-row xl:items-end justify-between gap-4 pb-2">
+        <div className="space-y-2 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="default">Admin Command Center</Badge>
-            <Badge variant="neutral">Department of IT &amp; Computing (All 6 Programs)</Badge>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#112D4E] text-white text-[11px] font-semibold tracking-wide uppercase shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#99F1F6] animate-pulse" />
+              Admin Command Center
+            </span>
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-surface-container text-on-surface-variant text-[11px] font-medium">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[14px] text-[#2A609C]"
+              >
+                domain
+              </span>
+              Department of IT &amp; Computing (All 6 Programs)
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50 text-[11px] font-semibold">
+              HEC / NCEAC Accredited
+            </span>
           </div>
-          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+
+          <h1 className="font-headline-md text-2xl sm:text-[28px] text-[#001833] tracking-tight font-bold">
             Central Institutional Governance &amp; Faculty Provisioning
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Hire &amp; manage faculty supervisors, inspect all student data and FYP projects, and
-            enforce strict role boundaries across every Fall &amp; Spring batch.
+          <p className="text-sm text-on-surface-variant max-w-4xl leading-relaxed">
+            Authoritative administrative console for faculty onboarding, supervision quota
+            governance, student cohort compliance, past FYP archives, and immutable audit records.
           </p>
         </div>
 
-        <Button asChild variant="outline" size="sm">
-          <Link href="/dashboard/coordinator">
-            <Archive className="h-4 w-4" strokeWidth={1.75} />
-            Manage Past FYP Archives
-          </Link>
-        </Button>
-      </div>
+        <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setActiveTab("archives")}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-surface-container-lowest border border-[#DBE2EF] text-[#112D4E] text-xs font-semibold shadow-xs hover:bg-[#DBE2EF]/50 transition-colors"
+          >
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px] text-[#2A609C]"
+            >
+              inventory_2
+            </span>
+            <span>Manage Past FYP Archives</span>
+          </button>
 
-      {/* Live Institutional KPI Strip */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium text-text-muted">Registered Students</p>
-            <p className="mt-1 font-mono-tabular text-2xl font-bold text-text-primary">
+          <button
+            type="button"
+            onClick={handleExportAuditCsv}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#112D4E] text-white text-xs font-semibold shadow-xs hover:bg-[#001833] transition-colors"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+              download_for_offline
+            </span>
+            <span>Export Audit Dossier</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Stitch 4-Card Institutional KPI Strip (100% Live Counts) */}
+      <section
+        aria-label="Department Metrics"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs flex flex-col justify-between gap-2.5">
+          <div className="flex items-start justify-between">
+            <span className="text-[11px] uppercase font-semibold tracking-wider text-on-surface-variant">
+              Registered Students
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                group
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="font-mono-tabular text-[28px] font-bold tracking-tight text-[#001833] leading-none">
               {students.length}
+            </span>
+            <p className="text-xs text-on-surface-variant mt-1.5">
+              Verified Student Roll Accounts
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium text-text-muted">Provisioned Faculty Supervisors</p>
-            <p className="mt-1 font-mono-tabular text-2xl font-bold text-text-primary">
+          </div>
+          <div className="h-1 w-full bg-[#DBE2EF] rounded-full overflow-hidden">
+            <div className="h-full bg-[#112D4E] rounded-full w-4/5" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs flex flex-col justify-between gap-2.5">
+          <div className="flex items-start justify-between">
+            <span className="text-[11px] uppercase font-semibold tracking-wider text-on-surface-variant">
+              Provisioned Faculty
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                how_to_reg
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="font-mono-tabular text-[28px] font-bold tracking-tight text-[#001833] leading-none">
               {supervisors.length}
+            </span>
+            <p className="text-xs text-on-surface-variant mt-1.5">
+              {totalFilledSlots} / {totalMaxSlots} Supervision Slots Filled
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium text-text-muted">Active FYP Proposals</p>
-            <p className="mt-1 font-mono-tabular text-2xl font-bold text-text-primary">
+          </div>
+          <div className="h-1 w-full bg-[#DBE2EF] rounded-full overflow-hidden">
+            <div
+              className="h-full bg-[#2A609C] rounded-full"
+              style={{
+                width: `${Math.min(100, Math.round((totalFilledSlots / Math.max(1, totalMaxSlots)) * 100))}%`,
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs flex flex-col justify-between gap-2.5">
+          <div className="flex items-start justify-between">
+            <span className="text-[11px] uppercase font-semibold tracking-wider text-on-surface-variant">
+              Active FYP Proposals
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                description
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="font-mono-tabular text-[28px] font-bold tracking-tight text-[#001833] leading-none">
               {projects.length}
+            </span>
+            <p className="text-xs text-on-surface-variant mt-1.5">
+              {archives.length} Historical Archives Indexed
             </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs font-medium text-text-muted">Governance Audit Events</p>
-            <p className="mt-1 font-mono-tabular text-2xl font-bold text-text-primary">
+          </div>
+          <div className="h-1 w-full bg-[#DBE2EF] rounded-full overflow-hidden">
+            <div className="h-full bg-[#46A1A6] rounded-full w-3/4" />
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs flex flex-col justify-between gap-2.5">
+          <div className="flex items-start justify-between">
+            <span className="text-[11px] uppercase font-semibold tracking-wider text-on-surface-variant">
+              Governance Audit Events
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-[#DBE2EF]/60 flex items-center justify-center text-[#2A609C]">
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                verified
+              </span>
+            </div>
+          </div>
+          <div>
+            <span className="font-mono-tabular text-[28px] font-bold tracking-tight text-[#001833] leading-none">
               {auditLogs.length}
+            </span>
+            <p className="text-xs text-on-surface-variant mt-1.5">
+              Immutable Institutional Ledger
             </p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="h-1 w-full bg-[#DBE2EF] rounded-full overflow-hidden">
+            <div className="h-full bg-[#71C9CE] rounded-full w-full" />
+          </div>
+        </div>
+      </section>
 
       {banner && (
         <div
-          className={`flex items-center gap-2 rounded-[6px] border px-4 py-2.5 text-xs font-medium ${
-            banner.type === "success"
-              ? "border-status-success/30 bg-status-success-tint text-status-success-text"
-              : "border-status-error/30 bg-status-error-tint text-status-error-text"
-          }`}
           role="alert"
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
+            banner.type === "success"
+              ? "border-[#71C9CE]/60 bg-[#E3FDFD] text-[#004F53]"
+              : "border-error/30 bg-error-container/60 text-on-error-container"
+          }`}
         >
-          {banner.type === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-          ) : (
-            <AlertCircle className="h-4 w-4 shrink-0" />
-          )}
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
+            {banner.type === "success" ? "check_circle" : "error"}
+          </span>
           <span>{banner.text}</span>
         </div>
       )}
 
+      {/* Stitch Command Center Navigation Tabs */}
+      <div
+        role="tablist"
+        aria-label="Admin Command Sections"
+        className="flex items-center gap-1.5 p-1.5 rounded-xl bg-surface-container-low border border-[#DBE2EF] overflow-x-auto"
+      >
+        {(
+          [
+            {
+              key: "faculty",
+              label: "Hire & Manage Faculty",
+              icon: "person_add",
+              count: supervisors.length,
+            },
+            {
+              key: "students",
+              label: "Student Data",
+              icon: "school",
+              count: students.length,
+            },
+            {
+              key: "projects",
+              label: "Projects",
+              icon: "folder_special",
+              count: projects.length,
+            },
+            {
+              key: "archives",
+              label: "Past FYP Archives",
+              icon: "inventory_2",
+              count: archives.length,
+            },
+            {
+              key: "audit",
+              label: "Roles & Audit Logs",
+              icon: "receipt_long",
+              count: auditLogs.length,
+            },
+          ] as const
+        ).map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                isActive
+                  ? "bg-[#112D4E] text-white shadow-xs"
+                  : "text-on-surface-variant hover:bg-surface-container hover:text-[#112D4E]"
+              }`}
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[17px]">
+                {tab.icon}
+              </span>
+              <span>{tab.label}</span>
+              <span
+                className={`font-mono-tabular px-2 py-0.5 rounded-full text-[11px] ${
+                  isActive
+                    ? "bg-white/20 text-white"
+                    : "bg-surface-container-high text-on-surface"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {isLoading ? (
         <div className="space-y-4">
-          <Skeleton className="h-44 w-full" />
-          <Skeleton className="h-56 w-full" />
+          <Skeleton className="h-52 w-full rounded-xl" />
+          <Skeleton className="h-56 w-full rounded-xl" />
         </div>
       ) : (
-        <Tabs defaultValue="faculty" className="w-full space-y-5">
-          <TabsList>
-            <TabsTrigger value="faculty">
-              <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-              Hire &amp; Manage Faculty ({supervisors.length})
-            </TabsTrigger>
-            <TabsTrigger value="students">
-              <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
-              Student Data ({students.length})
-            </TabsTrigger>
-            <TabsTrigger value="projects">
-              <FolderKanban className="mr-1.5 h-3.5 w-3.5" />
-              Projects ({projects.length})
-            </TabsTrigger>
-            <TabsTrigger value="governance">
-              <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
-              Roles &amp; Audit Logs
-            </TabsTrigger>
-          </TabsList>
-
+        <>
           {/* TAB 1: HIRE & MANAGE FACULTY */}
-          <TabsContent value="faculty" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-12">
-              <Card className="lg:col-span-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-4 w-4 text-brand-primary" />
-                    Hire / Provision Faculty Supervisor
-                  </CardTitle>
-                  <CardDescription>
-                    Faculty cannot self-register. Accounts created here are persisted directly to
-                    Supabase (`User` + `FacultyAccount` + `SupervisorProfile`) so only authorized
-                    faculty can log in.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleHireFaculty} className="space-y-4">
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                          Full Name
-                        </label>
-                        <Input
-                          placeholder="e.g., Dr. Usman Tariq"
-                          value={facName}
-                          onChange={(e) => setFacName(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                          Official University Email
-                        </label>
-                        <Input
-                          type="email"
-                          placeholder="usman.tariq@university.edu"
-                          value={facEmail}
-                          onChange={(e) => setFacEmail(e.target.value)}
-                          required
-                        />
-                      </div>
-                    </div>
+          {activeTab === "faculty" && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left 5 Cols: Provision Faculty Form */}
+              <section className="lg:col-span-5 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#DBE2EF]/70">
+                  <div>
+                    <h2 className="font-title-md text-lg font-bold text-[#112D4E]">
+                      Provision Faculty Supervisor
+                    </h2>
+                    <p className="text-xs text-on-surface-variant">
+                      Issue statutory supervision or coordinator credentials
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#DBE2EF]/70 text-[#112D4E] text-[11px] font-semibold">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
+                      sync
+                    </span>
+                    Directory Sync
+                  </span>
+                </div>
 
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                          IT Program
-                        </label>
-                        <Select
-                          value={facProgram}
-                          onChange={(e) => setFacProgram(e.target.value as ItProgram)}
-                        >
-                          {IT_PROGRAMS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                          Designation
-                        </label>
-                        <Input
-                          value={facDesignation}
-                          onChange={(e) => setFacDesignation(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                          Max Slots
-                        </label>
-                        <Input
-                          type="number"
-                          min={1}
-                          max={15}
-                          value={facMaxSlots}
-                          onChange={(e) => setFacMaxSlots(Number(e.target.value))}
-                          className="font-mono-tabular"
-                        />
-                      </div>
+                <form onSubmit={handleHireFaculty} className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[#112D4E]">
+                      Full Name &amp; Academic Honorific
+                    </label>
+                    <Input
+                      placeholder="e.g., Dr. Naveed Akhtar"
+                      value={facName}
+                      onChange={(e) => setFacName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[#112D4E]">
+                      Official Institutional Email
+                    </label>
+                    <Input
+                      type="email"
+                      placeholder="naveed.akhtar@university.edu"
+                      value={facEmail}
+                      onChange={(e) => setFacEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-[#112D4E]">
+                        IT Department Program
+                      </label>
+                      <Select
+                        aria-label="IT Department Program"
+                        value={facProgram}
+                        onChange={(e) => setFacProgram(e.target.value as ItProgram)}
+                      >
+                        {IT_PROGRAMS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </Select>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Assign Initial 4-Digit Login PIN
+                      <label className="text-xs font-semibold text-[#112D4E]">Portal Role</label>
+                      <Select
+                        aria-label="Faculty Portal Role"
+                        value={facRole}
+                        onChange={(e) =>
+                          setFacRole(e.target.value as "SUPERVISOR" | "COORDINATOR")
+                        }
+                      >
+                        <option value="SUPERVISOR">SUPERVISOR</option>
+                        <option value="COORDINATOR">COORDINATOR</option>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-[#112D4E]">
+                      Academic Designation
+                    </label>
+                    <Input
+                      value={facDesignation}
+                      onChange={(e) => setFacDesignation(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#112D4E]">
+                        Capstone Slots
                       </label>
-                      <div className="relative">
-                        <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                      <Input
+                        type="number"
+                        min={1}
+                        max={15}
+                        value={facMaxSlots}
+                        onChange={(e) => setFacMaxSlots(Number(e.target.value) || 5)}
+                        className="font-mono-tabular bg-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#112D4E]">
+                        Initial 4-Digit PIN
+                      </label>
+                      <div className="relative flex items-center">
                         <Input
-                          type="password"
+                          type={showFacPin ? "text" : "password"}
                           inputMode="numeric"
                           maxLength={4}
-                          placeholder="4 numeric digits (e.g., 4820)"
+                          placeholder="••••"
                           value={facPin}
                           onChange={(e) =>
                             setFacPin(e.target.value.replace(/\D/g, "").slice(0, 4))
                           }
-                          className="pl-9 font-mono-tabular tracking-widest"
+                          className="font-mono-tabular tracking-widest bg-white pr-8"
                           required
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowFacPin((prev) => !prev)}
+                          aria-label="Toggle Faculty PIN visibility"
+                          className="absolute right-2 text-on-surface-variant hover:text-[#112D4E]"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="material-symbols-outlined text-[16px]"
+                          >
+                            {showFacPin ? "visibility_off" : "visibility"}
+                          </span>
+                        </button>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Research Domains ({facDomains.length}/6)
-                      </label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {DOMAIN_OPTIONS.map((domain) => {
-                          const active = facDomains.includes(domain);
-                          return (
-                            <button
-                              key={domain}
-                              type="button"
-                              onClick={() => toggleFacDomain(domain)}
-                              className={`rounded-[6px] border px-2.5 py-1 text-xs font-medium transition-colors ${
-                                active
-                                  ? "border-brand-primary bg-brand-primary text-bg-surface"
-                                  : "border-border-default bg-bg-surface text-text-secondary hover:bg-bg-subtle"
-                              }`}
-                            >
-                              {domain}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <label className="font-semibold text-[#112D4E]">Research Domain Tags</label>
+                      <span className="text-on-surface-variant">{facDomains.length}/6</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {DOMAIN_OPTIONS.map((dom) => {
+                        const selected = facDomains.includes(dom);
+                        return (
+                          <button
+                            key={dom}
+                            type="button"
+                            onClick={() => toggleFacDomain(dom)}
+                            className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${
+                              selected
+                                ? "bg-[#112D4E] text-white"
+                                : "bg-surface-container text-on-surface hover:bg-[#DBE2EF]/60"
+                            }`}
+                          >
+                            {dom}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isHiring}
+                    className="w-full py-2.5 px-4 rounded-lg bg-[#112D4E] hover:bg-[#001833] disabled:opacity-50 text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  >
+                    <span>
+                      {isHiring
+                        ? "Provisioning Faculty Account..."
+                        : "Hire & Provision Faculty Supervisor"}
+                    </span>
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                      arrow_forward
+                    </span>
+                  </button>
+                </form>
+              </section>
+
+              {/* Right 7 Cols: Active Faculty Roster + Slot Quota Override */}
+              <section className="lg:col-span-7 space-y-6">
+                {/* Faculty Roster Card */}
+                <div className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#DBE2EF]/70">
+                    <div>
+                      <h2 className="font-title-md text-lg font-bold text-[#112D4E]">
+                        Department Faculty Roster
+                      </h2>
+                      <p className="text-xs text-on-surface-variant">
+                        {supervisors.length} Provisioned Supervisors · Real-time quota saturation
+                      </p>
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={isHiring}>
-                      <UserPlus className="h-4 w-4" strokeWidth={1.75} />
-                      {isHiring ? "Provisioning Faculty Account..." : "Hire & Provision Faculty"}
-                    </Button>
-                  </form>
-                </CardContent>
-              </Card>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        value={facultyQuery}
+                        onChange={(e) => setFacultyQuery(e.target.value)}
+                        placeholder="Filter faculty..."
+                        aria-label="Filter faculty roster"
+                        className="h-9 px-3 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF] text-xs focus:outline-none w-36 sm:w-44"
+                      />
+                      <Select
+                        aria-label="Filter Roster Program"
+                        value={facultyProgramFilter}
+                        onChange={(e) => setFacultyProgramFilter(e.target.value)}
+                        className="w-32"
+                      >
+                        <option value="ALL">All Programs</option>
+                        {IT_PROGRAMS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
 
-              <Card className="lg:col-span-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sliders className="h-4 w-4 text-brand-primary" />
-                    Faculty Roster &amp; Slot Quota Override
-                  </CardTitle>
-                  <CardDescription>
-                    Override supervision slot limits with mandatory audit logging or toggle faculty
-                    account access.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  {supervisors.length === 0 ? (
-                    <div className="rounded-[8px] border border-dashed border-border-default bg-bg-subtle p-6 text-center text-xs text-text-secondary">
-                      No faculty supervisors provisioned yet. Use the Hire form on the left to add
-                      your first supervisor.
+                  {filteredSupervisors.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-on-surface-variant rounded-lg bg-[#F9F7F7]">
+                      No faculty supervisors match this filter.
                     </div>
                   ) : (
-                    <>
-                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {supervisors.map((s) => (
+                    <div className="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+                      {filteredSupervisors.map((s) => {
+                        const isFull = s.activeSlots >= s.maxSlots;
+                        return (
                           <div
                             key={s.id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-border-default bg-bg-subtle/60 p-3 text-xs"
+                            className="p-3 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                           >
-                            <div>
-                              <p className="font-semibold text-text-primary">{s.fullName}</p>
-                              <p className="text-text-muted">
-                                {s.email} · {s.programCode} · {s.designation}
-                              </p>
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-[#DBE2EF] text-[#112D4E] font-headline-sm text-xs font-bold flex items-center justify-center shrink-0">
+                                {getInitials(s.fullName)}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-sm font-bold text-[#112D4E]">
+                                    {s.fullName}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-surface-container-lowest border border-[#DBE2EF] text-[#2A609C] text-[11px] font-semibold">
+                                    {s.programCode}
+                                  </span>
+                                  {!s.isActive && (
+                                    <span className="px-2 py-0.5 rounded bg-error-container text-on-error-container text-[10px] font-bold">
+                                      INACTIVE
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-on-surface-variant truncate">
+                                  {s.designation} · {s.email}
+                                </p>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="default" className="font-mono-tabular">
-                                {s.activeSlots}/{s.maxSlots} slots
-                              </Badge>
+
+                            <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
+                              <span
+                                className={`font-mono-tabular px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                                  isFull
+                                    ? "bg-error-container text-on-error-container"
+                                    : "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50"
+                                }`}
+                              >
+                                {s.activeSlots} / {s.maxSlots} {isFull ? "Full" : "Filled"}
+                              </span>
+
                               <Button
                                 size="sm"
                                 variant={s.isActive ? "outline" : "secondary"}
@@ -558,241 +940,482 @@ export default function AdminDashboardPage() {
                               </Button>
                             </div>
                           </div>
-                        ))}
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Slot Quota Override Governance Card */}
+                <div className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] border-l-4 border-l-[#112D4E] p-5 sm:p-6 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[#112D4E] text-[22px]"
+                      >
+                        gavel
+                      </span>
+                      <h3 className="font-title-md text-base font-bold text-[#112D4E]">
+                        Slot Quota Override Governance
+                      </h3>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-[#DBE2EF]/70 text-[#112D4E] text-[11px] font-semibold">
+                      Statutory Override Authority
+                    </span>
+                  </div>
+
+                  <form onSubmit={handleQuotaOverride} className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-[#112D4E]">
+                          Select Faculty Member
+                        </label>
+                        <Select
+                          aria-label="Select Faculty Member for Override"
+                          value={selectedSupervisorId}
+                          onChange={(e) => setSelectedSupervisorId(e.target.value)}
+                        >
+                          {supervisors.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.fullName} ({s.programCode} · {s.activeSlots}/{s.maxSlots})
+                            </option>
+                          ))}
+                        </Select>
                       </div>
 
-                      <form
-                        onSubmit={handleQuotaOverride}
-                        className="space-y-3 border-t border-border-default pt-4"
-                      >
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-text-secondary">
-                              Faculty Supervisor
-                            </label>
-                            <Select
-                              value={selectedSupervisorId}
-                              onChange={(e) => setSelectedSupervisorId(e.target.value)}
-                            >
-                              {supervisors.map((s) => (
-                                <option key={s.id} value={s.id}>
-                                  {s.fullName} ({s.programCode} · {s.activeSlots}/{s.maxSlots})
-                                </option>
-                              ))}
-                            </Select>
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-text-secondary">
-                              New Max Slots
-                            </label>
-                            <Input
-                              type="number"
-                              min={1}
-                              max={20}
-                              value={overrideMaxSlots}
-                              onChange={(e) => setOverrideMaxSlots(Number(e.target.value))}
-                              className="font-mono-tabular"
-                            />
-                          </div>
-                        </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-[#112D4E]">
+                          New Max Slot Quota
+                        </label>
                         <Input
-                          placeholder="Audit reason (min 10 chars)..."
-                          value={overrideReason}
-                          onChange={(e) => setOverrideReason(e.target.value)}
+                          type="number"
+                          min={0}
+                          max={20}
+                          value={overrideMaxSlots}
+                          onChange={(e) => setOverrideMaxSlots(Number(e.target.value))}
+                          className="font-mono-tabular"
                         />
-                        <Button type="submit" variant="outline" className="w-full">
-                          Apply Slot Quota Override
-                        </Button>
-                      </form>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                      </div>
+                    </div>
 
-          {/* TAB 2: STUDENT DATA EXPLORER */}
-          <TabsContent value="students" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <CardTitle>All Registered Students</CardTitle>
-                    <CardDescription>
-                      Live database directory of student accounts, batches, skill readiness, and
-                      career goals.
-                    </CardDescription>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <div className="relative">
-                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                      <Input
-                        placeholder="Search name, Reg No, goal..."
-                        value={studentQuery}
-                        onChange={(e) => setStudentQuery(e.target.value)}
-                        className="pl-9 w-full sm:w-56"
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#112D4E] flex items-center justify-between">
+                        <span>Mandatory Institutional Audit Reason</span>
+                        <span className="text-error text-[11px]">* Min 10 chars</span>
+                      </label>
+                      <Textarea
+                        rows={2}
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="Enter Academic Council resolution or co-supervision justification..."
                       />
                     </div>
-                    <Select
-                      value={studentProgramFilter}
-                      onChange={(e) => setStudentProgramFilter(e.target.value)}
-                      className="w-full sm:w-36"
+
+                    <div className="flex justify-end">
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-xs font-semibold shadow-xs transition-colors"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[16px]"
+                        >
+                          verified_user
+                        </span>
+                        <span>Commit Quota Override &amp; Record</span>
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* TAB 2: STUDENT DATA EXPLORER */}
+          {activeTab === "students" && (
+            <section className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#DBE2EF]/70">
+                <div>
+                  <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                    Registered Student Cohort Registry
+                  </h2>
+                  <p className="text-xs text-on-surface-variant">
+                    Live database directory of student accounts, batches, skill readiness, and
+                    generated proposals.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={studentQuery}
+                    onChange={(e) => setStudentQuery(e.target.value)}
+                    placeholder="Search name, Reg No, goal..."
+                    className="w-full sm:w-56 h-9 text-xs"
+                  />
+                  <Select
+                    aria-label="Filter Student Program"
+                    value={studentProgramFilter}
+                    onChange={(e) => setStudentProgramFilter(e.target.value)}
+                    className="w-full sm:w-36"
+                  >
+                    <option value="ALL">All Programs</option>
+                    {IT_PROGRAMS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+
+              {filteredStudents.length === 0 ? (
+                <p className="py-8 text-center text-xs text-on-surface-variant">
+                  No matching students found in the database.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-surface-container-low text-on-surface-variant uppercase tracking-wider text-[11px]">
+                        <th className="p-3 rounded-l-md">Roll / Reg No</th>
+                        <th className="p-3">Candidate Name</th>
+                        <th className="p-3">Track &amp; Batch</th>
+                        <th className="p-3">Profile Readiness</th>
+                        <th className="p-3">Career Goal</th>
+                        <th className="p-3 rounded-r-md text-right">Proposals</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#DBE2EF]/60">
+                      {filteredStudents.map((stu) => (
+                        <tr key={stu.userId} className="hover:bg-[#F9F7F7] transition-colors">
+                          <td className="p-3 font-mono-tabular font-bold text-[#112D4E]">
+                            {stu.registrationNo}
+                          </td>
+                          <td className="p-3">
+                            <p className="font-semibold text-on-surface">{stu.fullName}</p>
+                            <p className="text-[11px] text-on-surface-variant">{stu.email}</p>
+                          </td>
+                          <td className="p-3">
+                            <span className="px-2 py-0.5 rounded bg-[#DBE2EF]/60 text-[#112D4E] font-semibold">
+                              {stu.departmentCode}
+                            </span>
+                            <span className="ml-1.5 text-on-surface-variant">{stu.batchLabel}</span>
+                          </td>
+                          <td className="p-3">
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                                stu.profileStatus === "READY"
+                                  ? "bg-[#E3FDFD] text-[#004F53]"
+                                  : "bg-surface-container text-on-surface-variant"
+                              }`}
+                            >
+                              {stu.profileStatus} ({stu.skillsCount} skills)
+                            </span>
+                          </td>
+                          <td className="p-3 text-on-surface-variant max-w-[220px] truncate">
+                            {stu.careerGoal}
+                          </td>
+                          <td className="p-3 text-right font-mono-tabular font-bold text-[#112D4E]">
+                            {stu.ideasCount}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* TAB 3: PROJECTS */}
+          {activeTab === "projects" && (
+            <section className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+              <div className="pb-3 border-b border-[#DBE2EF]/70">
+                <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                  Capstone Project Repository &amp; Feasibility Scoring
+                </h2>
+                <p className="text-xs text-on-surface-variant">
+                  Live oversight of generated student proposals, feasibility scores, and locked
+                  faculty supervisors.
+                </p>
+              </div>
+
+              {projects.length === 0 ? (
+                <p className="py-8 text-center text-xs text-on-surface-variant">
+                  No student FYP proposals have been generated yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {projects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      className="p-4 rounded-xl bg-[#F9F7F7] border border-[#DBE2EF] flex flex-col justify-between gap-3 hover:shadow-xs transition-shadow"
                     >
-                      <option value="ALL">All Programs</option>
-                      {IT_PROGRAMS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="px-2 py-0.5 rounded bg-[#DBE2EF] text-[#112D4E] text-[11px] font-semibold">
+                            {proj.departmentCode} · {proj.track}
+                          </span>
+                          <span className="px-2 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] font-mono-tabular text-[11px] font-bold">
+                            Score {proj.feasibilityScore}/100
+                          </span>
+                        </div>
+                        <h3 className="font-title-md text-sm font-bold text-[#112D4E] leading-snug">
+                          {proj.title}
+                        </h3>
+                        <p className="text-xs text-on-surface-variant">
+                          Student: <strong>{proj.studentName}</strong> ({proj.studentRegNo})
+                        </p>
+                      </div>
+
+                      <div className="pt-2.5 border-t border-[#DBE2EF] flex items-center justify-between text-[11px]">
+                        <span className="text-[#112D4E] font-medium truncate">
+                          {proj.supervisorName
+                            ? `Supervisor: ${proj.supervisorName}`
+                            : "Awaiting Supervisor Lock"}
+                        </span>
+                        <span className="font-semibold text-[#2A609C] shrink-0">{proj.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* TAB 4: UNIFIED PAST FYP ARCHIVES */}
+          {activeTab === "archives" && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <section className="lg:col-span-5 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="pb-3 border-b border-[#DBE2EF]/70">
+                  <h2 className="font-title-md text-lg font-bold text-[#112D4E]">
+                    Ingest Past FYP Archive Record
+                  </h2>
+                  <p className="text-xs text-on-surface-variant">
+                    Indexes 1536-dim pgvector embeddings for semantic duplicate verification.
+                  </p>
+                </div>
+
+                <form onSubmit={handleCreateArchive} className="space-y-3.5">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#112D4E]">Project Title</label>
+                    <Input
+                      value={archTitle}
+                      onChange={(e) => setArchTitle(e.target.value)}
+                      placeholder="e.g., Automated Kubernetes Pod Right-Sizing Controller"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#112D4E]">Academic Year</label>
+                      <Input
+                        type="number"
+                        min={2010}
+                        max={2035}
+                        value={archYear}
+                        onChange={(e) => setArchYear(Number(e.target.value) || 2025)}
+                        className="font-mono-tabular"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-[#112D4E]">Degree Program</label>
+                      <Select
+                        aria-label="Archive Degree Program"
+                        value={archProgram}
+                        onChange={(e) => setArchProgram(e.target.value as ItProgram)}
+                      >
+                        {IT_PROGRAMS.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#112D4E]">Domain</label>
+                    <Select
+                      aria-label="Archive Domain"
+                      value={archDomain}
+                      onChange={(e) => setArchDomain(e.target.value)}
+                    >
+                      {DOMAIN_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
                         </option>
                       ))}
                     </Select>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {filteredStudents.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-text-muted">
-                    No matching students found in the database.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-border-default text-text-muted">
-                          <th className="py-2 pr-4 font-semibold">Student</th>
-                          <th className="py-2 pr-4 font-semibold">Reg No &amp; Batch</th>
-                          <th className="py-2 pr-4 font-semibold">Profile</th>
-                          <th className="py-2 pr-4 font-semibold">Career Goal</th>
-                          <th className="py-2 font-semibold">Proposals</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-default/60">
-                        {filteredStudents.map((stu) => (
-                          <tr key={stu.userId}>
-                            <td className="py-3 pr-4">
-                              <p className="font-semibold text-text-primary">{stu.fullName}</p>
-                              <p className="text-[11px] text-text-muted">{stu.email}</p>
-                            </td>
-                            <td className="py-3 pr-4 font-mono-tabular">
-                              <p className="font-medium text-text-primary">{stu.registrationNo}</p>
-                              <p className="text-[11px] text-text-muted">
-                                {stu.batchLabel} · {stu.departmentCode}
-                              </p>
-                            </td>
-                            <td className="py-3 pr-4">
-                              <Badge
-                                variant={
-                                  stu.profileStatus === "READY"
-                                    ? "success"
-                                    : stu.profileStatus === "DRAFT"
-                                      ? "warning"
-                                      : "neutral"
-                                }
-                              >
-                                {stu.profileStatus} ({stu.skillsCount} skills)
-                              </Badge>
-                            </td>
-                            <td className="py-3 pr-4 text-text-secondary max-w-[200px] truncate">
-                              {stu.careerGoal}
-                            </td>
-                            <td className="py-3 font-mono-tabular font-semibold text-text-primary">
-                              {stu.ideasCount}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* TAB 3: PROJECTS & SUPERVISION */}
-          <TabsContent value="projects" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department FYP Proposals &amp; Supervision Status</CardTitle>
-                <CardDescription>
-                  Complete oversight of generated student proposals, feasibility scores, and locked
-                  faculty supervisors.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {projects.length === 0 ? (
-                  <p className="py-8 text-center text-xs text-text-muted">
-                    No student FYP proposals have been generated yet.
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#112D4E]">
+                      Tech Stack (Comma-Separated)
+                    </label>
+                    <Input
+                      value={archStack}
+                      onChange={(e) => setArchStack(e.target.value)}
+                      placeholder="Next.js, TypeScript, PostgreSQL"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-[#112D4E]">
+                      Abstract (&gt;= 100 chars for READY embedding)
+                    </label>
+                    <Textarea
+                      rows={4}
+                      value={archAbstract}
+                      onChange={(e) => setArchAbstract(e.target.value)}
+                      placeholder="Paste project abstract..."
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full h-10 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                  >
+                    <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                      cloud_upload
+                    </span>
+                    <span>Ingest &amp; Index Archive</span>
+                  </button>
+                </form>
+              </section>
+
+              <section className="lg:col-span-7 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="pb-3 border-b border-[#DBE2EF]/70">
+                  <h2 className="font-title-md text-lg font-bold text-[#112D4E]">
+                    Historical FYP Archive Ledger ({archives.length})
+                  </h2>
+                </div>
+
+                {archives.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-on-surface-variant">
+                    No historical archives indexed yet.
                   </p>
                 ) : (
-                  <div className="space-y-3">
-                    {projects.map((proj) => (
+                  <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
+                    {archives.map((item) => (
                       <div
-                        key={proj.id}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4 text-xs"
+                        key={item.id}
+                        className="p-4 rounded-xl bg-[#F9F7F7] border border-[#DBE2EF] space-y-2"
                       >
-                        <div className="space-y-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <Badge variant="default">{proj.track}</Badge>
-                            <Badge variant="neutral">{proj.departmentCode}</Badge>
-                            <Badge
-                              variant={
-                                proj.status === "SUPERVISOR_LOCKED"
-                                  ? "success"
-                                  : proj.status === "SHORTLISTED"
-                                    ? "info"
-                                    : "neutral"
-                              }
-                            >
-                              {proj.status}
-                            </Badge>
-                            <span className="font-mono-tabular text-text-muted">
-                              Feasibility: {proj.feasibilityScore}/100
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-text-primary">{proj.title}</p>
-                          <p className="text-text-secondary">
-                            Student: <strong>{proj.studentName}</strong> ({proj.studentRegNo}) ·{" "}
-                            {proj.supervisorName ? (
-                              <span className="text-status-success-text font-medium">
-                                Supervisor: {proj.supervisorName}
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="font-mono-tabular text-xs font-bold text-[#112D4E]">
+                                {item.programCode} · {item.academicYear}
                               </span>
-                            ) : (
-                              <span className="text-text-muted">Awaiting supervisor lock</span>
+                              <span className="px-2 py-0.5 rounded bg-[#DBE2EF]/70 text-[#112D4E] text-[11px] font-medium">
+                                {item.domain}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  item.ingestStatus === "READY"
+                                    ? "bg-[#E3FDFD] text-[#004F53]"
+                                    : "bg-[#FEF3C7] text-[#92400E]"
+                                }`}
+                              >
+                                {item.ingestStatus}
+                              </span>
+                            </div>
+                            <h3 className="mt-1 text-sm font-bold text-[#112D4E]">{item.title}</h3>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {item.ingestStatus !== "READY" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingArchiveId(item.id);
+                                  setManualAbstractPatch(item.abstract);
+                                }}
+                              >
+                                Fix &amp; Retry
+                              </Button>
                             )}
-                          </p>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteArchive(item.id)}
+                              aria-label={`Delete ${item.title}`}
+                              className="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/40"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="material-symbols-outlined text-[18px]"
+                              >
+                                delete
+                              </span>
+                            </button>
+                          </div>
                         </div>
-                        <span className="font-mono-tabular text-[11px] text-text-muted shrink-0">
-                          {proj.createdAt}
-                        </span>
+
+                        <p className="text-xs text-on-surface-variant leading-relaxed">
+                          {item.abstract}
+                        </p>
+
+                        {editingArchiveId === item.id && (
+                          <div className="p-3 rounded-lg bg-white border border-[#DBE2EF] space-y-2">
+                            <Textarea
+                              value={manualAbstractPatch}
+                              onChange={(e) => setManualAbstractPatch(e.target.value)}
+                              placeholder="Enter >= 100 character abstract..."
+                            />
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingArchiveId(null)}
+                              >
+                                Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                disabled={manualAbstractPatch.trim().length < 100}
+                                onClick={() => handleRetryArchive(item.id)}
+                              >
+                                Save &amp; Re-Index
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </section>
+            </div>
+          )}
 
-          {/* TAB 4: ROLE GOVERNANCE & AUDIT LOGS */}
-          <TabsContent value="governance" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-12">
-              <Card className="lg:col-span-7">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-brand-primary" />
+          {/* TAB 5: ROLES & AUDIT LOGS */}
+          {activeTab === "audit" && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Role Governance */}
+              <section className="lg:col-span-6 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="pb-3 border-b border-[#DBE2EF]/70">
+                  <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
                     Institutional Role Directory
-                  </CardTitle>
-                  <CardDescription>
-                    Last-Admin protection prevents demoting the final active Admin account.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-2.5">
+                  </h2>
+                  <p className="text-xs text-on-surface-variant">
+                    Last-Admin protection blocks demoting or deactivating the final Admin account.
+                  </p>
+                </div>
+
+                <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
                   {users.map((u) => (
                     <div
                       key={u.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-[6px] border border-border-default bg-bg-subtle/50 p-3 text-xs"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] p-3 text-xs"
                     >
-                      <div>
-                        <p className="font-semibold text-text-primary">{u.fullName}</p>
-                        <p className="text-text-muted">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-[#112D4E] truncate">{u.fullName}</p>
+                        <p className="text-on-surface-variant truncate">
                           {u.email} · {u.departmentCode}
                         </p>
                       </div>
@@ -811,43 +1434,57 @@ export default function AdminDashboardPage() {
                       </Select>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+                </div>
+              </section>
 
-              <Card className="lg:col-span-5">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-brand-primary" />
-                    Immutable Audit Trail
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2.5 max-h-[420px] overflow-y-auto">
-                  {auditLogs.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-text-muted">
-                      No governance actions recorded yet.
+              {/* Audit Trail Table */}
+              <section className="lg:col-span-6 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#DBE2EF]/70">
+                  <div>
+                    <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                      Institutional Governance Audit Trail
+                    </h2>
+                    <p className="text-xs text-on-surface-variant">
+                      Recorded role updates, faculty onboarding, and quota overrides.
                     </p>
-                  ) : (
-                    auditLogs.map((log) => (
+                  </div>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] text-[11px] font-semibold">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
+                      lock
+                    </span>
+                    Verified
+                  </span>
+                </div>
+
+                {auditLogs.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-on-surface-variant">
+                    No governance audit events recorded yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5 max-h-[460px] overflow-y-auto pr-1">
+                    {auditLogs.map((log) => (
                       <div
                         key={log.id}
-                        className="rounded-[6px] border border-border-default bg-bg-subtle/50 p-3 text-xs space-y-1"
+                        className="p-3 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF] text-xs space-y-1"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <Badge variant="neutral">{log.action}</Badge>
-                          <span className="font-mono-tabular text-[11px] text-text-muted">
+                          <span className="px-2 py-0.5 rounded bg-[#DBE2EF] text-[#112D4E] font-mono-tabular text-[11px] font-bold">
+                            {log.action}
+                          </span>
+                          <span className="font-mono-tabular text-[11px] text-on-surface-variant">
                             {log.timestamp}
                           </span>
                         </div>
-                        <p className="text-text-primary">{log.summary}</p>
-                        <p className="text-[11px] text-text-muted">Actor: {log.actor}</p>
+                        <p className="text-on-surface font-medium">{log.summary}</p>
+                        <p className="text-[11px] text-on-surface-variant">Actor: {log.actor}</p>
                       </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </>
       )}
     </div>
   );

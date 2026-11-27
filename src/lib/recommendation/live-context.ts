@@ -1,10 +1,16 @@
 import crypto from "crypto";
+import type { MilestoneStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { generateDeterministicEmbedding } from "@/lib/ai/embeddings";
 import type {
   EngineExecutionResult,
   GeneratedIdeaRecord,
 } from "@/lib/recommendation/engine";
+import {
+  buildCalibratedProjectRoadmap,
+  type PlannedMilestoneItem,
+  type PlannedRoadmapResult,
+} from "@/lib/recommendation/roadmap-planner";
 import type { SupervisorCandidateInput } from "@/lib/recommendation/supervisor-ranker";
 import { readInstitutionalDb } from "@/lib/institutional-store";
 import type { RecommendedStackItem, SimilarArchiveItem } from "@/types/actions";
@@ -30,7 +36,7 @@ export interface ActiveRecommendationsSnapshot {
   profileStatus: "DRAFT" | "READY" | "MISSING";
 }
 
-function isProductionRuntime(): boolean {
+export function isProductionRuntime(): boolean {
   return (
     process.env.NODE_ENV === "production" &&
     process.env.CI !== "true" &&
@@ -39,7 +45,7 @@ function isProductionRuntime(): boolean {
 }
 
 /**
- * Loads real supervisors and READY historical project archives from PostgreSQL
+ * Loads real active supervisors and READY historical project archives from PostgreSQL
  * so the recommendation engine never uses hardcoded demo data in production.
  */
 export async function loadLiveEngineContext(): Promise<{
@@ -49,10 +55,14 @@ export async function loadLiveEngineContext(): Promise<{
   try {
     const [dbSupervisors, dbArchives] = await Promise.all([
       db.supervisorProfile.findMany({
+        where: {
+          user: { isActive: true },
+        },
         include: {
           user: { select: { fullName: true } },
           skills: { include: { skill: { select: { slug: true } } } },
         },
+        take: 200,
       }),
       db.projectArchive.findMany({
         where: { ingestStatus: "READY" },
@@ -64,6 +74,8 @@ export async function loadLiveEngineContext(): Promise<{
           domain: true,
           techStack: true,
         },
+        orderBy: { academicYear: "desc" },
+        take: 300,
       }),
     ]);
 
@@ -263,7 +275,8 @@ export async function persistRecommendationRunToDb(params: {
       runId: run.id,
       ideas: persistedIdeas,
     };
-  } catch {
+  } catch (err) {
+    console.error("[persistRecommendationRunToDb] Failed to persist run:", err);
     return null;
   }
 }
@@ -372,7 +385,10 @@ export async function loadLatestRecommendationRunFromDb(
       track: row.track,
       seedTemplateId: row.seedTemplateId ?? "",
       title: row.title,
-      domain: row.seedTemplate?.domain ?? row.marketDemandTag.split("·")[0]?.trim() ?? "Software Systems",
+      domain:
+        row.seedTemplate?.domain ??
+        row.marketDemandTag.split("·")[0]?.trim() ??
+        "Software Systems",
       problemStatement: row.problemStatement,
       proposedSolution: row.proposedSolution,
       differentiationAngle: row.differentiationAngle,
@@ -433,4 +449,206 @@ export async function loadLatestRecommendationRunFromDb(
   } catch {
     return null;
   }
+}
+
+export type PersistedIdeaRoadmapOutcome =
+  | {
+      kind: "FOUND";
+      roadmapId: string;
+      ideaTitle: string;
+      domain: string;
+      roadmap: PlannedRoadmapResult;
+      milestoneStatuses: Record<string, MilestoneStatus>;
+    }
+  | { kind: "NOT_FOUND" }
+  | { kind: "FORBIDDEN" };
+
+/**
+ * Ensures ProjectRoadmap + 4 RoadmapMilestone rows are persisted & synchronized in PostgreSQL
+ * for a real RecommendedIdea owned by `userId` (batched inside a single transaction, zero N+1).
+ */
+export async function ensurePersistedRoadmapForIdea(params: {
+  recommendedIdeaId: string;
+  userId: string;
+  durationWeeksOverride?: number;
+  weeklyHoursOverride?: number;
+  regenerate?: boolean;
+}): Promise<PersistedIdeaRoadmapOutcome> {
+  const idea = await db.recommendedIdea.findUnique({
+    where: { id: params.recommendedIdeaId },
+    include: {
+      seedTemplate: { select: { domain: true } },
+      skillGaps: { include: { skill: { select: { slug: true } } } },
+      run: { include: { studentProfile: true } },
+      roadmap: {
+        include: { milestones: { orderBy: { sortOrder: "asc" } } },
+      },
+    },
+  });
+
+  if (!idea) {
+    return { kind: "NOT_FOUND" };
+  }
+
+  if (idea.run.studentProfile.userId !== params.userId) {
+    return { kind: "FORBIDDEN" };
+  }
+
+  const domain =
+    idea.seedTemplate?.domain ??
+    idea.marketDemandTag.split("·")[0]?.trim() ??
+    "Software Systems";
+
+  const stack = Array.isArray(idea.recommendedStack)
+    ? (idea.recommendedStack as unknown as RecommendedStackItem[]).map((s) => s.tech)
+    : ["Next.js", "TypeScript", "PostgreSQL"];
+
+  const durationWeeks =
+    params.durationWeeksOverride ??
+    idea.roadmap?.durationWeeks ??
+    idea.run.studentProfile.durationWeeks;
+  const weeklyHours =
+    params.weeklyHoursOverride ??
+    idea.roadmap?.weeklyHours ??
+    idea.run.studentProfile.weeklyHours;
+
+  const totalSkillGapHours = idea.skillGaps.reduce(
+    (acc, g) => acc + g.estimatedLearnHours,
+    0
+  );
+  const skillGapSlugs = idea.skillGaps.map((g) => g.skill.slug);
+
+  const planned = buildCalibratedProjectRoadmap({
+    ideaTitle: idea.title,
+    domain,
+    durationWeeks,
+    weeklyHours,
+    totalSkillGapHours,
+    skillGapSlugs,
+    recommendedStack: stack,
+  });
+
+  const existingRoadmap = idea.roadmap;
+  const needsDatabaseSync =
+    !existingRoadmap ||
+    existingRoadmap.milestones.length < 4 ||
+    Boolean(params.regenerate) ||
+    existingRoadmap.durationWeeks !== planned.durationWeeks ||
+    existingRoadmap.weeklyHours !== planned.weeklyHours;
+
+  let finalRoadmapId = existingRoadmap?.id ?? "";
+  let dbMilestones = existingRoadmap?.milestones ?? [];
+
+  if (needsDatabaseSync) {
+    const existingStatusByPhase = new Map<number, MilestoneStatus>();
+    if (existingRoadmap && !params.regenerate) {
+      for (const existingMs of existingRoadmap.milestones) {
+        existingStatusByPhase.set(existingMs.phaseNumber, existingMs.status);
+      }
+    }
+
+    const synced = await db.$transaction(
+      async (tx) => {
+        const upsertedRoadmap = await tx.projectRoadmap.upsert({
+          where: { recommendedIdeaId: idea.id },
+          update: {
+            durationWeeks: planned.durationWeeks,
+            weeklyHours: planned.weeklyHours,
+            prepWeeksAllocated: planned.prepWeeksAllocated,
+            summary: planned.summary,
+          },
+          create: {
+            recommendedIdeaId: idea.id,
+            durationWeeks: planned.durationWeeks,
+            weeklyHours: planned.weeklyHours,
+            prepWeeksAllocated: planned.prepWeeksAllocated,
+            summary: planned.summary,
+          },
+          select: { id: true },
+        });
+
+        await tx.roadmapMilestone.deleteMany({
+          where: { roadmapId: upsertedRoadmap.id },
+        });
+
+        await tx.roadmapMilestone.createMany({
+          data: planned.milestones.map((m) => ({
+            roadmapId: upsertedRoadmap.id,
+            phaseNumber: m.phaseNumber,
+            phaseTitle: m.phaseTitle,
+            weekStart: m.weekStart,
+            weekEnd: m.weekEnd,
+            title: m.title,
+            deliverables: m.deliverables,
+            verificationCriteria: m.verificationCriteria,
+            riskNote: m.riskNote,
+            status: existingStatusByPhase.get(m.phaseNumber) ?? m.status,
+            sortOrder: m.sortOrder,
+          })),
+        });
+
+        const persistedMilestones = await tx.roadmapMilestone.findMany({
+          where: { roadmapId: upsertedRoadmap.id },
+          orderBy: { sortOrder: "asc" },
+          take: 10,
+        });
+
+        return {
+          roadmapId: upsertedRoadmap.id,
+          milestones: persistedMilestones,
+        };
+      },
+      { maxWait: 5000, timeout: 15000 }
+    );
+
+    finalRoadmapId = synced.roadmapId;
+    dbMilestones = synced.milestones;
+  }
+
+  const milestoneStatuses: Record<string, MilestoneStatus> = {};
+  const mergedMilestones: PlannedMilestoneItem[] = planned.milestones.map((baseMs, idx) => {
+    const dbMs =
+      dbMilestones.find((row) => row.phaseNumber === baseMs.phaseNumber) ??
+      dbMilestones[idx];
+    if (!dbMs) {
+      milestoneStatuses[baseMs.id] = baseMs.status;
+      return baseMs;
+    }
+
+    milestoneStatuses[dbMs.id] = dbMs.status;
+    milestoneStatuses[baseMs.id] = dbMs.status;
+
+    const safePhaseNumber = (
+      dbMs.phaseNumber >= 1 && dbMs.phaseNumber <= 4
+        ? dbMs.phaseNumber
+        : baseMs.phaseNumber
+    ) as 1 | 2 | 3 | 4;
+
+    return {
+      id: dbMs.id,
+      phaseNumber: safePhaseNumber,
+      phaseTitle: dbMs.phaseTitle,
+      weekStart: dbMs.weekStart,
+      weekEnd: dbMs.weekEnd,
+      weeksAllocated: Math.max(1, dbMs.weekEnd - dbMs.weekStart + 1),
+      title: dbMs.title,
+      deliverables: dbMs.deliverables,
+      verificationCriteria: dbMs.verificationCriteria,
+      riskNote: dbMs.riskNote,
+      status: dbMs.status,
+      sortOrder: dbMs.sortOrder,
+    };
+  });
+
+  return {
+    kind: "FOUND",
+    roadmapId: finalRoadmapId,
+    ideaTitle: idea.title,
+    domain,
+    roadmap: {
+      ...planned,
+      milestones: mergedMilestones,
+    },
+    milestoneStatuses,
+  };
 }

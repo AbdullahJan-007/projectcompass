@@ -1,20 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Archive,
-  UploadCloud,
-  RefreshCw,
-  Trash2,
-  CheckCircle2,
-  AlertTriangle,
-  FileWarning,
-  Users,
-  Database,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
@@ -58,6 +45,7 @@ export default function CoordinatorDashboardPage() {
   const [archives, setArchives] = useState<ArchiveRow[]>([]);
   const [totalSupervisorsSlots, setTotalSupervisorsSlots] = useState(0);
   const [filledSupervisorSlots, setFilledSupervisorSlots] = useState(0);
+  const [supervisorCount, setSupervisorCount] = useState(0);
 
   const [title, setTitle] = useState("");
   const [abstractText, setAbstractText] = useState("");
@@ -70,11 +58,11 @@ export default function CoordinatorDashboardPage() {
   const [techStackText, setTechStackText] = useState("");
   const [editingArchiveId, setEditingArchiveId] = useState<string | null>(null);
   const [manualAbstractPatch, setManualAbstractPatch] = useState("");
-  const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "LOADING"
-  );
-  void Select;
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "ERROR">("LOADING");
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     getCoordinatorWorkspaceData()
@@ -91,11 +79,12 @@ export default function CoordinatorDashboardPage() {
         );
         setTotalSupervisorsSlots(data.totalSupervisorsSlots);
         setFilledSupervisorSlots(data.filledSupervisorSlots);
+        setSupervisorCount(data.supervisorCount);
         setViewState("POPULATED");
       })
       .catch(() => {
         setArchives([]);
-        setViewState("POPULATED");
+        setViewState("ERROR");
       });
   }, []);
 
@@ -104,12 +93,17 @@ export default function CoordinatorDashboardPage() {
 
   async function handleCreateArchive(e: React.FormEvent) {
     e.preventDefault();
+    setFeedback(null);
+
     if (title.trim().length < 8) {
-      setFeedback("Archive title must be at least 8 characters.");
+      setFeedback({ type: "error", text: "Archive title must be at least 8 characters." });
       return;
     }
     if (abstractText.trim().length < 10) {
-      setFeedback("Please enter a project abstract (100+ chars for immediate indexing).");
+      setFeedback({
+        type: "error",
+        text: "Please enter a project abstract (100+ chars for immediate indexing).",
+      });
       return;
     }
 
@@ -131,7 +125,7 @@ export default function CoordinatorDashboardPage() {
     });
 
     if (!res.ok) {
-      setFeedback(res.error.message);
+      setFeedback({ type: "error", text: res.error.message });
       return;
     }
 
@@ -155,21 +149,24 @@ export default function CoordinatorDashboardPage() {
 
     setTitle("");
     setAbstractText("");
-    setFeedback(
-      isShortAbstract
+    setTechStackText("");
+    setFeedback({
+      type: "success",
+      text: isShortAbstract
         ? "Record saved in NEEDS_MANUAL_ABSTRACT state (under 100 chars)."
-        : "Archive ingested and 1536-dim pgvector embedding indexed."
-    );
+        : "Archive ingested and 1536-dim pgvector embedding indexed.",
+    });
   }
 
   async function handleRetryOrPatch(archiveId: string) {
+    setFeedback(null);
     const res = await retryArchiveEmbedding({
       archiveId,
       updatedAbstract: manualAbstractPatch.length >= 100 ? manualAbstractPatch : undefined,
     });
 
     if (!res.ok) {
-      setFeedback(res.error.message);
+      setFeedback({ type: "error", text: res.error.message });
       return;
     }
 
@@ -188,31 +185,53 @@ export default function CoordinatorDashboardPage() {
     );
     setEditingArchiveId(null);
     setManualAbstractPatch("");
-    setFeedback(`Archive ${archiveId} re-embedded and transitioned to READY.`);
+    setFeedback({
+      type: "success",
+      text: `Archive ${archiveId} re-embedded and transitioned to READY.`,
+    });
   }
 
   async function handleDelete(archiveId: string) {
+    setFeedback(null);
     const res = await deleteArchiveRecord({ archiveId });
     if (!res.ok) {
-      setFeedback(res.error.message);
+      setFeedback({ type: "error", text: res.error.message });
       return;
     }
     setArchives((prev) => prev.filter((a) => a.id !== archiveId));
-    setFeedback(`Archive record ${archiveId} removed and logged to AuditLog.`);
+    setFeedback({
+      type: "success",
+      text: `Archive record ${archiveId} removed and logged to AuditLog.`,
+    });
   }
 
   function renderStatusBadge(status: IngestStatus) {
     switch (status) {
       case "READY":
-        return <Badge variant="success">READY (pgvector Indexed)</Badge>;
+        return (
+          <span className="px-2 py-0.5 rounded-full bg-[#E3FDFD] border border-[#71C9CE]/50 text-[#004F53] font-mono-tabular text-[11px] font-semibold">
+            READY (pgvector Indexed)
+          </span>
+        );
       case "PENDING_EMBEDDING":
-        return <Badge variant="info">PENDING_EMBEDDING</Badge>;
       case "PROCESSING":
-        return <Badge variant="info">PROCESSING</Badge>;
+        return (
+          <span className="px-2 py-0.5 rounded-full bg-[#DBE2EF] text-[#112D4E] font-mono-tabular text-[11px] font-semibold">
+            {status}
+          </span>
+        );
       case "NEEDS_MANUAL_ABSTRACT":
-        return <Badge variant="warning">NEEDS_MANUAL_ABSTRACT</Badge>;
+        return (
+          <span className="px-2 py-0.5 rounded-full bg-[#FEF3C7] text-[#92400E] font-mono-tabular text-[11px] font-semibold">
+            NEEDS_MANUAL_ABSTRACT
+          </span>
+        );
       case "FAILED":
-        return <Badge variant="error">FAILED</Badge>;
+        return (
+          <span className="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-mono-tabular text-[11px] font-semibold">
+            FAILED
+          </span>
+        );
     }
   }
 
@@ -223,26 +242,27 @@ export default function CoordinatorDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border-default pb-5">
-        <div>
-          <Badge variant="default">
-            FYP Coordinator Portal · Department of IT &amp; Computing
-          </Badge>
-          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+      {/* Stitch Page Header */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-3 border-b border-[#DBE2EF]">
+        <div className="space-y-1.5">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#112D4E] text-white text-[11px] font-semibold uppercase tracking-wide">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#71C9CE]" />
+            FYP Coordinator Portal · Dept. of IT &amp; Computing
+          </span>
+          <h1 className="font-headline-md text-2xl sm:text-[28px] font-bold tracking-tight text-[#001833]">
             Past Project Archives &amp; Department Supervision Capacity
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Manage historical FYP archives across all IT &amp; Computing degree programs (BSIT,
-            BSCS, BSSE, BSAI, BSCY, BSDS) and all graduating batches.
+          <p className="text-sm text-on-surface-variant max-w-3xl">
+            Manage historical FYP archives across BSIT, BSCS, BSSE, BSAI, BSCY, and BSDS cohorts
+            for semantic duplicate verification.
           </p>
         </div>
 
-        <div className="w-full sm:w-auto">
+        <div className="w-full sm:w-56 shrink-0">
           <Select
             aria-label="Filter Archive Program"
             value={filterProgram}
             onChange={(e) => setFilterProgram(e.target.value)}
-            className="w-full sm:w-52"
           >
             <option value="ALL">All IT &amp; Computing Programs</option>
             <option value="BSIT">BSIT Archives</option>
@@ -253,271 +273,278 @@ export default function CoordinatorDashboardPage() {
             <option value="BSDS">BSDS Archives</option>
           </Select>
         </div>
-      </div>
+      </header>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">
-                Indexed Archives (READY)
-              </span>
-              <Database className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-            </div>
-            <p className="mt-2 font-mono-tabular text-2xl font-semibold text-text-primary">
-              {readyCount}
-            </p>
-            <p className="mt-1 text-[11px] text-text-muted">HNSW cosine index active</p>
-          </CardContent>
-        </Card>
+      {/* Stitch 4-Card KPI Strip */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+            <span>Indexed Archives (READY)</span>
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px] text-[#2A609C]"
+            >
+              database
+            </span>
+          </div>
+          <p className="font-mono-tabular text-2xl font-bold text-[#001833]">{readyCount}</p>
+          <p className="text-[11px] text-on-surface-variant">HNSW cosine index active</p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">
-                Pending / Needs Abstract
-              </span>
-              <FileWarning className="h-4 w-4 text-status-warning" strokeWidth={1.75} />
-            </div>
-            <p className="mt-2 font-mono-tabular text-2xl font-semibold text-text-primary">
-              {attentionCount}
-            </p>
-            <p className="mt-1 text-[11px] text-text-muted">Async Inngest queue</p>
-          </CardContent>
-        </Card>
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+            <span>Pending / Needs Abstract</span>
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px] text-[#B45309]"
+            >
+              warning
+            </span>
+          </div>
+          <p className="font-mono-tabular text-2xl font-bold text-[#001833]">{attentionCount}</p>
+          <p className="text-[11px] text-on-surface-variant">Async Inngest remediation queue</p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">
-                Department Slot Utilization
-              </span>
-              <Users className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-            </div>
-            <p className="mt-2 font-mono-tabular text-2xl font-semibold text-text-primary">
-              {filledSupervisorSlots} / {totalSupervisorsSlots}
-            </p>
-            <p className="mt-1 text-[11px] text-text-muted">
-              {totalSupervisorsSlots - filledSupervisorSlots} open slots across 5 faculty
-            </p>
-          </CardContent>
-        </Card>
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+            <span>Department Slot Utilization</span>
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px] text-[#2A609C]"
+            >
+              group
+            </span>
+          </div>
+          <p className="font-mono-tabular text-2xl font-bold text-[#001833]">
+            {filledSupervisorSlots} / {totalSupervisorsSlots}
+          </p>
+          <p className="text-[11px] text-on-surface-variant">
+            {Math.max(0, totalSupervisorsSlots - filledSupervisorSlots)} open slots across{" "}
+            {supervisorCount} faculty
+          </p>
+        </div>
 
-        <Card>
-          <CardContent className="pt-5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">
-                Anti-Duplicate Threshold
-              </span>
-              <CheckCircle2 className="h-4 w-4 text-status-success" strokeWidth={1.75} />
-            </div>
-            <p className="mt-2 font-mono-tabular text-2xl font-semibold text-text-primary">
-              &gt;= 0.82
-            </p>
-            <p className="mt-1 text-[11px] text-text-muted">Forces mandatory differentiation</p>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="p-4 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-on-surface-variant font-medium">
+            <span>Anti-Duplicate Gate</span>
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined text-[18px] text-[#004F53]"
+            >
+              verified
+            </span>
+          </div>
+          <p className="font-mono-tabular text-2xl font-bold text-[#001833]">&gt;= 0.82</p>
+          <p className="text-[11px] text-on-surface-variant">Forces mandatory differentiation</p>
+        </div>
+      </section>
 
       {feedback && (
-        <div className="rounded-[6px] border border-brand-primary/30 bg-brand-tint/40 px-4 py-2.5 text-xs font-medium text-brand-primary-hover">
-          {feedback}
+        <div
+          role="status"
+          className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-medium ${
+            feedback.type === "success"
+              ? "border-[#71C9CE]/60 bg-[#E3FDFD] text-[#004F53]"
+              : "border-error/30 bg-error-container/60 text-on-error-container"
+          }`}
+        >
+          <span aria-hidden="true" className="material-symbols-outlined text-[18px] shrink-0">
+            {feedback.type === "success" ? "check_circle" : "error"}
+          </span>
+          <span>{feedback.text}</span>
         </div>
       )}
 
       {viewState === "LOADING" && (
-        <div className="space-y-4">
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-64 w-full" />
+        <div className="grid gap-6 lg:grid-cols-12">
+          <div className="lg:col-span-5">
+            <Skeleton className="h-80 w-full rounded-xl" />
+          </div>
+          <div className="lg:col-span-7">
+            <Skeleton className="h-80 w-full rounded-xl" />
+          </div>
         </div>
       )}
 
       {viewState === "ERROR" && (
-        <Card className="border-status-error/30 bg-status-error-tint/30">
-          <CardHeader>
-            <CardTitle className="text-status-error-text">
-              Inngest Embedding Worker Unreachable
-            </CardTitle>
-            <CardDescription className="text-status-error-text">
-              Batch archive embedding encountered a transient HTTP 503 from the embedding provider.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => setViewState("POPULATED")}>
-              <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-              Resume Queue Inspection
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {viewState === "EMPTY" && (
-        <Card className="bg-grad-ambient">
-          <CardHeader>
-            <CardTitle>Department Archive Empty — Cold-Start Seed Catalog Active</CardTitle>
-            <CardDescription>
-              No historical FYPs have been uploaded for this department yet. Student duplicate checks
-              currently run against the 42 curated CS archetypes. Follow the 3-step import below to
-              enable institutional memory.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setViewState("POPULATED")}>
-              Upload First Historical Cohort
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-error/30 bg-error-container/50 p-6 space-y-3">
+          <h2 className="font-headline-sm text-lg font-bold text-on-error-container">
+            Archive Ledger Load Error
+          </h2>
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Retry Archive Query
+          </Button>
+        </div>
       )}
 
       {viewState === "POPULATED" && (
-        <div className="grid gap-6 lg:grid-cols-12">
-          <div className="lg:col-span-5">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <UploadCloud className="h-5 w-5 text-brand-primary" strokeWidth={1.75} />
-                  <CardTitle>Ingest Past FYP Abstract or PDF/CSV</CardTitle>
+        <div className="grid gap-6 lg:grid-cols-12 items-start">
+          {/* Left 5 Cols: Ingest Form */}
+          <section className="lg:col-span-5 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="pb-3 border-b border-[#DBE2EF]/70">
+              <div className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined text-[#2A609C] text-[20px]"
+                >
+                  cloud_upload
+                </span>
+                <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                  Ingest Past FYP Abstract
+                </h2>
+              </div>
+              <p className="mt-0.5 text-xs text-on-surface-variant">
+                Triggers <code className="font-mono-tabular">archive/record.created</code> to
+                index 1536-dim embeddings asynchronously.
+              </p>
+            </div>
+
+            <form onSubmit={handleCreateArchive} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#112D4E]">Project Title</label>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g., Automated Kubernetes Pod Right-Sizing Controller"
+                  required
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#112D4E]">
+                    Batch / Academic Year
+                  </label>
+                  <Input
+                    type="number"
+                    min={2010}
+                    max={2035}
+                    value={academicYear}
+                    onChange={(e) => setAcademicYear(Number(e.target.value) || 2025)}
+                    className="font-mono-tabular"
+                  />
                 </div>
-                <CardDescription>
-                  Uploads trigger <code className="font-mono-tabular">archive/record.created</code>{" "}
-                  to extract text and index 1536-dim embeddings asynchronously.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCreateArchive} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Project Title
-                    </label>
-                    <Input
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g., Automated Kubernetes Pod Right-Sizing Controller"
-                      required
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-[#112D4E]">Degree Program</label>
+                  <Select
+                    aria-label="Degree Program"
+                    value={programCode}
+                    onChange={(e) =>
+                      setProgramCode(
+                        e.target.value as
+                          | "BSIT"
+                          | "BSCS"
+                          | "BSSE"
+                          | "BSAI"
+                          | "BSCY"
+                          | "BSDS"
+                      )
+                    }
+                  >
+                    <option value="BSIT">BSIT</option>
+                    <option value="BSCS">BSCS</option>
+                    <option value="BSSE">BSSE</option>
+                    <option value="BSAI">BSAI</option>
+                    <option value="BSCY">BSCY</option>
+                    <option value="BSDS">BSDS</option>
+                  </Select>
+                </div>
+              </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Batch / Academic Year
-                      </label>
-                      <Input
-                        type="number"
-                        min={2015}
-                        max={2035}
-                        value={academicYear}
-                        onChange={(e) => setAcademicYear(Number(e.target.value) || 2025)}
-                        className="font-mono-tabular"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                        Degree Program
-                      </label>
-                      <Select
-                        aria-label="Degree Program"
-                        value={programCode}
-                        onChange={(e) =>
-                          setProgramCode(
-                            e.target.value as
-                              | "BSIT"
-                              | "BSCS"
-                              | "BSSE"
-                              | "BSAI"
-                              | "BSCY"
-                              | "BSDS"
-                          )
-                        }
-                      >
-                        <option value="BSIT">BSIT</option>
-                        <option value="BSCS">BSCS</option>
-                        <option value="BSSE">BSSE</option>
-                        <option value="BSAI">BSAI</option>
-                        <option value="BSCY">BSCY</option>
-                        <option value="BSDS">BSDS</option>
-                      </Select>
-                    </div>
-                  </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#112D4E]">
+                  Primary Technical Domain
+                </label>
+                <Select
+                  aria-label="Primary Technical Domain"
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                >
+                  <option value="DevTools">DevTools</option>
+                  <option value="Cybersecurity">Cybersecurity</option>
+                  <option value="Applied AI">Applied AI</option>
+                  <option value="EdTech">EdTech</option>
+                  <option value="HealthTech">HealthTech</option>
+                  <option value="FinTech">FinTech</option>
+                  <option value="Cloud & Distributed Systems">
+                    Cloud &amp; Distributed Systems
+                  </option>
+                  <option value="Data Engineering">Data Engineering</option>
+                  <option value="IoT & Embedded">IoT &amp; Embedded</option>
+                </Select>
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Primary Technical Domain
-                    </label>
-                    <Select value={domain} onChange={(e) => setDomain(e.target.value)}>
-                      <option value="DevTools">DevTools</option>
-                      <option value="Cybersecurity">Cybersecurity</option>
-                      <option value="Applied AI">Applied AI</option>
-                      <option value="EdTech">EdTech</option>
-                      <option value="HealthTech">HealthTech</option>
-                      <option value="FinTech">FinTech</option>
-                      <option value="Cloud & Distributed Systems">
-                        Cloud &amp; Distributed Systems
-                      </option>
-                      <option value="Data Engineering">Data Engineering</option>
-                      <option value="IoT & Embedded">IoT &amp; Embedded</option>
-                    </Select>
-                  </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#112D4E]">
+                  Tech Stack (Comma-Separated)
+                </label>
+                <Input
+                  value={techStackText}
+                  onChange={(e) => setTechStackText(e.target.value)}
+                  placeholder="Next.js, TypeScript, PostgreSQL, pgvector"
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Tech Stack (Comma-Separated)
-                    </label>
-                    <Input
-                      value={techStackText}
-                      onChange={(e) => setTechStackText(e.target.value)}
-                      placeholder="Next.js, TypeScript, PostgreSQL, pgvector"
-                    />
-                  </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#112D4E]">
+                  Project Abstract (&gt;= 100 chars for READY embedding)
+                </label>
+                <Textarea
+                  rows={4}
+                  value={abstractText}
+                  onChange={(e) => setAbstractText(e.target.value)}
+                  placeholder="Paste the 150-word project abstract describing problem statement, architecture, and evaluation dataset..."
+                  required
+                />
+              </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                      Project Abstract (&gt;= 100 chars for READY embedding)
-                    </label>
-                    <Textarea
-                      value={abstractText}
-                      onChange={(e) => setAbstractText(e.target.value)}
-                      placeholder="Paste the 150-word project abstract describing problem statement, architecture, and evaluation dataset..."
-                      required
-                    />
-                  </div>
+              <button
+                type="submit"
+                className="w-full h-11 rounded-lg bg-[#112D4E] hover:bg-[#001833] text-white text-sm font-semibold flex items-center justify-center gap-2 shadow-xs transition-colors"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                  inventory_2
+                </span>
+                <span>Ingest &amp; Generate pgvector Embedding</span>
+              </button>
+            </form>
+          </section>
 
-                  <Button type="submit" className="w-full">
-                    <Archive className="h-4 w-4" strokeWidth={1.75} />
-                    Ingest &amp; Generate pgvector Embedding
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Right 7 Cols: Archive Ingestion Ledger */}
+          <section className="lg:col-span-7 rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="pb-3 border-b border-[#DBE2EF]/70">
+              <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                Department Archive Ingestion Ledger
+              </h2>
+              <p className="text-xs text-on-surface-variant">
+                All 5 <code className="font-mono-tabular">ArchiveIngestStatus</code> states
+                monitored with one-click manual abstract remediation.
+              </p>
+            </div>
 
-          <div className="lg:col-span-7">
-            <Card>
-              <CardHeader>
-                <CardTitle>Department Archive Ingestion Ledger</CardTitle>
-                <CardDescription>
-                  All 5 <code className="font-mono-tabular">ArchiveIngestStatus</code> states are
-                  monitored with one-click manual abstract remediation and retry.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            {visibleArchives.length === 0 ? (
+              <div className="p-8 rounded-lg bg-[#F9F7F7] border border-dashed border-[#DBE2EF] text-center text-xs text-on-surface-variant">
+                No historical archives found for this filter.
+              </div>
+            ) : (
+              <div className="space-y-3">
                 {visibleArchives.map((item) => (
                   <div
                     key={item.id}
-                    className="rounded-[8px] border border-border-default bg-bg-surface p-4 space-y-2.5"
+                    className="rounded-xl border border-[#DBE2EF] bg-[#F9F7F7]/70 p-4 space-y-2.5"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
+                          <span className="font-mono-tabular text-xs font-bold text-[#112D4E]">
                             {item.programCode} · {item.academicYear}
                           </span>
-                          <Badge variant="neutral">{item.domain}</Badge>
+                          <span className="px-2 py-0.5 rounded bg-[#DBE2EF]/70 text-[#112D4E] text-[11px] font-semibold">
+                            {item.domain}
+                          </span>
                           {renderStatusBadge(item.ingestStatus)}
                         </div>
-                        <h4 className="mt-1.5 text-sm font-semibold text-text-primary">
-                          {item.title}
-                        </h4>
+                        <h3 className="mt-1.5 text-sm font-bold text-[#112D4E]">{item.title}</h3>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -530,34 +557,45 @@ export default function CoordinatorDashboardPage() {
                               setManualAbstractPatch(item.abstract);
                             }}
                           >
-                            <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
                             Fix &amp; Retry
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
+                        <button
+                          type="button"
                           onClick={() => handleDelete(item.id)}
                           aria-label={`Delete ${item.title}`}
+                          className="p-1.5 rounded text-on-surface-variant hover:text-error hover:bg-error-container/40 transition-colors"
                         >
-                          <Trash2 className="h-4 w-4 text-status-error" strokeWidth={1.75} />
-                        </Button>
+                          <span
+                            aria-hidden="true"
+                            className="material-symbols-outlined text-[18px]"
+                          >
+                            delete
+                          </span>
+                        </button>
                       </div>
                     </div>
 
-                    <p className="text-xs text-text-secondary leading-relaxed">{item.abstract}</p>
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      {item.abstract}
+                    </p>
 
                     {item.ingestError && (
-                      <div className="flex items-center gap-2 rounded-[6px] border border-status-warning/30 bg-status-warning-tint px-3 py-2 text-xs text-status-warning-text">
-                        <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                      <div className="flex items-center gap-2 rounded-lg border border-[#B45309]/30 bg-[#FEF3C7] px-3 py-2 text-xs text-[#92400E]">
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[16px] shrink-0"
+                        >
+                          warning
+                        </span>
                         <span>{item.ingestError}</span>
                       </div>
                     )}
 
                     {editingArchiveId === item.id && (
-                      <div className="space-y-2 rounded-[6px] border border-border-strong bg-bg-subtle p-3">
-                        <label className="text-xs font-semibold text-text-primary">
-                          Paste Complete 150-Word Abstract (&gt;= 100 chars):
+                      <div className="space-y-2 rounded-lg border border-[#DBE2EF] bg-white p-3">
+                        <label className="text-xs font-semibold text-[#112D4E]">
+                          Paste Complete Abstract (&gt;= 100 chars):
                         </label>
                         <Textarea
                           value={manualAbstractPatch}
@@ -587,7 +625,7 @@ export default function CoordinatorDashboardPage() {
                       {item.techStack.map((tech) => (
                         <span
                           key={tech}
-                          className="rounded-[4px] bg-bg-subtle px-2 py-0.5 font-mono-tabular text-[11px] text-text-muted"
+                          className="rounded bg-white border border-[#DBE2EF] px-2 py-0.5 font-mono-tabular text-[11px] text-[#112D4E]"
                         >
                           {tech}
                         </span>
@@ -595,9 +633,9 @@ export default function CoordinatorDashboardPage() {
                     </div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>

@@ -2,21 +2,17 @@
 
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/auth/session";
+import { readAccountsStore } from "@/lib/auth/account-registry";
 import { resolveDepartmentCodeById } from "@/lib/auth/university-id";
 import { readInstitutionalDb } from "@/lib/institutional-store";
+import {
+  ensurePersistedRoadmapForIdea,
+  isProductionRuntime,
+} from "@/lib/recommendation/live-context";
 import {
   buildCalibratedProjectRoadmap,
   type PlannedRoadmapResult,
 } from "@/lib/recommendation/roadmap-planner";
-import type { RecommendedStackItem } from "@/types/actions";
-
-function isProductionRuntime(): boolean {
-  return (
-    process.env.NODE_ENV === "production" &&
-    process.env.CI !== "true" &&
-    process.env.SEED_DEMO_DATA !== "true"
-  );
-}
 
 export interface LiveSupervisorDirectoryItem {
   id: string;
@@ -60,12 +56,16 @@ export async function getStudentSupervisorsWorkspace(): Promise<{
   try {
     const [dbSupervisors, dbRequests] = await Promise.all([
       db.supervisorProfile.findMany({
+        where: {
+          user: { isActive: true },
+        },
         include: {
           user: { select: { fullName: true, email: true } },
           department: { select: { code: true } },
           skills: { include: { skill: { select: { slug: true } } } },
         },
         orderBy: [{ isAccepting: "desc" }, { activeSlots: "asc" }],
+        take: 200,
       }),
       db.supervisorRequest.findMany({
         where: { studentProfile: { userId: user.id } },
@@ -78,6 +78,7 @@ export async function getStudentSupervisorsWorkspace(): Promise<{
           },
         },
         orderBy: { createdAt: "desc" },
+        take: 100,
       }),
     ]);
 
@@ -150,30 +151,32 @@ export async function getFacultySupervisorWorkspace(): Promise<{
   const user = await requireRole(["SUPERVISOR", "COORDINATOR", "ADMIN"]);
 
   try {
+    // Single relational query (eliminates sequential 2-RTT waterfall on /dashboard/supervisor)
     const dbProfile = await db.supervisorProfile.findUnique({
       where: { userId: user.id },
-    });
-
-    if (!dbProfile) {
-      return { profile: null, incomingRequests: [] };
-    }
-
-    const dbRequests = await db.supervisorRequest.findMany({
-      where: { supervisorProfileId: dbProfile.id },
-      orderBy: { createdAt: "desc" },
       include: {
-        recommendedIdea: {
-          include: { skillGaps: { include: { skill: true } } },
-        },
-        studentProfile: {
+        supervisionRequests: {
+          orderBy: { createdAt: "desc" },
+          take: 100,
           include: {
-            user: {
-              include: { studentAccount: true },
+            recommendedIdea: {
+              include: { skillGaps: { include: { skill: true } } },
+            },
+            studentProfile: {
+              include: {
+                user: {
+                  include: { studentAccount: true },
+                },
+              },
             },
           },
         },
       },
     });
+
+    if (!dbProfile) {
+      return { profile: null, incomingRequests: [] };
+    }
 
     return {
       profile: {
@@ -186,7 +189,7 @@ export async function getFacultySupervisorWorkspace(): Promise<{
         activeSlots: dbProfile.activeSlots,
         isAccepting: dbProfile.isAccepting,
       },
-      incomingRequests: dbRequests.map((r) => {
+      incomingRequests: dbProfile.supervisionRequests.map((r) => {
         const stuAcc = r.studentProfile.user.studentAccount;
         const batchInfo = stuAcc
           ? `${stuAcc.intakeTerm} ${stuAcc.batchYear} · ${stuAcc.departmentCode}`
@@ -231,10 +234,14 @@ export async function getFacultySupervisorWorkspace(): Promise<{
             isAccepting: sup.isAccepting,
           }
         : null,
-      incomingRequests: inst.supervisionRequests.map((r) => ({
-        ...r,
-        status: r.status,
-      })),
+      incomingRequests: sup
+        ? inst.supervisionRequests
+            .filter((r) => r.supervisorProfileId === sup.id)
+            .map((r) => ({
+              ...r,
+              status: r.status,
+            }))
+        : [],
     };
   }
 }
@@ -256,6 +263,8 @@ export interface LiveArchiveItem {
   ingestError?: string;
 }
 
+export type AdminArchiveRow = LiveArchiveItem;
+
 export async function getCoordinatorWorkspaceData(): Promise<{
   archives: LiveArchiveItem[];
   totalSupervisorsSlots: number;
@@ -272,7 +281,9 @@ export async function getCoordinatorWorkspaceData(): Promise<{
         take: 200,
       }),
       db.supervisorProfile.findMany({
+        where: { user: { isActive: true } },
         select: { maxSlots: true, activeSlots: true },
+        take: 200,
       }),
     ]);
 
@@ -371,6 +382,7 @@ export async function getAdminWorkspaceData(): Promise<{
     isActive: boolean;
   }>;
   projects: AdminProjectRow[];
+  archives: LiveArchiveItem[];
   auditLogs: Array<{
     id: string;
     timestamp: string;
@@ -384,67 +396,73 @@ export async function getAdminWorkspaceData(): Promise<{
   await requireRole(["ADMIN"]);
 
   try {
-    const [dbUsers, dbSupervisors, dbStudents, dbIdeas, dbLogs] = await Promise.all([
-      db.user.findMany({
-        include: { department: { select: { code: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }),
-      db.supervisorProfile.findMany({
-        include: {
-          user: { select: { fullName: true, email: true, isActive: true } },
-          department: { select: { code: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }),
-      db.user.findMany({
-        where: { role: "STUDENT" },
-        include: {
-          department: { select: { code: true } },
-          studentAccount: true,
-          studentProfile: {
-            include: {
-              _count: { select: { skills: true, recommendationRuns: true } },
+    const [dbUsers, dbSupervisors, dbStudents, dbIdeas, dbArchives, dbLogs] =
+      await Promise.all([
+        db.user.findMany({
+          include: { department: { select: { code: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        }),
+        db.supervisorProfile.findMany({
+          include: {
+            user: { select: { fullName: true, email: true, isActive: true } },
+            department: { select: { code: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        }),
+        db.user.findMany({
+          where: { role: "STUDENT" },
+          include: {
+            department: { select: { code: true } },
+            studentAccount: true,
+            studentProfile: {
+              include: {
+                _count: { select: { skills: true, recommendationRuns: true } },
+              },
             },
           },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      }),
-      db.recommendedIdea.findMany({
-        include: {
-          run: {
-            include: {
-              studentProfile: {
-                include: {
-                  user: {
-                    include: {
-                      studentAccount: true,
-                      department: { select: { code: true } },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+        }),
+        db.recommendedIdea.findMany({
+          include: {
+            run: {
+              include: {
+                studentProfile: {
+                  include: {
+                    user: {
+                      include: {
+                        studentAccount: true,
+                        department: { select: { code: true } },
+                      },
                     },
                   },
                 },
               },
             },
-          },
-          supervisionRequests: {
-            where: { status: "ACCEPTED" },
-            include: {
-              supervisorProfile: { include: { user: { select: { fullName: true } } } },
+            supervisionRequests: {
+              where: { status: "ACCEPTED" },
+              include: {
+                supervisorProfile: { include: { user: { select: { fullName: true } } } },
+              },
+              take: 1,
             },
-            take: 1,
           },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 100,
-      }),
-      db.auditLog.findMany({
-        include: { actor: { select: { fullName: true } } },
-        orderBy: { createdAt: "desc" },
-        take: 40,
-      }),
-    ]);
+          orderBy: { createdAt: "desc" },
+          take: 100,
+        }),
+        db.projectArchive.findMany({
+          include: { department: { select: { code: true } } },
+          orderBy: [{ academicYear: "desc" }, { createdAt: "desc" }],
+          take: 100,
+        }),
+        db.auditLog.findMany({
+          include: { actor: { select: { fullName: true } } },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        }),
+      ]);
 
     return {
       users: dbUsers.map((u) => ({
@@ -464,7 +482,9 @@ export async function getAdminWorkspaceData(): Promise<{
           registrationNo: acc?.registrationNo ?? "—",
           batchLabel: acc ? `${acc.intakeTerm} ${acc.batchYear}` : "Unassigned",
           departmentCode:
-            acc?.departmentCode ?? s.department?.code ?? resolveDepartmentCodeById(s.departmentId),
+            acc?.departmentCode ??
+            s.department?.code ??
+            resolveDepartmentCodeById(s.departmentId),
           profileStatus: s.studentProfile ? s.studentProfile.status : "NOT_STARTED",
           skillsCount: s.studentProfile?._count.skills ?? 0,
           careerGoal: s.studentProfile?.careerGoal || "Not specified yet",
@@ -486,7 +506,8 @@ export async function getAdminWorkspaceData(): Promise<{
       })),
       projects: dbIdeas.map((idea) => {
         const stu = idea.run.studentProfile.user;
-        const acceptedSup = idea.supervisionRequests[0]?.supervisorProfile.user.fullName ?? null;
+        const acceptedSup =
+          idea.supervisionRequests[0]?.supervisorProfile.user.fullName ?? null;
         return {
           id: idea.id,
           title: idea.title,
@@ -503,6 +524,17 @@ export async function getAdminWorkspaceData(): Promise<{
           createdAt: idea.createdAt.toISOString().slice(0, 10),
         };
       }),
+      archives: dbArchives.map((a) => ({
+        id: a.id,
+        title: a.title,
+        abstract: a.abstract,
+        academicYear: a.academicYear,
+        domain: a.domain,
+        programCode: a.department.code,
+        techStack: a.techStack,
+        ingestStatus: a.ingestStatus,
+        ingestError: a.ingestError ?? undefined,
+      })),
       auditLogs: dbLogs.map((l) => ({
         id: l.id,
         timestamp: l.createdAt.toISOString().slice(0, 16).replace("T", " "),
@@ -519,12 +551,105 @@ export async function getAdminWorkspaceData(): Promise<{
       })),
     };
   } catch {
-    return { users: [], students: [], supervisors: [], projects: [], auditLogs: [] };
+    if (isProductionRuntime()) {
+      return {
+        users: [],
+        students: [],
+        supervisors: [],
+        projects: [],
+        archives: [],
+        auditLogs: [],
+      };
+    }
+
+    const acc = readAccountsStore();
+    const inst = readInstitutionalDb();
+
+    return {
+      users: [
+        ...acc.facultyAccounts.map((f) => ({
+          id: f.userId,
+          fullName: f.fullName,
+          email: f.universityEmail,
+          role: f.role,
+          departmentCode: f.departmentCode,
+          isActive: f.isActive !== false,
+        })),
+        ...acc.studentAccounts.map((s) => ({
+          id: s.userId,
+          fullName: s.fullName,
+          email: s.email,
+          role: "STUDENT" as const,
+          departmentCode: s.departmentCode,
+          isActive: s.isActive !== false,
+        })),
+      ],
+      students: acc.studentAccounts.map((s) => {
+        const prof = inst.studentProfiles[s.userId];
+        const rec = inst.recommendationsByUser[s.userId];
+        return {
+          userId: s.userId,
+          fullName: s.fullName,
+          email: s.email,
+          registrationNo: s.registrationNo,
+          batchLabel: `${s.intakeTerm} ${s.batchYear}`,
+          departmentCode: s.departmentCode,
+          profileStatus: prof ? prof.status : "NOT_STARTED",
+          skillsCount: prof?.skills.length ?? 0,
+          careerGoal: prof?.careerGoal || "Not specified yet",
+          ideasCount: rec?.ideas.length ?? 0,
+          isActive: s.isActive !== false,
+        };
+      }),
+      supervisors: inst.supervisors.map((s) => {
+        const facAcc = acc.facultyAccounts.find((f) => f.userId === s.userId);
+        return {
+          id: s.id,
+          userId: s.userId,
+          fullName: s.fullName,
+          email: s.email,
+          designation: s.title,
+          programCode: s.departmentCode,
+          activeSlots: s.activeSlots,
+          maxSlots: s.maxSlots,
+          isAccepting: s.isAccepting,
+          isActive: facAcc ? facAcc.isActive !== false : true,
+        };
+      }),
+      projects: Object.entries(inst.recommendationsByUser).flatMap(([uid, rec]) => {
+        const stuAcc = acc.studentAccounts.find((s) => s.userId === uid);
+        return rec.ideas.map((idea) => ({
+          id: idea.id,
+          title: idea.title,
+          track: idea.track,
+          status: rec.shortlistedIds.includes(idea.id) ? "SHORTLISTED" : "GENERATED",
+          feasibilityScore: idea.feasibilityScore,
+          studentName: stuAcc?.fullName ?? "Student",
+          studentRegNo: stuAcc?.registrationNo ?? "—",
+          departmentCode: stuAcc?.departmentCode ?? "BSCS",
+          supervisorName: null,
+          createdAt: rec.updatedAt.slice(0, 10),
+        }));
+      }),
+      archives: inst.archives.slice(0, 100).map((a) => ({
+        id: a.id,
+        title: a.title,
+        abstract: a.abstract,
+        academicYear: a.academicYear,
+        domain: a.domain,
+        programCode: a.departmentCode,
+        techStack: [...a.techStack],
+        ingestStatus: a.ingestStatus,
+        ingestError: a.ingestError,
+      })),
+      auditLogs: inst.auditLogs.slice(0, 50),
+    };
   }
 }
 
 export async function getRoadmapWorkspaceData(recommendedIdeaId: string): Promise<{
   found: boolean;
+  roadmapId: string | null;
   ideaTitle: string;
   domain: string;
   roadmap: PlannedRoadmapResult | null;
@@ -533,100 +658,75 @@ export async function getRoadmapWorkspaceData(recommendedIdeaId: string): Promis
   const user = await requireRole(["STUDENT"]);
 
   try {
-    const idea = await db.recommendedIdea.findUnique({
-      where: { id: recommendedIdeaId },
-      include: {
-        seedTemplate: { select: { domain: true } },
-        skillGaps: { include: { skill: { select: { slug: true } } } },
-        run: { include: { studentProfile: true } },
-        roadmap: {
-          include: { milestones: { orderBy: { sortOrder: "asc" } } },
-        },
-      },
+    const persisted = await ensurePersistedRoadmapForIdea({
+      recommendedIdeaId,
+      userId: user.id,
     });
 
-    if (idea && (idea.run.studentProfile.userId === user.id || user.role !== "STUDENT")) {
-      const domain =
-        idea.seedTemplate?.domain ??
-        idea.marketDemandTag.split("·")[0]?.trim() ??
-        "Software Systems";
-      const stack = Array.isArray(idea.recommendedStack)
-        ? (idea.recommendedStack as unknown as RecommendedStackItem[]).map((s) => s.tech)
-        : ["Next.js", "TypeScript", "PostgreSQL"];
-
-      const planned = buildCalibratedProjectRoadmap({
-        ideaTitle: idea.title,
-        domain,
-        durationWeeks: idea.run.studentProfile.durationWeeks,
-        weeklyHours: idea.run.studentProfile.weeklyHours,
-        totalSkillGapHours: idea.skillGaps.reduce((acc, g) => acc + g.estimatedLearnHours, 0),
-        skillGapSlugs: idea.skillGaps.map((g) => g.skill.slug),
-        recommendedStack: stack,
-      });
-
-      const statuses: Record<string, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED"> = {};
-      if (idea.roadmap && idea.roadmap.milestones.length > 0) {
-        idea.roadmap.milestones.forEach((m, idx) => {
-          const key = planned.milestones[idx]?.id ?? m.id;
-          statuses[key] = m.status;
-        });
-      }
-
+    if (persisted.kind === "FOUND") {
       return {
         found: true,
-        ideaTitle: idea.title,
-        domain,
-        roadmap: planned,
-        milestoneStatuses: statuses,
+        roadmapId: persisted.roadmapId,
+        ideaTitle: persisted.ideaTitle,
+        domain: persisted.domain,
+        roadmap: persisted.roadmap,
+        milestoneStatuses: persisted.milestoneStatuses,
       };
     }
 
-    // Check if DB is reachable but idea doesn't exist
+    if (persisted.kind === "FORBIDDEN" || isProductionRuntime()) {
+      return {
+        found: false,
+        roadmapId: null,
+        ideaTitle: "",
+        domain: "",
+        roadmap: null,
+        milestoneStatuses: {},
+      };
+    }
+  } catch {
+    if (isProductionRuntime()) {
+      return {
+        found: false,
+        roadmapId: null,
+        ideaTitle: "",
+        domain: "",
+        roadmap: null,
+        milestoneStatuses: {},
+      };
+    }
+  }
+
+  // Non-production offline fallback
+  const inst = readInstitutionalDb();
+  const rec = inst.recommendationsByUser[user.id];
+  const idea = rec?.ideas.find((i) => i.id === recommendedIdeaId);
+  if (!idea) {
     return {
       found: false,
+      roadmapId: null,
       ideaTitle: "",
       domain: "",
       roadmap: null,
       milestoneStatuses: {},
     };
-  } catch {
-    if (isProductionRuntime()) {
-      return {
-        found: false,
-        ideaTitle: "",
-        domain: "",
-        roadmap: null,
-        milestoneStatuses: {},
-      };
-    }
-    const inst = readInstitutionalDb();
-    const rec = inst.recommendationsByUser[user.id];
-    const idea = rec?.ideas.find((i) => i.id === recommendedIdeaId);
-    if (!idea) {
-      return {
-        found: false,
-        ideaTitle: "",
-        domain: "",
-        roadmap: null,
-        milestoneStatuses: {},
-      };
-    }
-    const profile = inst.studentProfiles[user.id];
-    const planned = buildCalibratedProjectRoadmap({
-      ideaTitle: idea.title,
-      domain: idea.domain,
-      durationWeeks: profile?.durationWeeks ?? 24,
-      weeklyHours: profile?.weeklyHours ?? 15,
-      totalSkillGapHours: idea.skillGaps.reduce((acc, g) => acc + g.estimatedLearnHours, 0),
-      skillGapSlugs: idea.skillGaps.map((g) => g.skillSlug),
-      recommendedStack: idea.recommendedStack.map((s) => s.tech),
-    });
-    return {
-      found: true,
-      ideaTitle: idea.title,
-      domain: idea.domain,
-      roadmap: planned,
-      milestoneStatuses: inst.milestoneStatuses ?? {},
-    };
   }
+  const profile = inst.studentProfiles[user.id];
+  const planned = buildCalibratedProjectRoadmap({
+    ideaTitle: idea.title,
+    domain: idea.domain,
+    durationWeeks: profile?.durationWeeks ?? 24,
+    weeklyHours: profile?.weeklyHours ?? 15,
+    totalSkillGapHours: idea.skillGaps.reduce((acc, g) => acc + g.estimatedLearnHours, 0),
+    skillGapSlugs: idea.skillGaps.map((g) => g.skillSlug),
+    recommendedStack: idea.recommendedStack.map((s) => s.tech),
+  });
+  return {
+    found: true,
+    roadmapId: `cm0roadmap_${recommendedIdeaId}`,
+    ideaTitle: idea.title,
+    domain: idea.domain,
+    roadmap: planned,
+    milestoneStatuses: inst.milestoneStatuses ?? {},
+  };
 }

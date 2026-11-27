@@ -29,10 +29,10 @@ export const STUDENT_REG_NO_REGEX = /^B(\d{2})([FS])(\d{4})([A-Z]{2,4})(\d{3})$/
 
 /**
  * Faculty / Institutional Email or Username Pattern:
- * Example: kamran.siddiqui@university.edu.pk or ayesha.rehman@fecid.edu.pk or dr.kamran
+ * Example: admin@projectcompass.edu, kamran.siddiqui@university.edu.pk, dr.kamran, or admin
  */
 export const FACULTY_IDENTIFIER_REGEX =
-  /^(?:[a-zA-Z][a-zA-Z0-9._-]{2,40}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z][a-zA-Z._-]{3,35})$/;
+  /^(?:[a-zA-Z][a-zA-Z0-9._-]{1,40}@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z][a-zA-Z0-9._-]{2,35})$/;
 
 /**
  * 4-Digit University Portal PIN / Password (XXXX)
@@ -151,6 +151,9 @@ export interface ParsedFacultyIdentifier {
 
 export function parseFacultyIdentifier(input: string): ParsedFacultyIdentifier | null {
   const cleaned = input.trim().toLowerCase();
+  if (STUDENT_REG_NO_REGEX.test(cleaned)) {
+    return null;
+  }
   if (!FACULTY_IDENTIFIER_REGEX.test(cleaned)) {
     return null;
   }
@@ -166,16 +169,23 @@ export function parseFacultyIdentifier(input: string): ParsedFacultyIdentifier |
 
   const baseName = words.length > 0 ? words.join(" ") : "Faculty Member";
   const fullName =
-    cleaned.startsWith("prof") ? `Prof. Dr. ${baseName}` : `Dr. ${baseName}`;
+    localPart === "admin"
+      ? "University System Administrator"
+      : cleaned.startsWith("prof")
+        ? `Prof. Dr. ${baseName}`
+        : `Dr. ${baseName}`;
 
   const email = cleaned.includes("@")
     ? cleaned
-    : `${localPart}@university.edu`;
+    : localPart === "admin"
+      ? "admin@projectcompass.edu"
+      : `${localPart}@university.edu`;
 
   let role: Extract<UserRole, "SUPERVISOR" | "COORDINATOR" | "ADMIN"> = "SUPERVISOR";
   if (localPart.includes("coord") || localPart.includes("salman")) {
     role = "COORDINATOR";
   } else if (
+    localPart === "admin" ||
     localPart.includes("admin") ||
     localPart.includes("naveed") ||
     localPart.includes("dean")

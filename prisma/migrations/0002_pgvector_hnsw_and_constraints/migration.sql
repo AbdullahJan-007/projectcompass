@@ -1,5 +1,5 @@
--- Enable pgvector extension (idempotent)
-CREATE EXTENSION IF NOT EXISTS vector;
+-- Enable pgvector extension in public schema (idempotent)
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 
 -- HNSW cosine-distance indexes for sub-50ms semantic search
 CREATE INDEX IF NOT EXISTS idx_seed_idea_embedding_hnsw
@@ -33,3 +33,27 @@ BEGIN
 EXCEPTION
   WHEN duplicate_object THEN NULL;
 END $$;
+
+-- Enable Row Level Security (RLS) across all 21 public tables with zero permissive
+-- anon/authenticated PostgREST policies (complete public REST API lockdown)
+ALTER TABLE "Department" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Cohort" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StudentAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "FacultyAccount" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Skill" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StudentProfile" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StudentSkill" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupervisorProfile" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupervisorSkill" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SeedIdeaTemplate" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProjectArchive" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "RecommendationRun" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "RecommendedIdea" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "IdeaSkillGap" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupervisorMatch" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "SupervisorRequest" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "ProjectRoadmap" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "RoadmapMilestone" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "MarketTrendSnapshot" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;

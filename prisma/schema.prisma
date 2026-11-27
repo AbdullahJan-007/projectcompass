@@ -143,6 +143,7 @@ model User {
   auditLogs         AuditLog[]
 
   @@index([departmentId, role])
+  @@index([role, isActive])
 }
 
 model StudentAccount {
@@ -231,6 +232,8 @@ model StudentSkill {
   skill          Skill          @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([studentProfileId, skillId])
+  @@index([studentProfileId])
+  @@index([skillId])
 }
 
 model SupervisorProfile {
@@ -267,6 +270,8 @@ model SupervisorSkill {
   skill             Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([supervisorProfileId, skillId])
+  @@index([supervisorProfileId])
+  @@index([skillId])
 }
 
 model SeedIdeaTemplate {
@@ -314,6 +319,7 @@ model ProjectArchive {
   uploadedBy User?      @relation("ArchiveUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([departmentId, ingestStatus, academicYear])
+  @@index([uploadedById])
 }
 
 model RecommendationRun {
@@ -370,6 +376,7 @@ model RecommendedIdea {
   roadmap             ProjectRoadmap?
 
   @@index([runId, track])
+  @@index([seedTemplateId])
   @@index([status])
 }
 
@@ -387,6 +394,7 @@ model IdeaSkillGap {
   skill           Skill           @relation(fields: [skillId], references: [id], onDelete: Cascade)
 
   @@unique([recommendedIdeaId, skillId])
+  @@index([skillId])
 }
 
 model SupervisorMatch {
@@ -404,6 +412,7 @@ model SupervisorMatch {
 
   @@unique([recommendedIdeaId, supervisorProfileId])
   @@index([recommendedIdeaId, rank])
+  @@index([supervisorProfileId])
 }
 
 model SupervisorRequest {
@@ -425,6 +434,7 @@ model SupervisorRequest {
   @@unique([recommendedIdeaId, supervisorProfileId])
   @@index([supervisorProfileId, status])
   @@index([studentProfileId, status])
+  @@index([studentProfileId, createdAt])
 }
 
 model ProjectRoadmap {
@@ -484,6 +494,7 @@ model AuditLog {
 
   actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@index([actorUserId])
   @@index([entityType, entityId])
   @@index([createdAt])
 }

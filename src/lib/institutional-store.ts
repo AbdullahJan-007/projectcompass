@@ -445,7 +445,7 @@ function createDefaultInstitutionalState(): InstitutionalDatabaseState {
     },
     supervisors: DEMO_SUPERVISORS.map((s) => ({
       ...s,
-      departmentCode: "BSCS",
+      departmentCode: s.programCode ?? "BSCS",
     })),
     supervisionRequests: [
       {

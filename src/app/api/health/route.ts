@@ -19,7 +19,12 @@ export async function GET(): Promise<NextResponse> {
       { status: 200 }
     );
   } catch {
-    if (process.env["REQUIRE_LIVE_DB"] === "true") {
+    if (
+      process.env["REQUIRE_LIVE_DB"] === "true" ||
+      (process.env.NODE_ENV === "production" &&
+        process.env.CI !== "true" &&
+        process.env.SEED_DEMO_DATA !== "true")
+    ) {
       return NextResponse.json(
         {
           status: "degraded",

@@ -2,40 +2,43 @@
 
 :root {
   color-scheme: light;
-  --font-plus-jakarta: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-dm-sans: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-inter: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-jetbrains-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --bg-canvas: #F8FAFC;
+
+  /* Harmonized Academic Navy & Crisp Surface Tokens */
+  --bg-canvas: #F9F7F7;
   --bg-surface: #FFFFFF;
-  --bg-subtle: #F1F5F9;
-  --border-default: #E2E8F0;
-  --border-strong: #CBD5E1;
-  --text-primary: #0F172A;
-  --text-secondary: #334155;
-  --text-muted: #475569;
-  --brand-primary: #0F766E;
-  --brand-primary-hover: #115E59;
-  --brand-tint: #CCFBF1;
+  --bg-subtle: #F5F3F3;
+  --border-default: #DBE2EF;
+  --border-strong: #C4C6CF;
+  --text-primary: #1B1C1C;
+  --text-secondary: #43474E;
+  --text-muted: #5A6270;
+  --brand-primary: #112D4E;
+  --brand-primary-hover: #001833;
+  --brand-tint: #DBE2EF;
   --accent-amber: #B45309;
   --accent-amber-tint: #FEF3C7;
-  --grad-ambient: linear-gradient(135deg, #F8FAFC 0%, #F0FDFA 52%, #FFFBEB 100%);
-  --grad-contrast: linear-gradient(135deg, #0F172A 0%, #115E59 100%);
-  --status-success: #15803D;
-  --status-success-tint: #DCFCE7;
-  --status-success-text: #166534;
+  --grad-ambient: linear-gradient(135deg, #FFFFFF 0%, #F9F7F7 55%, #E3FDFD 100%);
+  --grad-contrast: linear-gradient(135deg, #112D4E 0%, #3F72AF 100%);
+  --status-success: #004F53;
+  --status-success-tint: #E3FDFD;
+  --status-success-text: #00373A;
   --status-warning: #B45309;
   --status-warning-tint: #FEF3C7;
   --status-warning-text: #92400E;
-  --status-error: #B91C1C;
-  --status-error-tint: #FEE2E2;
-  --status-error-text: #991B1B;
-  --status-info: #0369A1;
-  --status-info-tint: #E0F2FE;
-  --status-info-text: #075985;
+  --status-error: #BA1A1A;
+  --status-error-tint: #FFDAD6;
+  --status-error-text: #93000A;
+  --status-info: #2A609C;
+  --status-info-tint: #D3E3FF;
+  --status-info-text: #001C39;
   --radius: 0.5rem;
 }
 
 @theme inline {
+  /* Core App Semantic Tokens */
   --color-bg-canvas: var(--bg-canvas);
   --color-bg-surface: var(--bg-surface);
   --color-bg-subtle: var(--bg-subtle);
@@ -61,14 +64,147 @@
   --color-status-info: var(--status-info);
   --color-status-info-tint: var(--status-info-tint);
   --color-status-info-text: var(--status-info-text);
-  --font-heading: var(--font-plus-jakarta), sans-serif;
+
+  /* Stitch Academic Navy Material Tokens */
+  --color-primary: #001833;
+  --color-primary-container: #112d4e;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #7c95bc;
+  --color-primary-fixed: #d4e3ff;
+  --color-primary-fixed-dim: #afc8f1;
+  --color-on-primary-fixed: #001c3a;
+  --color-on-primary-fixed-variant: #2f486a;
+
+  --color-secondary: #2a609c;
+  --color-secondary-container: #8bbbfd;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #064a85;
+  --color-secondary-fixed: #d3e3ff;
+  --color-secondary-fixed-dim: #a3c9ff;
+  --color-on-secondary-fixed: #001c39;
+  --color-on-secondary-fixed-variant: #004882;
+
+  --color-tertiary: #001b1d;
+  --color-tertiary-container: #003234;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #46a1a6;
+  --color-tertiary-fixed: #99f1f6;
+  --color-tertiary-fixed-dim: #7dd4d9;
+  --color-on-tertiary-fixed: #002021;
+  --color-on-tertiary-fixed-variant: #004f53;
+
+  --color-background: #fbf9f9;
+  --color-on-background: #1b1c1c;
+  --color-surface: #fbf9f9;
+  --color-surface-dim: #dbdada;
+  --color-surface-bright: #fbf9f9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container: #efeded;
+  --color-surface-container-high: #e9e8e8;
+  --color-surface-container-highest: #e4e2e2;
+  --color-surface-variant: #e4e2e2;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #43474e;
+  --color-surface-tint: #476083;
+
+  --color-inverse-surface: #303031;
+  --color-inverse-on-surface: #f2f0f0;
+  --color-inverse-primary: #afc8f1;
+
+  --color-outline: #74777f;
+  --color-outline-variant: #c4c6cf;
+
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Stitch Spacing Scale */
+  --spacing-margin: 1.5rem;
+  --spacing-gutter: 1rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+
+  /* Font Families */
+  --font-heading: var(--font-dm-sans), sans-serif;
   --font-sans: var(--font-inter), sans-serif;
   --font-mono: var(--font-jetbrains-mono), monospace;
+  --font-headline-lg: var(--font-dm-sans), sans-serif;
+  --font-headline-lg-mobile: var(--font-dm-sans), sans-serif;
+  --font-headline-md: var(--font-dm-sans), sans-serif;
+  --font-headline-sm: var(--font-dm-sans), sans-serif;
+  --font-title-md: var(--font-dm-sans), sans-serif;
+  --font-body-lg: var(--font-inter), sans-serif;
+  --font-body-md: var(--font-inter), sans-serif;
+  --font-body-sm: var(--font-inter), sans-serif;
+  --font-label-lg: var(--font-inter), sans-serif;
+  --font-label-md: var(--font-inter), sans-serif;
+  --font-label-sm: var(--font-inter), sans-serif;
+
+  /* Stitch Type Scale */
+  --text-headline-lg: 2.5rem;
+  --text-headline-lg--line-height: 3rem;
+  --text-headline-lg--letter-spacing: -0.02em;
+  --text-headline-lg--font-weight: 700;
+
+  --text-headline-lg-mobile: 1.875rem;
+  --text-headline-lg-mobile--line-height: 2.375rem;
+  --text-headline-lg-mobile--letter-spacing: -0.02em;
+  --text-headline-lg-mobile--font-weight: 700;
+
+  --text-headline-md: 1.75rem;
+  --text-headline-md--line-height: 2.25rem;
+  --text-headline-md--letter-spacing: -0.015em;
+  --text-headline-md--font-weight: 600;
+
+  --text-headline-sm: 1.375rem;
+  --text-headline-sm--line-height: 1.75rem;
+  --text-headline-sm--letter-spacing: -0.01em;
+  --text-headline-sm--font-weight: 600;
+
+  --text-title-md: 1.125rem;
+  --text-title-md--line-height: 1.5rem;
+  --text-title-md--font-weight: 600;
+
+  --text-body-lg: 1rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-lg--font-weight: 400;
+
+  --text-body-md: 0.875rem;
+  --text-body-md--line-height: 1.25rem;
+  --text-body-md--font-weight: 400;
+
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.125rem;
+  --text-body-sm--font-weight: 400;
+
+  --text-label-lg: 0.875rem;
+  --text-label-lg--line-height: 1.25rem;
+  --text-label-lg--letter-spacing: 0.01em;
+  --text-label-lg--font-weight: 600;
+
+  --text-label-md: 0.75rem;
+  --text-label-md--line-height: 1rem;
+  --text-label-md--letter-spacing: 0.02em;
+  --text-label-md--font-weight: 500;
+
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--line-height: 0.875rem;
+  --text-label-sm--letter-spacing: 0.03em;
+  --text-label-sm--font-weight: 500;
 }
 
 @layer base {
   * {
     border-color: var(--border-default);
+  }
+
+  html {
+    scroll-behavior: smooth;
   }
 
   body {
@@ -79,9 +215,27 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-plus-jakarta), sans-serif;
+    font-family: var(--font-dm-sans), sans-serif;
     color: var(--text-primary);
   }
+}
+
+.material-symbols-outlined {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "liga";
+  user-select: none;
 }
 
 .font-mono-tabular {
@@ -95,6 +249,21 @@
 
 .bg-grad-contrast {
   background-image: var(--grad-contrast);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

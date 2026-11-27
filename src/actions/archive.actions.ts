@@ -13,6 +13,14 @@ import {
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
 
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  );
+}
+
 function isDbConnectionOffline(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   return (
@@ -56,14 +64,30 @@ export async function createArchiveRecord(
     }
 
     const input = parsed.data;
-    const departmentId = input.programCode
-      ? resolveDepartmentByCode(input.programCode).id
-      : (user.departmentId ?? "cm0deptbscs00000000000001");
+    const deptMeta = input.programCode
+      ? resolveDepartmentByCode(input.programCode)
+      : null;
+    const departmentId =
+      deptMeta?.id ?? user.departmentId ?? "cm0deptbscs00000000000001";
     let archiveId = `cm0arch_${Date.now()}`;
-    const ingestStatus =
+    let finalIngestStatus: string =
       input.abstract.trim().length < 100 ? "NEEDS_MANUAL_ABSTRACT" : "READY";
 
     try {
+      if (deptMeta && "department" in db && db.department?.upsert) {
+        await db.department.upsert({
+          where: { code: deptMeta.code },
+          update: {},
+          create: {
+            id: deptMeta.id,
+            code: deptMeta.code,
+            name: deptMeta.name,
+            university: "National University of Computing & Emerging Sciences",
+            defaultSlots: 5,
+          },
+        });
+      }
+
       const archive = await db.projectArchive.create({
         data: {
           departmentId,
@@ -77,6 +101,16 @@ export async function createArchiveRecord(
           ingestStatus: "PENDING_EMBEDDING",
         },
       });
+
+      if (!archive.id) {
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Database verification failed while creating archive record.",
+          },
+        };
+      }
       archiveId = archive.id;
 
       const hasLiveInngest =
@@ -90,13 +124,28 @@ export async function createArchiveRecord(
             name: "archive/record.created",
             data: { archiveId: archive.id },
           });
+          finalIngestStatus = "PENDING_EMBEDDING";
         } catch {
-          await processArchiveRecordIngestion(archive.id);
+          const processed = await processArchiveRecordIngestion(archive.id);
+          finalIngestStatus = processed.status;
         }
       } else {
-        await processArchiveRecordIngestion(archive.id);
+        const processed = await processArchiveRecordIngestion(archive.id);
+        finalIngestStatus = processed.status;
       }
-    } catch {
+    } catch (dbErr) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
+        console.error("[createArchiveRecord] Database write failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message:
+              "Could not save past-FYP archive record to the database. Please try again.",
+          },
+        };
+      }
+
       const store = readInstitutionalDb();
       store.archives.unshift({
         id: archiveId,
@@ -105,10 +154,13 @@ export async function createArchiveRecord(
         academicYear: input.academicYear,
         domain: input.domain.trim(),
         techStack: input.techStack,
-        departmentCode: "BSCS",
-        ingestStatus,
+        departmentCode: deptMeta?.code ?? "BSCS",
+        ingestStatus:
+          finalIngestStatus === "NEEDS_MANUAL_ABSTRACT"
+            ? "NEEDS_MANUAL_ABSTRACT"
+            : "READY",
         ingestError:
-          ingestStatus === "NEEDS_MANUAL_ABSTRACT"
+          finalIngestStatus === "NEEDS_MANUAL_ABSTRACT"
             ? "Abstract is shorter than 100 characters. Complete the abstract below to index."
             : undefined,
         createdAt: new Date().toISOString(),
@@ -117,12 +169,13 @@ export async function createArchiveRecord(
     }
 
     revalidatePath("/dashboard/coordinator");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,
       data: {
         archiveId,
-        ingestStatus,
+        ingestStatus: finalIngestStatus,
       },
     };
   } catch (err) {
@@ -180,7 +233,11 @@ export async function retryArchiveEmbedding(
       };
     }
 
-    if (user.role === "COORDINATOR" && user.departmentId && record.departmentId !== user.departmentId) {
+    if (
+      user.role === "COORDINATOR" &&
+      user.departmentId &&
+      record.departmentId !== user.departmentId
+    ) {
       return {
         ok: false,
         error: {
@@ -199,18 +256,29 @@ export async function retryArchiveEmbedding(
       },
     });
 
+    const hasLiveInngest =
+      Boolean(process.env.INNGEST_EVENT_KEY) &&
+      !process.env.INNGEST_EVENT_KEY!.includes("local-dev") &&
+      !process.env.INNGEST_EVENT_KEY!.includes("replace_me");
+
     let finalStatus = "PENDING_EMBEDDING";
-    try {
-      await inngest.send({
-        name: "archive/record.created",
-        data: { archiveId },
-      });
-    } catch {
+    if (hasLiveInngest) {
+      try {
+        await inngest.send({
+          name: "archive/record.created",
+          data: { archiveId },
+        });
+      } catch {
+        const processed = await processArchiveRecordIngestion(archiveId);
+        finalStatus = processed.status;
+      }
+    } else {
       const processed = await processArchiveRecordIngestion(archiveId);
       finalStatus = processed.status;
     }
 
     revalidatePath("/dashboard/coordinator");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,
@@ -226,7 +294,7 @@ export async function retryArchiveEmbedding(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const parsed = retryArchiveSchema.parse(rawInput);
       const store = readInstitutionalDb();
       store.archives = store.archives.map((a) =>
@@ -241,6 +309,7 @@ export async function retryArchiveEmbedding(
       );
       writeInstitutionalDb(store);
       revalidatePath("/dashboard/coordinator");
+      revalidatePath("/dashboard/admin");
       return {
         ok: true,
         data: { archiveId: parsed.archiveId, ingestStatus: "READY" },
@@ -291,7 +360,11 @@ export async function deleteArchiveRecord(
       };
     }
 
-    if (user.role === "COORDINATOR" && user.departmentId && record.departmentId !== user.departmentId) {
+    if (
+      user.role === "COORDINATOR" &&
+      user.departmentId &&
+      record.departmentId !== user.departmentId
+    ) {
       return {
         ok: false,
         error: {
@@ -321,6 +394,7 @@ export async function deleteArchiveRecord(
     ]);
 
     revalidatePath("/dashboard/coordinator");
+    revalidatePath("/dashboard/admin");
     return {
       ok: true,
       data: { deletedId: record.id },
@@ -332,14 +406,14 @@ export async function deleteArchiveRecord(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const user = await requireRole(["COORDINATOR", "ADMIN"]);
       const parsed = deleteArchiveSchema.parse(rawInput);
       const store = readInstitutionalDb();
       store.archives = store.archives.filter((a) => a.id !== parsed.archiveId);
       store.auditLogs.unshift({
         id: `cm0audit_${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
         actor: user.fullName,
         action: "ARCHIVE_DELETED",
         entityType: "ProjectArchive",
@@ -348,6 +422,7 @@ export async function deleteArchiveRecord(
       });
       writeInstitutionalDb(store);
       revalidatePath("/dashboard/coordinator");
+      revalidatePath("/dashboard/admin");
       return {
         ok: true,
         data: { deletedId: parsed.archiveId },

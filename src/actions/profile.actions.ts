@@ -15,6 +15,7 @@ import {
   type GeneratedIdeaRecord,
 } from "@/lib/recommendation/engine";
 import {
+  isProductionRuntime,
   loadLiveEngineContext,
   persistRecommendationRunToDb,
 } from "@/lib/recommendation/live-context";
@@ -24,6 +25,15 @@ import {
   type PersistedStudentProfile,
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isDbConnectionOffline(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "PrismaClientInitializationError" ||
+    err.message.includes("Can't reach database server") ||
+    err.message.includes("ECONNREFUSED")
+  );
+}
 
 const onboardingInputSchema = z.object({
   role: z.enum(["STUDENT"]),
@@ -44,7 +54,7 @@ export async function completeOnboarding(
         error: {
           code: "VALIDATION_ERROR",
           message:
-            "Invalid onboarding configuration. Self-onboarding permits STUDENT or SUPERVISOR roles only.",
+            "Invalid onboarding configuration. Self-onboarding permits STUDENT role only.",
           fieldErrors: parsed.error.flatten().fieldErrors,
         },
       };
@@ -77,8 +87,17 @@ export async function completeOnboarding(
           },
         });
       }
-    } catch {
-      // Fallback when local PostgreSQL container is offline
+    } catch (dbErr) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
+        console.error("[completeOnboarding] Database write failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Unable to save onboarding configuration to the database. Please try again.",
+          },
+        };
+      }
     }
 
     revalidatePath("/dashboard");
@@ -154,7 +173,9 @@ export async function getActiveStudentProfile(): Promise<PersistedStudentProfile
       // Database is reachable and this student has not saved skills yet
       return null;
     } catch {
-      // Fallback to local institutional store only when local PostgreSQL is offline
+      if (isProductionRuntime()) {
+        return null;
+      }
     }
 
     const store = readInstitutionalDb();
@@ -235,7 +256,6 @@ export async function upsertStudentProfile(
     const uniqueSlugs = Array.from(new Set(normalizedSkills.map((s) => s.slug)));
 
     let profileId = `cm0profile_${user.id}`;
-    const isProd = process.env.NODE_ENV === "production" && process.env.CI !== "true";
 
     try {
       const savedResult = await db.$transaction(
@@ -349,14 +369,7 @@ export async function upsertStudentProfile(
       }
       profileId = savedResult.id;
     } catch (dbErr) {
-      const isOfflineLocal =
-        !isProd &&
-        dbErr instanceof Error &&
-        (dbErr.name === "PrismaClientInitializationError" ||
-          dbErr.message.includes("Can't reach database server") ||
-          dbErr.message.includes("ECONNREFUSED"));
-
-      if (!isOfflineLocal) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
         console.error("[upsertStudentProfile] Database write failed:", dbErr);
         return {
           ok: false,
@@ -374,7 +387,7 @@ export async function upsertStudentProfile(
       | undefined;
     try {
       const liveContext = await loadLiveEngineContext();
-      // Use deterministic calibration on profile save so Save responds in < 1s without blocking on external LLM latency
+      // Deterministic calibration on profile save so Save responds in < 1s without blocking on external LLM latency
       const calibratedRun = await executeHybridRecommendationEngine({
         studentSkills: input.skills.map((s) => ({
           skillSlug: s.skillSlug,
@@ -406,44 +419,46 @@ export async function upsertStudentProfile(
       // Keep profile saved even if optional background calibration fails
     }
 
-    // Persist to local institutional database so profile & calibrated ideas sync across pages
-    try {
-      const store = readInstitutionalDb();
-      store.studentProfiles[user.id] = {
-        userId: user.id,
-        registrationNo: user.clerkId ?? "B23F0184CS042",
-        fullName: user.fullName,
-        departmentCode: resolveDepartmentCodeById(user.departmentId),
-        status: "READY",
-        skills: input.skills,
-        interests: input.interests,
-        careerGoal: input.careerGoal.trim(),
-        preferredType: input.preferredType,
-        weeklyHours: input.weeklyHours,
-        durationWeeks: input.durationWeeks,
-        teamSize: input.teamSize,
-        gpaBand: input.gpaBand ?? "3.4 - 3.8",
-        totalEffortHours,
-        updatedAt: new Date().toISOString(),
-      };
-      if (calibratedIdeas) {
-        const prev = store.recommendationsByUser[user.id];
-        store.recommendationsByUser[user.id] = {
-          runId: `cm0run_${Date.now()}`,
-          usedFallback: false,
-          runsRemainingToday: prev?.runsRemainingToday ?? 4,
-          shortlistedIds: [calibratedIdeas[0].id],
-          ideas: calibratedIdeas,
+    if (!isProductionRuntime()) {
+      try {
+        const store = readInstitutionalDb();
+        store.studentProfiles[user.id] = {
+          userId: user.id,
+          registrationNo: user.clerkId ?? "B23F0184CS042",
+          fullName: user.fullName,
+          departmentCode: resolveDepartmentCodeById(user.departmentId),
+          status: "READY",
+          skills: input.skills,
+          interests: input.interests,
+          careerGoal: input.careerGoal.trim(),
+          preferredType: input.preferredType,
+          weeklyHours: input.weeklyHours,
+          durationWeeks: input.durationWeeks,
+          teamSize: input.teamSize,
+          gpaBand: input.gpaBand ?? "3.4 - 3.8",
+          totalEffortHours,
           updatedAt: new Date().toISOString(),
         };
+        if (calibratedIdeas) {
+          const prev = store.recommendationsByUser[user.id];
+          store.recommendationsByUser[user.id] = {
+            runId: `cm0run_${Date.now()}`,
+            usedFallback: false,
+            runsRemainingToday: prev?.runsRemainingToday ?? 4,
+            shortlistedIds: [calibratedIdeas[0].id],
+            ideas: calibratedIdeas,
+            updatedAt: new Date().toISOString(),
+          };
+        }
+        writeInstitutionalDb(store);
+      } catch {
+        // Ignore write error in mocked test contexts
       }
-      writeInstitutionalDb(store);
-    } catch {
-      // Ignore write error in mocked test contexts
     }
 
     revalidatePath("/dashboard/profile");
     revalidatePath("/dashboard/recommendations");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,

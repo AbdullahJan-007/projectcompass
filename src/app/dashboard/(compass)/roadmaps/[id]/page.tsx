@@ -2,31 +2,23 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  CalendarRange,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
-  Download,
-  RefreshCw,
-  ShieldCheck,
-  Copy,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePortalSession } from "@/components/layout/portal-session-context";
 import {
   buildCalibratedProjectRoadmap,
   formatRoadmapAsMarkdown,
   type PlannedMilestoneItem,
+  type PlannedRoadmapResult,
 } from "@/lib/recommendation/roadmap-planner";
 import {
+  generateProjectRoadmap,
   toggleMilestoneStatus,
   exportRoadmapMarkdown,
 } from "@/actions/roadmap.actions";
 import { getActiveRecommendationsSnapshot } from "@/actions/recommendation.actions";
+import { getRoadmapWorkspaceData } from "@/actions/workspace.actions";
 import {
   loadStoredMilestoneStatuses,
   saveStoredMilestoneStatuses,
@@ -37,24 +29,34 @@ import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 export default function RoadmapDetailPage() {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
+  const portalSession = usePortalSession();
   const ideaId = params?.id ?? "";
 
   const [storedIdeas, setStoredIdeas] = useState<GeneratedIdeaRecord[]>([]);
+  const [serverRoadmap, setServerRoadmap] = useState<PlannedRoadmapResult | null>(null);
+  const [roadmapId, setRoadmapId] = useState<string>(`roadmap_${ideaId}`);
+  const [serverIdeaTitle, setServerIdeaTitle] = useState<string>("");
+  const [serverDomain, setServerDomain] = useState<string>("Software Engineering");
   const [durationWeeks, setDurationWeeks] = useState(24);
   const [weeklyHours, setWeeklyHours] = useState(15);
   const [totalSkillGapHours, setTotalSkillGapHours] = useState(0);
+  const [milestoneStatusOverrides, setMilestoneStatusOverrides] = useState<
+    Record<string, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">
+  >({});
   const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
     "LOADING"
   );
   const [exportedMarkdown, setExportedMarkdown] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setMilestoneStatusOverrides(loadStoredMilestoneStatuses());
-    getActiveRecommendationsSnapshot()
-      .then((snap) => {
-        setDurationWeeks(snap.durationWeeks);
-        setWeeklyHours(snap.weeklyHours);
+    const localStatuses = loadStoredMilestoneStatuses();
+    Promise.all([getRoadmapWorkspaceData(ideaId), getActiveRecommendationsSnapshot()])
+      .then(([rmData, snap]) => {
+        setDurationWeeks(rmData.roadmap?.durationWeeks ?? snap.durationWeeks);
+        setWeeklyHours(rmData.roadmap?.weeklyHours ?? snap.weeklyHours);
+
         if (snap.ideas && snap.ideas.length > 0) {
           setStoredIdeas(snap.ideas);
           const matched = snap.ideas.find((i) => i.id === ideaId) ?? snap.ideas[0];
@@ -65,14 +67,26 @@ export default function RoadmapDetailPage() {
             );
             setTotalSkillGapHours(gapSum);
           }
+        }
+
+        if (rmData.found && rmData.roadmap) {
+          setServerRoadmap(rmData.roadmap);
+          if (rmData.roadmapId) setRoadmapId(rmData.roadmapId);
+          setServerIdeaTitle(rmData.ideaTitle);
+          setServerDomain(rmData.domain);
+          setMilestoneStatusOverrides({
+            ...localStatuses,
+            ...rmData.milestoneStatuses,
+          });
+          setViewState("POPULATED");
+        } else if (snap.ideas && snap.ideas.length > 0) {
+          setMilestoneStatusOverrides(localStatuses);
           setViewState("POPULATED");
         } else {
-          setStoredIdeas([]);
           setViewState("EMPTY");
         }
       })
       .catch(() => {
-        setStoredIdeas([]);
         setViewState("EMPTY");
       });
   }, [ideaId]);
@@ -82,26 +96,32 @@ export default function RoadmapDetailPage() {
   }, [storedIdeas, ideaId]);
 
   const ideaMetadata = useMemo(() => {
-    if (!activeIdea) {
+    if (activeIdea) {
       return {
-        title: "No Proposal Selected",
-        domain: "Software Engineering",
-        skillGapSlugs: [] as string[],
-        stack: [] as string[],
+        id: activeIdea.id,
+        title: activeIdea.title,
+        domain: activeIdea.domain,
+        track: activeIdea.track,
+        feasibilityScore: activeIdea.feasibilityScore,
+        skillGapSlugs:
+          activeIdea.skillGaps.length > 0
+            ? activeIdea.skillGaps.map((g) => g.skillSlug)
+            : ["typescript", "postgresql"],
+        stack: activeIdea.recommendedStack.map((s) => s.tech),
       };
     }
     return {
-      title: activeIdea.title,
-      domain: activeIdea.domain,
-      skillGapSlugs:
-        activeIdea.skillGaps.length > 0
-          ? activeIdea.skillGaps.map((g) => g.skillSlug)
-          : ["typescript", "postgresql"],
-      stack: activeIdea.recommendedStack.map((s) => s.tech),
+      id: ideaId,
+      title: serverIdeaTitle || "Selected Capstone Proposal",
+      domain: serverDomain,
+      track: "CORE_SAFE" as const,
+      feasibilityScore: 85,
+      skillGapSlugs: ["typescript", "postgresql"],
+      stack: ["Next.js", "TypeScript", "PostgreSQL"],
     };
-  }, [activeIdea]);
+  }, [activeIdea, ideaId, serverDomain, serverIdeaTitle]);
 
-  const baseRoadmap = useMemo(
+  const computedRoadmap = useMemo(
     () =>
       buildCalibratedProjectRoadmap({
         ideaTitle: ideaMetadata.title,
@@ -115,17 +135,48 @@ export default function RoadmapDetailPage() {
     [ideaMetadata, durationWeeks, weeklyHours, totalSkillGapHours]
   );
 
-  const [milestoneStatusOverrides, setMilestoneStatusOverrides] = useState<
-    Record<string, "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED">
-  >({});
+  const baseRoadmap =
+    serverRoadmap &&
+    serverRoadmap.durationWeeks === durationWeeks &&
+    serverRoadmap.weeklyHours === weeklyHours
+      ? serverRoadmap
+      : computedRoadmap;
 
   const milestones: PlannedMilestoneItem[] = baseRoadmap.milestones.map((m) => ({
     ...m,
     status: milestoneStatusOverrides[m.id] ?? m.status,
   }));
 
+  const progressPercent = useMemo(() => {
+    if (milestones.length === 0) return 0;
+    const weightedSum = milestones.reduce((acc, m) => {
+      if (m.status === "COMPLETED") return acc + 100;
+      if (m.status === "IN_PROGRESS") return acc + 50;
+      return acc;
+    }, 0);
+    return Math.round(weightedSum / milestones.length);
+  }, [milestones]);
+
   const completedCount = milestones.filter((m) => m.status === "COMPLETED").length;
-  const progressPercent = Math.round((completedCount / milestones.length) * 100);
+
+  async function handleDurationChange(nextWeeks: number) {
+    setDurationWeeks(nextWeeks);
+    if (!ideaMetadata.id) return;
+
+    const res = await generateProjectRoadmap({
+      recommendedIdeaId: ideaMetadata.id,
+      regenerate: true,
+      durationWeeks: nextWeeks,
+      weeklyHours,
+    });
+
+    if (res.ok) {
+      setServerRoadmap(res.data.roadmap);
+      setRoadmapId(res.data.roadmapId);
+      setSyncMessage(`Recalibrated 4-phase sprint plan to ${nextWeeks} weeks.`);
+      setTimeout(() => setSyncMessage(null), 3000);
+    }
+  }
 
   async function handleCycleStatus(ms: PlannedMilestoneItem) {
     const nextStatus: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" =
@@ -144,21 +195,30 @@ export default function RoadmapDetailPage() {
       return updated;
     });
 
-    await toggleMilestoneStatus({
+    const res = await toggleMilestoneStatus({
       milestoneId: ms.id,
       status: nextStatus,
+      recommendedIdeaId: ideaMetadata.id || undefined,
     });
+
+    if (res.ok) {
+      setSyncMessage(`Phase ${ms.phaseNumber} status saved as ${nextStatus.replace("_", " ")}.`);
+      setTimeout(() => setSyncMessage(null), 2500);
+    }
   }
 
   async function handleExportMarkdown() {
     const localMarkdown = formatRoadmapAsMarkdown({
       ideaTitle: ideaMetadata.title,
-      roadmap: baseRoadmap,
+      roadmap: {
+        ...baseRoadmap,
+        milestones,
+      },
     });
     setExportedMarkdown(localMarkdown);
 
     const res = await exportRoadmapMarkdown({
-      roadmapId: `roadmap_${ideaId}`,
+      roadmapId: roadmapId || `roadmap_${ideaId}`,
       ideaTitle: ideaMetadata.title,
       durationWeeks,
       weeklyHours,
@@ -176,7 +236,7 @@ export default function RoadmapDetailPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `ProjectCompass-Roadmap-${(activeIdea?.track ?? "core_safe").toLowerCase()}.md`;
+    link.download = `ProjectCompass-Roadmap-${ideaMetadata.track.toLowerCase()}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -196,70 +256,149 @@ export default function RoadmapDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Contrast Header Banner (--grad-contrast: #0F172A -> #115E59) */}
-      <section className="rounded-[8px] bg-grad-contrast p-6 md:p-8 text-bg-surface shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl space-y-2">
+      {/* Stitch Top Deep Navy to Slate Blue Gradient Banner (Strict White High-Contrast Text!) */}
+      <section className="relative w-full rounded-xl bg-gradient-to-r from-[#112D4E] to-[#3F72AF] p-5 sm:p-8 text-white overflow-hidden shadow-md">
+        <div
+          aria-hidden="true"
+          className="absolute -right-24 -top-24 w-72 h-72 rounded-full bg-[#71C9CE]/20 blur-3xl pointer-events-none"
+        />
+
+        <div className="relative z-10 flex flex-col gap-5">
+          {/* Top Meta Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                {formatTrackLabel(activeIdea?.track ?? "CORE_SAFE")}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E3FDFD] text-[#112D4E] text-xs font-semibold shadow-xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#3F72AF]" />
+                {formatTrackLabel(ideaMetadata.track)} (Feasibility {ideaMetadata.feasibilityScore}
+                /100)
               </span>
-              <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                {baseRoadmap.durationWeeks} Weeks Total
-              </span>
-              <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                {baseRoadmap.prepWeeksAllocated} Prep Weeks Allocated
-              </span>
-              <span className="rounded-[6px] bg-bg-surface/15 px-2.5 py-0.5 font-mono-tabular text-xs font-medium text-bg-surface">
-                {baseRoadmap.weeklyHours} hrs/week
+              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-white/15 text-white text-xs font-medium">
+                {ideaMetadata.domain}
               </span>
             </div>
-            <h1 className="text-[26px] md:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-bg-surface">
+
+            <div className="flex flex-wrap items-center gap-1.5 font-mono-tabular text-xs text-white/95">
+              <span className="px-2.5 py-1 rounded bg-white/15">
+                {baseRoadmap.durationWeeks} Weeks Total
+              </span>
+              <span className="px-2.5 py-1 rounded bg-white/15">
+                {baseRoadmap.prepWeeksAllocated} Prep Weeks
+              </span>
+              <span className="px-2.5 py-1 rounded bg-white/15">
+                {baseRoadmap.weeklyHours} hrs/wk
+              </span>
+            </div>
+          </div>
+
+          {/* High-Contrast White Headline & Summary */}
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-1.5 text-[#E3FDFD] text-xs uppercase tracking-wider font-semibold">
+              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                alt_route
+              </span>
+              <span>Sprint Roadmap · {portalSession.identifier || "Student Workspace"}</span>
+            </div>
+            <h1 className="font-headline-lg text-2xl sm:text-3xl !text-white font-bold tracking-tight max-w-4xl leading-snug">
               {ideaMetadata.title}
             </h1>
-            <p className="text-sm text-bg-surface/85">{baseRoadmap.summary}</p>
+            <p className="text-xs sm:text-sm text-white/90 max-w-3xl leading-relaxed">
+              {baseRoadmap.summary}
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="secondary"
+          {/* 4-Phase Progress Bar Matrix */}
+          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 space-y-3 border border-white/15">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-white">
+              <span className="flex items-center gap-1.5 font-semibold">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined text-[16px] text-[#71C9CE]"
+                >
+                  timelapse
+                </span>
+                Overall Progress:{" "}
+                <strong className="font-mono-tabular text-[#E3FDFD]">
+                  {progressPercent}% Complete
+                </strong>
+              </span>
+              <span className="font-mono-tabular text-white/85">
+                {completedCount} of {milestones.length} Phases Signed Off
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {milestones.map((ms) => {
+                const barWidth =
+                  ms.status === "COMPLETED"
+                    ? "w-full"
+                    : ms.status === "IN_PROGRESS"
+                      ? "w-1/2"
+                      : "w-0";
+                const pctText =
+                  ms.status === "COMPLETED"
+                    ? "100%"
+                    : ms.status === "IN_PROGRESS"
+                      ? "Active"
+                      : "0%";
+                return (
+                  <div key={ms.id} className="space-y-1">
+                    <div className="h-2 w-full rounded-full bg-white/20 overflow-hidden">
+                      <div
+                        className={`h-full bg-[#71C9CE] rounded-full transition-all duration-300 ${barWidth}`}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between font-mono-tabular text-[11px] pt-0.5">
+                      <span className="text-white font-semibold">
+                        P{ms.phaseNumber}: W{String(ms.weekStart).padStart(2, "0")}–W
+                        {String(ms.weekEnd).padStart(2, "0")}
+                      </span>
+                      <span className="text-[#E3FDFD] font-semibold">{pctText}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Banner Action Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+            <div className="flex items-center gap-1.5 text-xs text-white/90">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[16px] text-[#71C9CE]"
+              >
+                verified
+              </span>
+              <span>Deterministic Sum Invariant: Sum(Phase Weeks) = {baseRoadmap.durationWeeks}</span>
+            </div>
+
+            <button
+              type="button"
               onClick={handleExportMarkdown}
               data-testid="export-markdown-btn"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E3FDFD] hover:bg-white text-[#112D4E] text-xs font-bold transition-all shadow-sm"
             >
-              <Download className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              <span>Export Markdown</span>
-            </Button>
-          </div>
-        </div>
-
-        <div className="mt-6 space-y-2">
-          <div className="flex items-center justify-between text-xs text-bg-surface/90">
-            <span>4-Phase Milestone Execution Progress</span>
-            <span className="font-mono-tabular font-semibold">
-              {completedCount} of {milestones.length} Phases Completed ({progressPercent}%)
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-bg-surface/20">
-            <div
-              className="h-full bg-brand-tint transition-all duration-150"
-              style={{ width: `${progressPercent}%` }}
-            />
+              <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                download_for_offline
+              </span>
+              <span>Export Markdown (.md)</span>
+            </button>
           </div>
         </div>
       </section>
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 rounded-[8px] border border-border-default bg-bg-surface p-4">
+      {/* Stitch Control & Adjustment Strip */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-xs border border-[#DBE2EF] p-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-center">
           {storedIdeas.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-              <label className="text-xs font-semibold text-text-secondary shrink-0">
-                Switch Idea:
+            <div className="flex flex-col gap-1 min-w-0 sm:w-64">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-[#3F72AF]">
+                Active Capstone Track
               </label>
               <Select
                 aria-label="Switch Idea Roadmap"
                 value={activeIdea?.id ?? ""}
                 onChange={(e) => router.push(`/dashboard/roadmaps/${e.target.value}`)}
-                className="w-full sm:w-64"
               >
                 {storedIdeas.map((idea) => (
                   <option key={idea.id} value={idea.id}>
@@ -270,15 +409,15 @@ export default function RoadmapDetailPage() {
             </div>
           )}
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-            <label className="text-xs font-semibold text-text-secondary shrink-0">
-              Semester Length:
+          <div className="flex flex-col gap-1 sm:w-44">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-[#3F72AF]">
+              Cycle Timeline Scope
             </label>
             <Select
               aria-label="Semester Length"
               value={String(durationWeeks)}
-              onChange={(e) => setDurationWeeks(Number(e.target.value))}
-              className="w-full sm:w-40 font-mono-tabular"
+              onChange={(e) => handleDurationChange(Number(e.target.value))}
+              className="font-mono-tabular"
             >
               {![12, 16, 24, 36].includes(durationWeeks) && (
                 <option value={String(durationWeeks)}>{durationWeeks} Weeks</option>
@@ -290,15 +429,15 @@ export default function RoadmapDetailPage() {
             </Select>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 sm:col-span-2 lg:col-span-1">
-            <label className="text-xs font-semibold text-text-secondary shrink-0">
-              Skill-Gap Hours:
+          <div className="flex flex-col gap-1 sm:w-52">
+            <label className="text-[11px] font-semibold uppercase tracking-wider text-[#3F72AF]">
+              Skill-Gap Overhead
             </label>
             <Select
               aria-label="Skill Gap Hours"
               value={String(totalSkillGapHours)}
               onChange={(e) => setTotalSkillGapHours(Number(e.target.value))}
-              className="w-full sm:w-52 font-mono-tabular"
+              className="font-mono-tabular"
             >
               {![0, 14, 22, 32, 55].includes(totalSkillGapHours) && (
                 <option value={String(totalSkillGapHours)}>
@@ -314,186 +453,258 @@ export default function RoadmapDetailPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-mono-tabular text-xs text-text-muted">
-            Phase Breakdown:{" "}
-            <strong className="text-text-primary">
-              {baseRoadmap.phaseWeekCounts.join(" + ")} = {baseRoadmap.durationWeeks} Weeks
-            </strong>
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex items-center px-3 py-1.5 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF] font-mono-tabular text-xs font-semibold text-[#112D4E]">
+            Phase Math: {baseRoadmap.phaseWeekCounts.join(" + ")} = {baseRoadmap.durationWeeks} Wks
+          </div>
+          {syncMessage && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#E3FDFD] text-[#004F53] text-xs font-semibold">
+              <span aria-hidden="true" className="material-symbols-outlined text-[14px]">
+                check_circle
+              </span>
+              {syncMessage}
+            </span>
+          )}
         </div>
-      </div>
+      </section>
 
+      {/* Exported Markdown Card */}
       {exportedMarkdown && (
-        <Card className="border-brand-primary/40" data-testid="exported-markdown-card">
-          <CardHeader className="pb-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle>
-                Exported Clean Markdown (GitHub README &amp; FYP Proposal Ready)
-              </CardTitle>
-              <div className="flex items-center gap-2">
-                {copyStatus && (
-                  <span className="text-xs font-medium text-status-success-text">
-                    {copyStatus}
-                  </span>
-                )}
-                <Button size="sm" variant="outline" onClick={handleCopyMarkdown}>
-                  <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Copy Markdown
-                </Button>
-                <Button size="sm" onClick={handleDownloadFile}>
-                  <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-                  Download .md File
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setExportedMarkdown(null)}>
-                  Close
-                </Button>
-              </div>
+        <section
+          className="rounded-xl border border-[#3F72AF]/50 bg-surface-container-lowest p-5 shadow-sm space-y-3"
+          data-testid="exported-markdown-card"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-headline-sm text-base font-bold text-[#112D4E]">
+              Exported Clean Markdown (GitHub README &amp; FYP Proposal Ready)
+            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              {copyStatus && (
+                <span className="text-xs font-semibold text-[#004F53]">{copyStatus}</span>
+              )}
+              <Button size="sm" variant="outline" onClick={handleCopyMarkdown}>
+                Copy Markdown
+              </Button>
+              <Button size="sm" onClick={handleDownloadFile}>
+                Download .md File
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setExportedMarkdown(null)}>
+                Close
+              </Button>
             </div>
-          </CardHeader>
-          <CardContent>
-            <pre className="max-h-72 overflow-y-auto rounded-[6px] border border-border-default bg-bg-subtle p-4 font-mono-tabular text-xs text-text-primary whitespace-pre-wrap">
-              {exportedMarkdown}
-            </pre>
-          </CardContent>
-        </Card>
+          </div>
+          <pre className="max-h-72 overflow-y-auto rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] p-4 font-mono-tabular text-xs text-[#112D4E] whitespace-pre-wrap">
+            {exportedMarkdown}
+          </pre>
+        </section>
       )}
 
       {viewState === "LOADING" && (
         <div className="space-y-4">
-          <Skeleton className="h-44 w-full" />
-          <Skeleton className="h-44 w-full" />
+          <Skeleton className="h-44 w-full rounded-xl" />
+          <Skeleton className="h-44 w-full rounded-xl" />
         </div>
       )}
 
       {viewState === "ERROR" && (
-        <Card className="border-status-error/30 bg-status-error-tint/30">
-          <CardHeader>
-            <CardTitle className="text-status-error-text">Roadmap Persistence Error</CardTitle>
-            <CardDescription className="text-status-error-text">
-              Could not synchronize milestone toggle state with PostgreSQL.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => setViewState("POPULATED")}>
-              <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-              Retry Sync
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-error/30 bg-error-container/50 p-6 space-y-3">
+          <h2 className="font-headline-sm text-lg font-bold text-on-error-container">
+            Roadmap Synchronization Error
+          </h2>
+          <Button variant="outline" onClick={() => setViewState("POPULATED")}>
+            Retry Sync
+          </Button>
+        </div>
       )}
 
       {viewState === "EMPTY" && (
-        <Card className="bg-grad-ambient">
-          <CardHeader>
-            <CardTitle>No FYP Proposal Selected for Roadmap Yet</CardTitle>
-            <CardDescription>
-              {storedIdeas.length > 0
-                ? `Click below to allocate deterministic ramp-up weeks and 4 execution phases totaling ${durationWeeks} weeks.`
-                : "Save your Skill Profile and generate FYP Recommendations first, then click Build Roadmap on any proposal to create your calibrated semester execution plan."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            {storedIdeas.length > 0 ? (
-              <Button onClick={() => setViewState("POPULATED")}>
-                <CalendarRange className="h-4 w-4" strokeWidth={1.75} />
-                Build {durationWeeks}-Week Execution Plan
-              </Button>
-            ) : (
-              <Button onClick={() => router.push("/dashboard/recommendations")}>
-                <CalendarRange className="h-4 w-4" strokeWidth={1.75} />
-                Go to FYP Recommendations
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-6 sm:p-8 space-y-3 shadow-xs">
+          <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+            No FYP Proposal Selected for Roadmap Yet
+          </h2>
+          <p className="text-xs sm:text-sm text-on-surface-variant max-w-2xl">
+            Generate your 3-Track FYP Recommendations first, then click Build Roadmap on any
+            proposal to create and track your calibrated 4-phase semester execution plan.
+          </p>
+          <Button onClick={() => router.push("/dashboard/recommendations")}>
+            Go to FYP Recommendations
+          </Button>
+        </div>
       )}
 
+      {/* Stitch Vertical 4-Phase Execution Timeline */}
       {viewState === "POPULATED" && (
-        <div className="space-y-4">
+        <div className="relative pl-7 sm:pl-10 space-y-6">
+          {/* Continuous Vertical Track Line */}
+          <div
+            aria-hidden="true"
+            className="absolute left-2.5 sm:left-4 top-4 bottom-8 w-0.5 bg-[#DBE2EF]"
+          />
+
           {milestones.map((ms) => {
-            const weekBadge = `W${String(ms.weekStart).padStart(2, "0")}â€“W${String(ms.weekEnd).padStart(2, "0")}`;
+            const weekBadge = `W${String(ms.weekStart).padStart(2, "0")}–W${String(ms.weekEnd).padStart(2, "0")}`;
+            const isDone = ms.status === "COMPLETED";
+            const isActive = ms.status === "IN_PROGRESS";
 
             return (
-              <Card key={ms.id} data-testid={`milestone-card-${ms.phaseNumber}`}>
-                <CardHeader className="pb-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="default" className="font-mono-tabular">
+              <article
+                key={ms.id}
+                data-testid={`milestone-card-${ms.phaseNumber}`}
+                className="relative flex flex-col gap-3 animate-fade-in-up"
+              >
+                {/* Timeline Node Marker */}
+                <div
+                  className={`absolute -left-7 sm:-left-10 top-1 w-6 h-6 rounded-full flex items-center justify-center shadow-xs ring-4 ring-[#F9F7F7] ${
+                    isDone
+                      ? "bg-[#71C9CE] text-[#112D4E]"
+                      : isActive
+                        ? "bg-[#3F72AF] text-white"
+                        : "bg-[#DBE2EF] text-[#112D4E]"
+                  }`}
+                >
+                  {isDone ? (
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[14px] font-bold"
+                    >
+                      check
+                    </span>
+                  ) : (
+                    <span className="font-mono-tabular text-[11px] font-bold">
+                      {ms.phaseNumber}
+                    </span>
+                  )}
+                </div>
+
+                {/* Phase Card */}
+                <div
+                  className={`bg-surface-container-lowest rounded-xl p-5 sm:p-6 border border-[#DBE2EF] shadow-xs hover:shadow-md transition-all ${
+                    isActive ? "border-t-2 border-t-[#3F72AF]" : ""
+                  }`}
+                >
+                  {/* Phase Header Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 pb-4 border-b border-[#DBE2EF]/70 mb-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`font-mono-tabular text-xs px-2.5 py-0.5 rounded-lg font-semibold ${
+                          isActive
+                            ? "bg-[#112D4E] text-white"
+                            : "bg-[#DBE2EF]/70 text-[#112D4E]"
+                        }`}
+                      >
                         {weekBadge} ({ms.weeksAllocated} Wks)
-                      </Badge>
-                      <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#3F72AF]">
                         {ms.phaseTitle}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={
-                          ms.status === "COMPLETED"
-                            ? "success"
-                            : ms.status === "IN_PROGRESS"
-                              ? "amber"
-                              : "neutral"
-                        }
+                      <span
+                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                          isDone
+                            ? "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/60"
+                            : isActive
+                              ? "bg-[#DBE2EF] text-[#112D4E]"
+                              : "bg-surface-container text-on-surface-variant"
+                        }`}
                       >
-                        {ms.status === "COMPLETED"
-                          ? "Completed"
-                          : ms.status === "IN_PROGRESS"
-                            ? "In Progress"
-                            : "Not Started"}
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
+                        {isDone
+                          ? "Completed · Signed Off"
+                          : isActive
+                            ? "In Progress (Active)"
+                            : "Upcoming / Not Started"}
+                      </span>
+
+                      <button
+                        type="button"
                         onClick={() => handleCycleStatus(ms)}
                         data-testid={`toggle-milestone-${ms.phaseNumber}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#DBE2EF] bg-[#F9F7F7] hover:bg-[#DBE2EF]/60 px-2.5 py-1 text-xs font-semibold text-[#112D4E] transition-colors"
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5 text-brand-primary" strokeWidth={1.75} />
-                        Toggle Status
-                      </Button>
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[15px] text-[#3F72AF]"
+                        >
+                          sync
+                        </span>
+                        <span>Toggle Status</span>
+                      </button>
                     </div>
                   </div>
-                  <CardTitle className="mt-2">{ms.title}</CardTitle>
-                </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
+                  <h2 className="font-title-md text-base sm:text-[18px] font-bold text-[#112D4E] mb-3">
+                    {ms.title}
+                  </h2>
+
+                  {/* Concrete Deliverables Checklist */}
+                  <div className="space-y-2">
+                    <div className="text-[11px] uppercase tracking-wider text-[#3F72AF] font-semibold">
                       Concrete Phase Deliverables
-                    </p>
-                    <ul className="space-y-1.5 text-sm text-text-secondary">
-                      {ms.deliverables.map((d, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <Clock
-                            className="mt-0.5 h-4 w-4 shrink-0 text-brand-primary"
-                            strokeWidth={1.75}
-                          />
-                          <span>{d}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    </div>
+                    {ms.deliverables.map((d, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2.5 p-3 rounded-lg bg-[#F9F7F7] border border-[#DBE2EF]/60"
+                      >
+                        <div
+                          className={`w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 ${
+                            isDone
+                              ? "bg-[#71C9CE] text-[#112D4E]"
+                              : isActive
+                                ? "bg-[#3F72AF] text-white"
+                                : "bg-[#DBE2EF] text-[#3F72AF]"
+                          }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className="material-symbols-outlined text-[13px]"
+                          >
+                            {isDone ? "check" : isActive ? "pending" : "radio_button_unchecked"}
+                          </span>
+                        </div>
+                        <p className="text-xs sm:text-sm text-on-surface leading-snug">
+                          <strong className="font-mono-tabular text-[#112D4E] font-semibold mr-1.5">
+                            DEL-{ms.phaseNumber}.{idx + 1}:
+                          </strong>
+                          {d}
+                        </p>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3 text-xs">
-                      <div className="flex items-center gap-1.5 font-semibold text-text-primary">
-                        <ShieldCheck className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
+                  {/* Verification Criteria & Risk Gate */}
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-[#112D4E]">
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[16px] text-[#004F53]"
+                        >
+                          verified
+                        </span>
                         <span>Verification Criteria</span>
                       </div>
-                      <p className="mt-1 text-text-secondary">{ms.verificationCriteria}</p>
+                      <p className="text-on-surface-variant leading-relaxed">
+                        {ms.verificationCriteria}
+                      </p>
                     </div>
 
-                    <div className="rounded-[6px] border border-status-warning/30 bg-status-warning-tint p-3 text-xs">
-                      <div className="flex items-center gap-1.5 font-semibold text-status-warning-text">
-                        <AlertTriangle className="h-4 w-4" strokeWidth={1.75} />
-                        <span>Risk Checkpoint</span>
+                    <div className="p-3 rounded-lg bg-error-container/35 border border-error/20 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-on-error-container">
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[16px] text-error"
+                        >
+                          warning
+                        </span>
+                        <span>Milestone Risk Checkpoint</span>
                       </div>
-                      <p className="mt-1 text-status-warning-text/90">{ms.riskNote}</p>
+                      <p className="text-on-surface-variant leading-relaxed">{ms.riskNote}</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </article>
             );
           })}
         </div>

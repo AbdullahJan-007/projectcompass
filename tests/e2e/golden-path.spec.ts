@@ -104,9 +104,11 @@ test.describe("ProjectCompass E2E Golden Path & RBAC Verification", () => {
     ).toBeVisible();
     await expect(page.getByText(/NEEDS_MANUAL_ABSTRACT/i)).toBeVisible();
 
-    // 4. Coordinator attempting to access /dashboard/admin (ADMIN only) is blocked and redirected
+    // 4. Coordinator attempting to access /dashboard/admin (ADMIN only) or /dashboard/roadmaps (STUDENT only) is blocked and redirected back to /dashboard/coordinator
     await page.goto("/dashboard/admin");
-    await page.waitForURL(/\/dashboard\/recommendations/);
+    await page.waitForURL(/\/dashboard\/coordinator/);
+    await page.goto("/dashboard/roadmaps");
+    await page.waitForURL(/\/dashboard\/coordinator/);
   });
 
   test("Multi-batch BSIT registration (Fall 2022 · BSIT) and Mobile (375px) & Tablet (768px) responsive layout without horizontal overflow", async ({

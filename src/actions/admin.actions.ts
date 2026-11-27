@@ -7,6 +7,7 @@ import { AuthError, requireRole } from "@/lib/auth/session";
 import {
   readAccountsStore,
   registerFacultyAccountInDb,
+  syncActiveStatusInAccountsStore,
   syncRoleInAccountsStore,
 } from "@/lib/auth/account-registry";
 import {
@@ -14,6 +15,14 @@ import {
   writeInstitutionalDb,
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isProductionRuntime(): boolean {
+  return (
+    process.env.NODE_ENV === "production" &&
+    process.env.CI !== "true" &&
+    process.env.SEED_DEMO_DATA !== "true"
+  );
+}
 
 function isDbConnectionOffline(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
@@ -81,6 +90,22 @@ export async function updateUserRole(
       };
     }
 
+    if (target.role === "ADMIN" && role !== "ADMIN") {
+      const activeAdminsCount = await db.user.count({
+        where: { role: "ADMIN", isActive: true },
+      });
+      if (activeAdminsCount <= 1) {
+        return {
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message:
+              "Last-Admin protection: Cannot demote the only active University Admin account.",
+          },
+        };
+      }
+    }
+
     await db.$transaction([
       db.user.update({
         where: { id: targetUserId },
@@ -122,11 +147,13 @@ export async function updateUserRole(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const actor = await requireRole(["ADMIN"]);
       const parsed = updateUserRoleSchema.parse(rawInput);
       const accStore = readAccountsStore();
-      const adminCount = accStore.facultyAccounts.filter((f) => f.role === "ADMIN").length;
+      const adminCount = accStore.facultyAccounts.filter(
+        (f) => f.role === "ADMIN" && f.isActive !== false
+      ).length;
 
       if (parsed.targetUserId === actor.id && parsed.role !== "ADMIN" && adminCount <= 1) {
         return {
@@ -144,7 +171,7 @@ export async function updateUserRole(
       const instStore = readInstitutionalDb();
       instStore.auditLogs.unshift({
         id: `cm0audit_${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
         actor: actor.fullName,
         action: "ROLE_UPDATED",
         entityType: "User",
@@ -255,6 +282,7 @@ export async function overrideSupervisorQuota(
 
     revalidatePath("/dashboard/admin");
     revalidatePath("/dashboard/coordinator");
+    revalidatePath("/dashboard/supervisors");
 
     return {
       ok: true,
@@ -267,7 +295,7 @@ export async function overrideSupervisorQuota(
         error: { code: err.code, message: err.message },
       };
     }
-    if (isDbConnectionOffline(err)) {
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
       const actor = await requireRole(["COORDINATOR", "ADMIN"]);
       const parsed = overrideQuotaSchema.parse(rawInput);
       const instStore = readInstitutionalDb();
@@ -290,7 +318,7 @@ export async function overrideSupervisorQuota(
       sup.maxSlots = parsed.maxSlots;
       instStore.auditLogs.unshift({
         id: `cm0audit_${Date.now()}`,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
         actor: actor.fullName,
         action: "SUPERVISOR_SLOT_OVERRIDE",
         entityType: "SupervisorProfile",
@@ -326,6 +354,7 @@ const provisionFacultySchema = z.object({
     .max(120),
   departmentCode: z.enum(["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"]),
   designation: z.string().min(2).max(80).default("Assistant Professor"),
+  role: z.enum(["SUPERVISOR", "COORDINATOR"]).default("SUPERVISOR"),
   maxSlots: z.coerce.number().int().min(1).max(15).default(5),
   pin: z.string().regex(/^\d{4}$/, "Initial 4-digit PIN must be exactly 4 numeric digits"),
   researchDomains: z
@@ -336,8 +365,8 @@ const provisionFacultySchema = z.object({
 
 /**
  * Admin-only faculty hiring & database provisioning.
- * Creates User (SUPERVISOR) + FacultyAccount + SupervisorProfile + AuditLog.
- * Public faculty self-registration is strictly disabled.
+ * Atomically creates User (SUPERVISOR | COORDINATOR) + FacultyAccount + SupervisorProfile
+ * (with 1536-dim embedding) + AuditLog in PostgreSQL, failing closed in production.
  */
 export async function provisionFacultyAccount(rawInput: unknown): Promise<
   ActionResult<{
@@ -346,6 +375,7 @@ export async function provisionFacultyAccount(rawInput: unknown): Promise<
     universityEmail: string;
     departmentCode: string;
     designation: string;
+    role: "SUPERVISOR" | "COORDINATOR";
     maxSlots: number;
   }>
 > {
@@ -374,6 +404,8 @@ export async function provisionFacultyAccount(rawInput: unknown): Promise<
       maxSlots: input.maxSlots,
       researchDomains: input.researchDomains,
       pin: input.pin,
+      role: input.role,
+      actorUserId: actor.id,
     });
 
     if (!reg.ok) {
@@ -386,26 +418,8 @@ export async function provisionFacultyAccount(rawInput: unknown): Promise<
       };
     }
 
-    try {
-      await db.auditLog.create({
-        data: {
-          actorUserId: actor.id,
-          action: "FACULTY_PROVISIONED",
-          entityType: "FacultyAccount",
-          entityId: reg.account.userId,
-          metadataJson: {
-            universityEmail: reg.account.universityEmail,
-            departmentCode: reg.account.departmentCode,
-            designation: reg.account.designation,
-            maxSlots: reg.account.maxSlots,
-          },
-        },
-      });
-    } catch {
-      // Non-blocking audit log write if local DB is offline
-    }
-
     revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard/coordinator");
     revalidatePath("/dashboard/supervisors");
 
     return {
@@ -416,6 +430,7 @@ export async function provisionFacultyAccount(rawInput: unknown): Promise<
         universityEmail: reg.account.universityEmail,
         departmentCode: reg.account.departmentCode,
         designation: reg.account.designation,
+        role: input.role,
         maxSlots: reg.account.maxSlots,
       },
     };
@@ -468,6 +483,37 @@ export async function toggleUserActiveStatus(
       };
     }
 
+    const target = await db.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, isActive: true },
+    });
+
+    if (!target) {
+      return {
+        ok: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Target user account not found.",
+        },
+      };
+    }
+
+    if (!isActive && target.role === "ADMIN" && target.isActive) {
+      const activeAdminsCount = await db.user.count({
+        where: { role: "ADMIN", isActive: true },
+      });
+      if (activeAdminsCount <= 1) {
+        return {
+          ok: false,
+          error: {
+            code: "FORBIDDEN",
+            message:
+              "Last-Admin protection: Cannot deactivate the only active University Admin account.",
+          },
+        };
+      }
+    }
+
     await db.$transaction([
       db.user.update({
         where: { id: targetUserId },
@@ -484,11 +530,36 @@ export async function toggleUserActiveStatus(
       }),
     ]);
 
+    try {
+      syncActiveStatusInAccountsStore(targetUserId, isActive);
+    } catch {
+      // Ignore file sync error in mocked unit tests
+    }
+
     revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard/supervisors");
     return { ok: true, data: { targetUserId, isActive } };
   } catch (err) {
     if (err instanceof AuthError) {
       return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
+      const actor = await requireRole(["ADMIN"]);
+      const parsed = toggleUserStatusSchema.parse(rawInput);
+      syncActiveStatusInAccountsStore(parsed.targetUserId, parsed.isActive);
+      const instStore = readInstitutionalDb();
+      instStore.auditLogs.unshift({
+        id: `cm0audit_${Date.now()}`,
+        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
+        actor: actor.fullName,
+        action: parsed.isActive ? "USER_ACTIVATED" : "USER_DEACTIVATED",
+        entityType: "User",
+        entityId: parsed.targetUserId,
+        summary: `${parsed.isActive ? "Activated" : "Deactivated"} user ${parsed.targetUserId}.`,
+      });
+      writeInstitutionalDb(instStore);
+      revalidatePath("/dashboard/admin");
+      return { ok: true, data: { targetUserId: parsed.targetUserId, isActive: parsed.isActive } };
     }
     return {
       ok: false,

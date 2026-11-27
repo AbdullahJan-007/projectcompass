@@ -16,7 +16,9 @@ export default async function AdminRoleGuardLayout({
   }
 
   if (session.role !== "ADMIN") {
-    redirect("/dashboard/recommendations");
+    if (session.role === "SUPERVISOR") redirect("/dashboard/supervisor");
+    if (session.role === "COORDINATOR") redirect("/dashboard/coordinator");
+    redirect("/dashboard/profile");
   }
 
   return <>{children}</>;

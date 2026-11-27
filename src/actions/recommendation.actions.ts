@@ -9,6 +9,7 @@ import {
   type EngineExecutionResult,
 } from "@/lib/recommendation/engine";
 import {
+  isProductionRuntime,
   loadLatestRecommendationRunFromDb,
   loadLiveEngineContext,
   persistRecommendationRunToDb,
@@ -19,6 +20,15 @@ import {
   writeInstitutionalDb,
 } from "@/lib/institutional-store";
 import type { ActionResult } from "@/types/actions";
+
+function isDbConnectionOffline(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === "PrismaClientInitializationError" ||
+    err.message.includes("Can't reach database server") ||
+    err.message.includes("ECONNREFUSED")
+  );
+}
 
 const generateRecommendationsSchema = z.object({
   focusNote: z.string().max(240, "Focus note cannot exceed 240 characters").optional(),
@@ -68,42 +78,16 @@ export async function generateRecommendations(
       };
     }
 
-    const instDb = readInstitutionalDb();
-    const savedProfile =
-      instDb.studentProfiles[user.id] ??
-      instDb.studentProfiles["cm0userstudent00000000001"];
-
     let studentSkills: Array<{
       skillSlug: string;
       proficiency: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
-    }> =
-      parsed.data.profileOverride?.skills ??
-      savedProfile?.skills.map((s) => ({
-        skillSlug: s.skillSlug,
-        proficiency: s.proficiency,
-      })) ?? [
-        { skillSlug: "typescript", proficiency: "ADVANCED" },
-        { skillSlug: "nextjs", proficiency: "INTERMEDIATE" },
-        { skillSlug: "postgresql", proficiency: "INTERMEDIATE" },
-        { skillSlug: "pgvector", proficiency: "BEGINNER" },
-      ];
-    let interests =
-      parsed.data.profileOverride?.interests ??
-      savedProfile?.interests ?? ["DevTools", "Applied AI"];
-    let careerGoal =
-      parsed.data.profileOverride?.careerGoal ??
-      savedProfile?.careerGoal ??
-      "Full-Stack & AI Systems Engineer";
-    let preferredType =
-      parsed.data.profileOverride?.preferredType ??
-      savedProfile?.preferredType ??
-      "PRODUCT_SAAS";
-    let weeklyHours =
-      parsed.data.profileOverride?.weeklyHours ?? savedProfile?.weeklyHours ?? 15;
-    let durationWeeks =
-      parsed.data.profileOverride?.durationWeeks ?? savedProfile?.durationWeeks ?? 24;
-    let teamSize =
-      parsed.data.profileOverride?.teamSize ?? savedProfile?.teamSize ?? 2;
+    }> = [];
+    let interests: string[] = [];
+    let careerGoal = "";
+    let preferredType = "PRODUCT_SAAS";
+    let weeklyHours = 15;
+    let durationWeeks = 24;
+    let teamSize = 2;
 
     let studentProfileId: string | null = null;
     try {
@@ -116,7 +100,7 @@ export async function generateRecommendations(
         },
       });
 
-      if (!profile) {
+      if (!profile || profile.status !== "READY" || profile.skills.length < 3) {
         return {
           ok: false,
           error: {
@@ -127,83 +111,118 @@ export async function generateRecommendations(
         };
       }
 
-      if (profile) {
-        studentProfileId = profile.id;
-        if (profile.status !== "READY" || profile.skills.length < 3) {
-          return {
-            ok: false,
-            error: {
-              code: "PROFILE_INCOMPLETE",
-              message:
-                "Complete your skill profile (minimum 3 skills and 1 interest domain) before running recommendations.",
-            },
-          };
-        }
+      studentProfileId = profile.id;
 
-        // Recover stale stuck runs older than 90 seconds
-        const ninetySecondsAgo = new Date(Date.now() - 90 * 1000);
-        await db.recommendationRun.updateMany({
+      // Recover stale stuck runs older than 90 seconds
+      const ninetySecondsAgo = new Date(Date.now() - 90 * 1000);
+      await db.recommendationRun.updateMany({
+        where: {
+          studentProfileId: profile.id,
+          status: "RUNNING",
+          createdAt: { lt: ninetySecondsAgo },
+        },
+        data: {
+          status: "FAILED",
+          errorCode: "TIMEOUT_RECOVERY",
+        },
+      });
+
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const [activeRunningCount, dailyRuns] = await Promise.all([
+        db.recommendationRun.count({
           where: {
             studentProfileId: profile.id,
             status: "RUNNING",
-            createdAt: { lt: ninetySecondsAgo },
           },
-          data: {
-            status: "FAILED",
-            errorCode: "TIMEOUT_RECOVERY",
+        }),
+        db.recommendationRun.count({
+          where: {
+            studentProfileId: profile.id,
+            createdAt: { gte: twentyFourHoursAgo },
+            status: { not: "FAILED" },
           },
-        });
+        }),
+      ]);
 
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-        const [activeRunningCount, dailyRuns] = await Promise.all([
-          db.recommendationRun.count({
-            where: {
-              studentProfileId: profile.id,
-              status: "RUNNING",
-            },
-          }),
-          db.recommendationRun.count({
-            where: {
-              studentProfileId: profile.id,
-              createdAt: { gte: twentyFourHoursAgo },
-              status: { not: "FAILED" },
-            },
-          }),
-        ]);
-
-        if (activeRunningCount > 0) {
-          return {
-            ok: false,
-            error: {
-              code: "CONCURRENT_RUN_ACTIVE",
-              message: "A recommendation analysis is already running for your profile.",
-            },
-          };
-        }
-
-        if (dailyRuns >= 5) {
-          return {
-            ok: false,
-            error: {
-              code: "RATE_LIMITED",
-              message: "Daily quota reached (maximum 5 recommendation runs per 24 hours).",
-            },
-          };
-        }
-
-        studentSkills = profile.skills.map((s) => ({
-          skillSlug: s.skill.slug,
-          proficiency: s.proficiency,
-        }));
-        interests = profile.interests;
-        careerGoal = profile.careerGoal;
-        preferredType = profile.preferredType;
-        weeklyHours = profile.weeklyHours;
-        durationWeeks = profile.durationWeeks;
-        teamSize = profile.teamSize;
+      if (activeRunningCount > 0) {
+        return {
+          ok: false,
+          error: {
+            code: "CONCURRENT_RUN_ACTIVE",
+            message: "A recommendation analysis is already running for your profile.",
+          },
+        };
       }
-    } catch {
-      // Fallback to verified in-memory profile snapshot when running without live DB connection
+
+      if (dailyRuns >= 5) {
+        return {
+          ok: false,
+          error: {
+            code: "RATE_LIMITED",
+            message: "Daily quota reached (maximum 5 recommendation runs per 24 hours).",
+          },
+        };
+      }
+
+      studentSkills = profile.skills.map((s) => ({
+        skillSlug: s.skill.slug,
+        proficiency: s.proficiency,
+      }));
+      interests = profile.interests;
+      careerGoal = profile.careerGoal;
+      preferredType = profile.preferredType;
+      weeklyHours = profile.weeklyHours;
+      durationWeeks = profile.durationWeeks;
+      teamSize = profile.teamSize;
+    } catch (dbErr) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
+        console.error("[generateRecommendations] Database profile query failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message:
+              "Could not load your student skill profile from the database. Please try again.",
+          },
+        };
+      }
+
+      const instDb = readInstitutionalDb();
+      const savedProfile = instDb.studentProfiles[user.id];
+
+      if (!parsed.data.profileOverride && (!savedProfile || savedProfile.skills.length < 3)) {
+        return {
+          ok: false,
+          error: {
+            code: "PROFILE_INCOMPLETE",
+            message:
+              "Complete your skill profile (minimum 3 skills and 1 interest domain) before running recommendations.",
+          },
+        };
+      }
+
+      studentSkills =
+        parsed.data.profileOverride?.skills ??
+        savedProfile?.skills.map((s) => ({
+          skillSlug: s.skillSlug,
+          proficiency: s.proficiency,
+        })) ??
+        [];
+      interests =
+        parsed.data.profileOverride?.interests ?? savedProfile?.interests ?? ["DevTools"];
+      careerGoal =
+        parsed.data.profileOverride?.careerGoal ??
+        savedProfile?.careerGoal ??
+        "Full-Stack Engineer";
+      preferredType =
+        parsed.data.profileOverride?.preferredType ??
+        savedProfile?.preferredType ??
+        "PRODUCT_SAAS";
+      weeklyHours =
+        parsed.data.profileOverride?.weeklyHours ?? savedProfile?.weeklyHours ?? 15;
+      durationWeeks =
+        parsed.data.profileOverride?.durationWeeks ?? savedProfile?.durationWeeks ?? 24;
+      teamSize = parsed.data.profileOverride?.teamSize ?? savedProfile?.teamSize ?? 2;
     }
 
     const liveContext = await loadLiveEngineContext();
@@ -230,6 +249,18 @@ export async function generateRecommendations(
         profileSummary: `${studentSkills.map((s) => `${s.skillSlug}:${s.proficiency}`).join(",")}|${interests.join(",")}|${careerGoal}|${parsed.data.focusNote ?? ""}`,
         engineResult,
       });
+
+      if (!persisted && isProductionRuntime()) {
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message:
+              "Could not persist recommendation run to the database. Please try again.",
+          },
+        };
+      }
+
       if (persisted) {
         runId = persisted.runId;
         finalEngineResult = {
@@ -239,25 +270,28 @@ export async function generateRecommendations(
       }
     }
 
-    try {
-      const store = readInstitutionalDb();
-      const prev = store.recommendationsByUser[user.id];
-      const nextRemaining = Math.max(0, (prev?.runsRemainingToday ?? 5) - 1);
+    if (!isProductionRuntime()) {
+      try {
+        const store = readInstitutionalDb();
+        const prev = store.recommendationsByUser[user.id];
+        const nextRemaining = Math.max(0, (prev?.runsRemainingToday ?? 5) - 1);
 
-      store.recommendationsByUser[user.id] = {
-        runId,
-        usedFallback: finalEngineResult.usedFallback,
-        runsRemainingToday: nextRemaining,
-        shortlistedIds: [finalEngineResult.ideas[0].id],
-        ideas: finalEngineResult.ideas,
-        updatedAt: new Date().toISOString(),
-      };
-      writeInstitutionalDb(store);
-    } catch {
-      // Ignore write error in unit tests
+        store.recommendationsByUser[user.id] = {
+          runId,
+          usedFallback: finalEngineResult.usedFallback,
+          runsRemainingToday: nextRemaining,
+          shortlistedIds: [finalEngineResult.ideas[0].id],
+          ideas: finalEngineResult.ideas,
+          updatedAt: new Date().toISOString(),
+        };
+        writeInstitutionalDb(store);
+      } catch {
+        // Ignore write error in unit tests
+      }
     }
 
     revalidatePath("/dashboard/recommendations");
+    revalidatePath("/dashboard/admin");
 
     return {
       ok: true,
@@ -344,38 +378,50 @@ export async function updateIdeaStatus(
           where: { id: ideaId },
           data: { status },
         });
+      } else if (isProductionRuntime()) {
+        return {
+          ok: false,
+          error: {
+            code: "NOT_FOUND",
+            message: "Recommended idea not found in the database.",
+          },
+        };
       }
-    } catch {
-      // Allow UI shortlist toggling when DB is offline in local preview
+    } catch (dbErr) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
+        console.error("[updateIdeaStatus] Database update failed:", dbErr);
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Could not save proposal status to the database. Please try again.",
+          },
+        };
+      }
     }
 
-    try {
-      const store = readInstitutionalDb();
-      const defaultEntry = store.recommendationsByUser["cm0userstudent00000000001"];
-      const entry =
-        store.recommendationsByUser[user.id] ??
-        (defaultEntry
-          ? {
-              ...defaultEntry,
-              shortlistedIds: [...defaultEntry.shortlistedIds],
-            }
-          : undefined);
+    if (!isProductionRuntime()) {
+      try {
+        const store = readInstitutionalDb();
+        const entry = store.recommendationsByUser[user.id];
 
-      if (entry) {
-        const hasId = entry.shortlistedIds.includes(ideaId);
-        if (status === "SHORTLISTED" && !hasId) {
-          entry.shortlistedIds.push(ideaId);
-        } else if (status !== "SHORTLISTED" && hasId) {
-          entry.shortlistedIds = entry.shortlistedIds.filter((id) => id !== ideaId);
+        if (entry) {
+          const hasId = entry.shortlistedIds.includes(ideaId);
+          if (status === "SHORTLISTED" && !hasId) {
+            entry.shortlistedIds.push(ideaId);
+          } else if (status !== "SHORTLISTED" && hasId) {
+            entry.shortlistedIds = entry.shortlistedIds.filter((id) => id !== ideaId);
+          }
+          store.recommendationsByUser[user.id] = entry;
+          writeInstitutionalDb(store);
         }
-        store.recommendationsByUser[user.id] = entry;
-        writeInstitutionalDb(store);
+      } catch {
+        // Ignore write error in unit tests
       }
-    } catch {
-      // Ignore write error in unit tests
     }
 
     revalidatePath("/dashboard/recommendations");
+    revalidatePath("/dashboard/supervisors");
     return {
       ok: true,
       data: { ideaId, status },
@@ -403,6 +449,20 @@ export async function getActiveRecommendationsSnapshot(): Promise<ActiveRecommen
   const dbSnapshot = await loadLatestRecommendationRunFromDb(user.id);
   if (dbSnapshot !== null) {
     return dbSnapshot;
+  }
+
+  if (isProductionRuntime()) {
+    return {
+      ideas: null,
+      shortlistedIds: [],
+      runsRemainingToday: 5,
+      usedFallback: false,
+      totalEffortHours: 0,
+      durationWeeks: 24,
+      weeklyHours: 15,
+      teamSize: 2,
+      profileStatus: "MISSING",
+    };
   }
 
   // Local offline fallback (never populated in production)

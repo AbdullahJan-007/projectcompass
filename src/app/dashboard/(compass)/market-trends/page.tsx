@@ -1,20 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, ArrowUpRight, Layers, RefreshCw } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { MARKET_TREND_SNAPSHOTS } from "@/lib/recommendation/seed-data";
 
 export default function MarketTrendsPage() {
   const [demandFilter, setDemandFilter] = useState<string>("ALL");
-  const [viewState, setViewState] = useState<"POPULATED" | "LOADING" | "EMPTY" | "ERROR">(
-    "POPULATED"
-  );
-  void setViewState;
 
   const visibleTrends = MARKET_TREND_SNAPSHOTS.filter(
     (t) => demandFilter === "ALL" || t.demandLevel === demandFilter
@@ -22,29 +13,32 @@ export default function MarketTrendsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border-default pb-5">
-        <div>
+      {/* Stitch Academic Navy Header */}
+      <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-4 border-b border-[#DBE2EF]">
+        <div className="space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="info">IT &amp; Computing Industry Benchmarks</Badge>
-            <span className="text-xs text-text-muted">
-              Updated across all computing &amp; IT specializations
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#E3FDFD] border border-[#71C9CE]/50 text-[#004F53] text-[11px] font-semibold uppercase tracking-wide">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#004F53]" />
+              IT &amp; Computing Industry Benchmarks
+            </span>
+            <span className="text-xs text-on-surface-variant">
+              Versioned Hiring &amp; Stack Signal Matrix
             </span>
           </div>
-          <h1 className="mt-2 text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
+          <h1 className="font-headline-md text-2xl sm:text-[28px] font-bold tracking-tight text-[#001833]">
             IT &amp; Computing Industry Demand &amp; Portfolio Signals
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Curated industry demand indicators, high-signal stack pairings, and graduate hiring
-            differentiators across BSIT, BSCS, BSSE, BSAI, BSCY, and BSDS tracks.
+          <p className="text-sm text-on-surface-variant max-w-3xl">
+            Curated industry demand tiers, high-signal stack pairings, and graduate hiring
+            differentiators across BSIT, BSCS, BSSE, BSAI, BSCY, and BSDS specializations.
           </p>
         </div>
 
-        <div className="w-full sm:w-auto">
+        <div className="w-full sm:w-52 shrink-0">
           <Select
             aria-label="Filter Demand Tier"
             value={demandFilter}
             onChange={(e) => setDemandFilter(e.target.value)}
-            className="w-full sm:w-52"
           >
             <option value="ALL">All Demand Tiers</option>
             <option value="HIGH">HIGH Demand</option>
@@ -53,109 +47,95 @@ export default function MarketTrendsPage() {
             <option value="NICHE">NICHE Demand</option>
           </Select>
         </div>
-      </div>
+      </header>
 
-      {viewState === "LOADING" && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <Skeleton className="h-52 w-full" />
-          <Skeleton className="h-52 w-full" />
-          <Skeleton className="h-52 w-full" />
+      {visibleTrends.length === 0 ? (
+        <div className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-8 text-center space-y-3">
+          <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+            No Market Snapshots Match Selected Filter
+          </h2>
+          <button
+            type="button"
+            onClick={() => setDemandFilter("ALL")}
+            className="px-4 py-2 rounded-lg bg-[#112D4E] text-white text-xs font-semibold"
+          >
+            Show All Domains
+          </button>
         </div>
-      )}
+      ) : (
+        <section className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {visibleTrends.map((trend) => {
+            const pillClass =
+              trend.demandLevel === "HIGH"
+                ? "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50"
+                : trend.demandLevel === "GROWING"
+                  ? "bg-[#DBE2EF] text-[#112D4E]"
+                  : trend.demandLevel === "STEADY"
+                    ? "bg-[#FEF3C7] text-[#92400E]"
+                    : "bg-[#112D4E] text-white";
 
-      {viewState === "ERROR" && (
-        <Card className="border-status-error/30 bg-status-error-tint/30">
-          <CardHeader>
-            <CardTitle className="text-status-error-text">
-              Market Trend Snapshot Load Error
-            </CardTitle>
-            <CardDescription className="text-status-error-text">
-              Unable to query latest versioned domain snapshot from PostgreSQL.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" onClick={() => setViewState("POPULATED")}>
-              <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
-              Reload 2026-Q4 Snapshot
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+            return (
+              <article
+                key={trend.id}
+                className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="h-1 w-full bg-[#112D4E]" />
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${pillClass}`}
+                      >
+                        {trend.demandLevel} DEMAND
+                      </span>
+                      <span className="inline-flex items-center gap-1 font-mono-tabular text-xs font-semibold text-[#2A609C]">
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[15px]"
+                        >
+                          trending_up
+                        </span>
+                        {trend.trendDirection}
+                      </span>
+                    </div>
 
-      {viewState === "EMPTY" && (
-        <Card className="bg-grad-ambient">
-          <CardHeader>
-            <CardTitle>No Market Snapshots Match Selected Filter</CardTitle>
-            <CardDescription>
-              Reset the demand tier filter to view all 12 computer science domain benchmarks.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={() => {
-                setDemandFilter("ALL");
-                setViewState("POPULATED");
-              }}
-            >
-              Show All 12 Domains
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+                    <div>
+                      <h2 className="font-title-md text-lg font-bold text-[#112D4E]">
+                        {trend.domainName}
+                      </h2>
+                      <p className="text-xs text-[#3F72AF] font-medium mt-0.5">
+                        {trend.sourceSummary}
+                      </p>
+                    </div>
 
-      {viewState === "POPULATED" && (
-        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {visibleTrends.map((trend) => (
-            <Card key={trend.id} className="flex flex-col justify-between">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <Badge
-                    variant={
-                      trend.demandLevel === "HIGH"
-                        ? "success"
-                        : trend.demandLevel === "GROWING"
-                          ? "default"
-                          : trend.demandLevel === "STEADY"
-                            ? "amber"
-                            : "info"
-                    }
-                  >
-                    {trend.demandLevel} DEMAND
-                  </Badge>
-                  <span className="inline-flex items-center gap-1 font-mono-tabular text-xs font-medium text-brand-primary">
-                    <TrendingUp className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    Trend: {trend.trendDirection}
-                  </span>
+                    <p className="text-xs sm:text-[13px] text-on-surface-variant leading-relaxed">
+                      {trend.portfolioSignal}
+                    </p>
+                  </div>
                 </div>
-                <CardTitle className="mt-2">{trend.domainName}</CardTitle>
-                <CardDescription className="text-xs">{trend.sourceSummary}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-xs text-text-secondary leading-relaxed">
-                  {trend.portfolioSignal}
-                </p>
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-muted">
-                    <Layers className="h-3.5 w-3.5 text-brand-primary" strokeWidth={1.75} />
+                <div className="px-5 pb-5 pt-3 border-t border-[#DBE2EF]/60 space-y-2 bg-[#F9F7F7]/50">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-[#3F72AF]">
+                    <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
+                      layers
+                    </span>
                     <span>In-Demand Stack Pairings</span>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {trend.topTechPairings.map((pairing) => (
                       <span
                         key={pairing}
-                        className="inline-flex items-center gap-1 rounded-[4px] border border-border-default bg-bg-subtle px-2 py-0.5 font-mono-tabular text-[11px] text-text-primary"
+                        className="inline-flex items-center gap-1 rounded bg-surface-container-lowest border border-[#DBE2EF] px-2 py-0.5 font-mono-tabular text-[11px] font-medium text-[#112D4E]"
                       >
                         {pairing}
-                        <ArrowUpRight className="h-3 w-3 text-text-muted" />
                       </span>
                     ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </article>
+            );
+          })}
+        </section>
       )}
     </div>
   );

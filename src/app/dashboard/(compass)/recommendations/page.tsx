@@ -3,26 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  Sparkles,
-  ShieldCheck,
-  AlertTriangle,
-  CheckCircle2,
-  Bookmark,
-  CalendarRange,
-  Users,
-  Layers,
-  TrendingUp,
-  Info,
-  RefreshCw,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortalSession } from "@/components/layout/portal-session-context";
 import {
@@ -45,6 +26,8 @@ const LOADING_STAGES = [
   "Stage 3: Applying MMR diversity selection & synthesizing grounded proposals...",
 ];
 
+type TrackFilter = "ALL" | "CORE_SAFE" | "CAREER_STRETCH" | "RESEARCH_NICHE";
+
 export default function RecommendationsPage() {
   const router = useRouter();
   const portalSession = usePortalSession();
@@ -53,8 +36,8 @@ export default function RecommendationsPage() {
   const [studentProfile, setStudentProfile] = useState<StoredStudentProfile | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [expandedScoreIds, setExpandedScoreIds] = useState<string[]>([]);
   const [focusNote, setFocusNote] = useState("");
+  const [trackFilter, setTrackFilter] = useState<TrackFilter>("ALL");
   const [usedFallback, setUsedFallback] = useState(false);
   const [runsLeftToday, setRunsLeftToday] = useState(5);
   const [loadingStageIndex, setLoadingStageIndex] = useState(0);
@@ -82,7 +65,6 @@ export default function RecommendationsPage() {
         setUsedFallback(snap.usedFallback);
         if (snap.ideas && snap.ideas.length === 3) {
           setIdeas(snap.ideas);
-          setExpandedScoreIds(snap.ideas.map((i) => i.id));
           setShortlistedIds(snap.shortlistedIds);
           saveStoredIdeas(snap.ideas);
           saveStoredShortlistedIds(snap.shortlistedIds);
@@ -140,7 +122,6 @@ export default function RecommendationsPage() {
 
     setIdeas(res.data.engineResult.ideas);
     saveStoredIdeas(res.data.engineResult.ideas);
-    setExpandedScoreIds(res.data.engineResult.ideas.map((i) => i.id));
     setUsedFallback(res.data.usedFallback);
     setRunsLeftToday((prev) => Math.max(0, prev - 1));
     setViewState("POPULATED");
@@ -184,43 +165,51 @@ export default function RecommendationsPage() {
     router.push(`/dashboard/roadmaps/${idea.id}`);
   }
 
-  function toggleScoreExpand(ideaId: string) {
-    setExpandedScoreIds((prev) =>
-      prev.includes(ideaId) ? prev.filter((id) => id !== ideaId) : [...prev, ideaId]
-    );
-  }
-
-  function renderDuplicateAlert(idea: GeneratedIdeaRecord) {
+  function renderOriginalityBanner(idea: GeneratedIdeaRecord) {
     const topMatch = idea.similarArchives[0];
     if (idea.duplicateRisk === "HIGH") {
       return (
         <div
-          className="rounded-[8px] border border-status-error/30 bg-status-error-tint p-4 space-y-2"
+          className="p-4 rounded-xl bg-error-container text-on-error-container space-y-2.5"
           data-testid={`duplicate-banner-${idea.track}`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-status-error-text">
-              <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              <span>
-                High Similarity Detected (&gt;= 0.82) â€” Mandatory Differentiation Enforced
-              </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-on-error-container text-white flex items-center justify-center shrink-0">
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                  report_problem
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-bold text-on-error-container">
+                  Originality Check: High Overlap (&gt;= 0.82)
+                </div>
+                {topMatch && (
+                  <div className="text-xs text-on-error-container/90">
+                    Closest Past FYP: &ldquo;{topMatch.title}&rdquo; ({topMatch.academicYear})
+                  </div>
+                )}
+              </div>
             </div>
-            <Badge variant="error" className="font-mono-tabular">
-              Similarity: {idea.highestArchiveSimilarity.toFixed(2)} (
-              {Math.round(idea.highestArchiveSimilarity * 100)}%)
-            </Badge>
+            <span className="font-mono-tabular text-xs px-2.5 py-1 rounded bg-white text-error font-bold self-start sm:self-auto shrink-0">
+              {Math.round(idea.highestArchiveSimilarity * 100)}% Topic Similarity
+            </span>
           </div>
-          {topMatch && (
-            <p className="text-xs text-status-error-text/90 font-mono-tabular">
-              Closest Past FYP: &ldquo;{topMatch.title}&rdquo; (BSCS {topMatch.academicYear})
-            </p>
-          )}
+
           {idea.differentiationAngle && (
-            <div className="rounded-[6px] bg-bg-surface/90 p-3 text-xs text-text-primary border border-status-error/20">
-              <span className="font-semibold text-status-error-text">
-                Required Differentiation Angle:{" "}
+            <div className="p-3 rounded-lg bg-surface-container-lowest text-on-surface text-xs flex items-start gap-2 shadow-xs">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-error text-[18px] shrink-0 mt-0.5"
+              >
+                crisis_alert
               </span>
-              {idea.differentiationAngle}
+              <div>
+                <strong className="font-semibold text-error">
+                  Required Thesis Differentiation Angle:{" "}
+                </strong>
+                {idea.differentiationAngle}
+              </div>
             </div>
           )}
         </div>
@@ -230,22 +219,44 @@ export default function RecommendationsPage() {
     if (idea.duplicateRisk === "MODERATE") {
       return (
         <div
-          className="rounded-[8px] border border-status-warning/30 bg-status-warning-tint p-3.5 space-y-1.5"
+          className="p-3.5 rounded-xl bg-surface-container-low border border-[#DBE2EF] space-y-2"
           data-testid={`duplicate-banner-${idea.track}`}
         >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-status-warning-text">
-              <Info className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              <span>Related Past FYPs in Department Archive (0.72 â€“ 0.81)</span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#DBE2EF] flex items-center justify-center text-[#112D4E] shrink-0">
+                <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                  warning
+                </span>
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-[#112D4E]">
+                  Originality Check: Moderate Overlap (0.72 – 0.81)
+                </div>
+                {topMatch && (
+                  <div className="text-xs text-on-surface-variant">
+                    Related Archive: &ldquo;{topMatch.title}&rdquo; ({topMatch.academicYear})
+                  </div>
+                )}
+              </div>
             </div>
-            <Badge variant="warning" className="font-mono-tabular">
-              Similarity: {idea.highestArchiveSimilarity.toFixed(2)}
-            </Badge>
+            <span className="font-mono-tabular text-xs px-2.5 py-1 rounded bg-surface-container-lowest border border-[#DBE2EF] text-[#3F72AF] font-semibold self-start sm:self-auto shrink-0">
+              {Math.round(idea.highestArchiveSimilarity * 100)}% Similarity
+            </span>
           </div>
-          {topMatch && (
-            <p className="text-xs text-status-warning-text/90">
-              Reference Context: &ldquo;{topMatch.title}&rdquo; ({topMatch.academicYear})
-            </p>
+          {idea.differentiationAngle && (
+            <div className="p-2.5 rounded-lg bg-surface-container-lowest border border-[#DBE2EF]/60 text-xs text-on-surface flex items-start gap-2">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[#3F72AF] text-[17px] shrink-0 mt-0.5"
+              >
+                tips_and_updates
+              </span>
+              <div>
+                <strong className="font-semibold text-[#112D4E]">Differentiation Note: </strong>
+                {idea.differentiationAngle}
+              </div>
+            </div>
           )}
         </div>
       );
@@ -253,401 +264,489 @@ export default function RecommendationsPage() {
 
     return (
       <div
-        className="flex flex-wrap items-center justify-between gap-2 rounded-[8px] border border-status-success/30 bg-status-success-tint px-4 py-2.5"
+        className="p-3.5 rounded-xl bg-[#E3FDFD]/60 border border-[#71C9CE]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
         data-testid={`duplicate-banner-${idea.track}`}
       >
-        <div className="flex items-center gap-2 text-xs font-semibold text-status-success-text">
-          <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-          <span>Original Direction â€” Low Archive Overlap (&lt; 0.72)</span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-[#71C9CE]/30 flex items-center justify-center text-[#004F53] shrink-0">
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+              verified
+            </span>
+          </div>
+          <div>
+            <div className="text-xs font-semibold text-[#112D4E]">
+              Originality Check: Low Overlap (&lt; 0.72)
+            </div>
+            <div className="text-xs text-on-surface-variant">
+              Evaluated against departmental dissertation archives with clean semantic novelty.
+            </div>
+          </div>
         </div>
-        <Badge variant="success" className="font-mono-tabular">
-          Max Archive Similarity: {idea.highestArchiveSimilarity.toFixed(2)}
-        </Badge>
+        <span className="font-mono-tabular text-xs px-2.5 py-1 rounded bg-surface-container-lowest text-[#004F53] border border-[#71C9CE]/50 font-semibold self-start sm:self-auto shrink-0">
+          Max Overlap: {idea.highestArchiveSimilarity.toFixed(2)}
+        </span>
       </div>
     );
   }
 
   function renderIdeaCard(idea: GeneratedIdeaRecord) {
     const isShortlisted = shortlistedIds.includes(idea.id);
-    const isExpanded = expandedScoreIds.includes(idea.id);
+    const totalSkillGapHrs = idea.skillGaps.reduce((acc, g) => acc + g.estimatedLearnHours, 0);
 
-    const trackBadge =
-      idea.track === "CORE_SAFE" ? (
-        <Badge variant="default">Track 1 Â· Core &amp; Safe</Badge>
-      ) : idea.track === "CAREER_STRETCH" ? (
-        <Badge variant="amber">Track 2 Â· Career Stretch</Badge>
-      ) : (
-        <Badge variant="info">Track 3 Â· Research &amp; Niche</Badge>
-      );
+    const topStripColor =
+      idea.track === "CORE_SAFE"
+        ? "bg-[#71C9CE]"
+        : idea.track === "CAREER_STRETCH"
+          ? "bg-[#3F72AF]"
+          : "bg-[#112D4E]";
+
+    const trackMeta =
+      idea.track === "CORE_SAFE"
+        ? {
+            label: "Track 1: Core & Safe",
+            icon: "verified",
+            pillClass: "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50",
+            scorePillClass: "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]/50",
+          }
+        : idea.track === "CAREER_STRETCH"
+          ? {
+              label: "Track 2: Career Stretch",
+              icon: "trending_up",
+              pillClass: "bg-[#DBE2EF] text-[#112D4E]",
+              scorePillClass: "bg-[#DBE2EF] text-[#112D4E]",
+            }
+          : {
+              label: "Track 3: Research & Niche",
+              icon: "science",
+              pillClass: "bg-[#112D4E] text-white",
+              scorePillClass: "bg-[#112D4E]/10 text-[#112D4E]",
+            };
 
     return (
-      <Card key={idea.id} className="overflow-hidden" data-testid={`idea-card-${idea.track}`}>
-        <CardHeader className="border-b border-border-default bg-bg-surface pb-5">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+      <article
+        key={idea.id}
+        data-testid={`idea-card-${idea.track}`}
+        className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] shadow-xs hover:shadow-md overflow-hidden transition-all duration-200 animate-fade-in-up"
+      >
+        {/* Top Strip Indicator */}
+        <div className={`h-1.5 w-full ${topStripColor}`} />
+
+        <div className="p-5 sm:p-6 space-y-5">
+          {/* Header Ribbon */}
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              {trackBadge}
-              <Badge variant="neutral">{idea.domain}</Badge>
-              <Badge variant="neutral" className="font-mono-tabular">
-                Difficulty: {idea.difficulty}
-              </Badge>
-              <Badge variant="info">
-                <TrendingUp className="mr-1 h-3 w-3" strokeWidth={1.75} />
-                {idea.marketDemandTag}
-              </Badge>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={isShortlisted ? "default" : "outline"}
-                onClick={() => handleToggleShortlist(idea)}
-                data-testid={`shortlist-btn-${idea.track}`}
-              >
-                <Bookmark
-                  className={`h-3.5 w-3.5 shrink-0 ${isShortlisted ? "fill-current" : ""}`}
-                  strokeWidth={1.75}
-                />
-                <span>{isShortlisted ? "Shortlisted âœ“" : "Shortlist Idea"}</span>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={() => handleOpenRoadmap(idea)}
-                data-testid={`generate-roadmap-btn-${idea.track}`}
-              >
-                <CalendarRange className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                <span>
-                  Generate {studentProfile?.durationWeeks ?? 24}-Wk Roadmap
-                </span>
-              </Button>
-            </div>
-          </div>
-
-          <div className="mt-3 flex flex-col sm:flex-row sm:flex-wrap items-start justify-between gap-4">
-            <div className="max-w-3xl space-y-1.5">
-              <CardTitle className="text-[18px] sm:text-[20px] leading-[1.3]">{idea.title}</CardTitle>
-              <CardDescription>{idea.problemStatement}</CardDescription>
-            </div>
-
-            <div className="flex w-full sm:w-auto flex-row sm:flex-col items-center sm:items-end justify-between rounded-[8px] border border-brand-primary/30 bg-brand-tint/40 px-4 py-2.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-brand-primary-hover">
-                Explainable Feasibility
-              </span>
               <span
-                className="font-mono-tabular text-2xl font-bold text-text-primary"
-                data-testid={`feasibility-total-${idea.track}`}
+                className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${trackMeta.pillClass}`}
               >
-                {idea.feasibilityScore}/100
+                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
+                  {trackMeta.icon}
+                </span>
+                {trackMeta.label}
               </span>
-              <span className="font-mono-tabular text-[11px] text-text-muted">
-                Est. Effort: {idea.estimatedTotalHours} hrs
+              <span className="text-xs text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-md">
+                Difficulty: <strong className="text-[#112D4E] font-semibold">{idea.difficulty}</strong>
+              </span>
+              <span className="text-xs text-on-surface-variant bg-surface-container-low px-2.5 py-1 rounded-md">
+                <strong className="text-[#112D4E] font-semibold">{idea.marketDemandTag}</strong>
               </span>
             </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="font-mono-tabular text-xs px-2.5 py-1 rounded bg-surface-container-low text-[#112D4E] font-semibold">
+                Est. {idea.estimatedTotalHours} Hours
+              </span>
+              <div
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${trackMeta.scorePillClass}`}
+              >
+                <span className="text-[11px] font-bold uppercase tracking-wider">Feasibility</span>
+                <span
+                  className="font-mono-tabular text-sm font-bold"
+                  data-testid={`feasibility-total-${idea.track}`}
+                >
+                  {idea.feasibilityScore} / 100
+                </span>
+              </div>
+            </div>
           </div>
-        </CardHeader>
 
-        <CardContent className="space-y-6 pt-6">
-          {/* 1. Anti-Duplicate Banner */}
-          {renderDuplicateAlert(idea)}
-
-          {/* 2. Proposed Architecture Deliverable */}
-          <div className="rounded-[8px] border border-border-default bg-bg-subtle p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-              Grounded Engineering Deliverable
+          {/* Title & Problem Summary */}
+          <div className="space-y-1.5">
+            <h2 className="font-headline-md text-xl sm:text-2xl text-[#112D4E] font-bold leading-snug">
+              {idea.title}
+            </h2>
+            <p className="text-sm text-on-surface-variant leading-relaxed">
+              {idea.problemStatement}
             </p>
-            <p className="mt-1 text-sm text-text-primary leading-relaxed">
+          </div>
+
+          {/* Originality Check Banner */}
+          {renderOriginalityBanner(idea)}
+
+          {/* Grounded Engineering Deliverable Box */}
+          <div className="p-4 rounded-xl bg-surface-container-low border border-[#DBE2EF]/80 space-y-1.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-headline-sm text-sm sm:text-base text-[#112D4E] font-semibold flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined text-[#3F72AF] text-[18px]"
+                >
+                  terminal
+                </span>
+                Grounded Engineering Deliverable
+              </h3>
+              <span className="text-[11px] font-semibold text-[#3F72AF]">{idea.domain}</span>
+            </div>
+            <p className="text-xs sm:text-sm text-on-surface leading-relaxed">
               {idea.proposedSolution}
             </p>
           </div>
 
-          {/* 3. Expandable 4-Factor Feasibility Score Breakdown */}
-          <div className="rounded-[8px] border border-border-default bg-bg-surface p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-                <h4 className="text-sm font-semibold text-text-primary">
-                  4-Factor Deterministic Feasibility Breakdown ({idea.feasibilityScore}/100)
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleScoreExpand(idea.id)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-brand-primary hover:underline"
-              >
-                {isExpanded ? (
-                  <>
-                    Hide Math <ChevronUp className="h-3.5 w-3.5" />
-                  </>
-                ) : (
-                  <>
-                    Inspect Sub-Scores <ChevronDown className="h-3.5 w-3.5" />
-                  </>
-                )}
-              </button>
+          {/* 4-Factor Feasibility Breakdown Matrix */}
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#3F72AF]">
+                4-Factor Deterministic Feasibility Breakdown
+              </span>
+              <span className="font-mono-tabular text-xs text-[#112D4E] font-semibold">
+                Composite Fit: {idea.feasibilityScore}%
+              </span>
             </div>
+            <p className="text-xs text-on-surface-variant">{idea.feasibilityExplanation}</p>
 
-            <p className="mt-1 text-xs text-text-secondary">{idea.feasibilityExplanation}</p>
-
-            {isExpanded && (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-text-secondary">Skill Overlap (40%)</span>
-                    <span className="font-mono-tabular font-semibold text-text-primary">
-                      {idea.skillOverlapScore}/40
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-default">
-                    <div
-                      className="h-full bg-brand-primary"
-                      style={{ width: `${(idea.skillOverlapScore / 40) * 100}%` }}
-                    />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+              <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-on-surface-variant font-medium">Skill Overlap</span>
+                  <span className="font-mono-tabular font-bold text-[#112D4E]">
+                    {idea.skillOverlapScore} / 40
+                  </span>
                 </div>
-
-                <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-text-secondary">Time Fit (30%)</span>
-                    <span className="font-mono-tabular font-semibold text-text-primary">
-                      {idea.timeFitScore}/30
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-default">
-                    <div
-                      className="h-full bg-brand-primary"
-                      style={{ width: `${(idea.timeFitScore / 30) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-text-secondary">
-                      Resource Readiness (20%)
-                    </span>
-                    <span className="font-mono-tabular font-semibold text-text-primary">
-                      {idea.resourceReadinessScore}/20
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-default">
-                    <div
-                      className="h-full bg-brand-primary"
-                      style={{ width: `${(idea.resourceReadinessScore / 20) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-[6px] border border-border-default bg-bg-subtle p-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-medium text-text-secondary">Supervisor Fit (10%)</span>
-                    <span className="font-mono-tabular font-semibold text-text-primary">
-                      {idea.supervisorFitScore}/10
-                    </span>
-                  </div>
-                  <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border-default">
-                    <div
-                      className="h-full bg-brand-primary"
-                      style={{ width: `${(idea.supervisorFitScore / 10) * 100}%` }}
-                    />
-                  </div>
+                <div className="w-full h-1.5 bg-[#DBE2EF] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#71C9CE] rounded-full"
+                    style={{ width: `${(idea.skillOverlapScore / 40) * 100}%` }}
+                  />
                 </div>
               </div>
-            )}
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-on-surface-variant font-medium">Timeline Fit</span>
+                  <span className="font-mono-tabular font-bold text-[#112D4E]">
+                    {idea.timeFitScore} / 30
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[#DBE2EF] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#71C9CE] rounded-full"
+                    style={{ width: `${(idea.timeFitScore / 30) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-on-surface-variant font-medium">Resource Readiness</span>
+                  <span className="font-mono-tabular font-bold text-[#112D4E]">
+                    {idea.resourceReadinessScore} / 20
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[#DBE2EF] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#3F72AF] rounded-full"
+                    style={{ width: `${(idea.resourceReadinessScore / 20) * 100}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-surface-container-low border border-[#DBE2EF]/70 space-y-1.5">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-on-surface-variant font-medium">Supervisor Fit</span>
+                  <span className="font-mono-tabular font-bold text-[#112D4E]">
+                    {idea.supervisorFitScore} / 10
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-[#DBE2EF] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#3F72AF] rounded-full"
+                    style={{ width: `${(idea.supervisorFitScore / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* 4. Skill-Gap Analysis & Upskilling Plan */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-text-primary">
-                Skill-Gap Analysis &amp; Estimated Upskilling Hours
-              </h4>
+          {/* Two-Column Skill-Gap Preparation & Recommended Tech Stack */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="rounded-xl bg-surface-container-low border border-[#DBE2EF]/70 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#3F72AF] flex items-center gap-1.5">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                    school
+                  </span>
+                  Skill-Gap Preparation
+                </span>
+                <span className="font-mono-tabular text-[11px] text-on-surface-variant">
+                  ~{totalSkillGapHrs} Hours Needed
+                </span>
+              </div>
+
               {idea.skillGaps.length === 0 ? (
-                <div className="rounded-[6px] border border-status-success/30 bg-status-success-tint p-3 text-xs text-status-success-text">
-                  Zero critical skill gaps â€” your current profile satisfies all required stack
+                <div className="p-3 rounded-lg bg-[#E3FDFD]/70 border border-[#71C9CE]/40 text-xs text-[#004F53] font-medium">
+                  Zero critical skill gaps — your verified profile covers all required stack
                   proficiencies.
                 </div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-1.5">
                   {idea.skillGaps.map((gap) => (
                     <div
                       key={gap.skillSlug}
-                      className="rounded-[6px] border border-border-default bg-bg-subtle p-3 space-y-1"
+                      className="flex items-start justify-between gap-2 p-2.5 rounded-lg bg-surface-container-lowest border border-[#DBE2EF]/60 text-xs"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono-tabular text-xs font-semibold text-text-primary">
-                          #{gap.skillSlug}
+                      <div className="min-w-0">
+                        <span className="font-mono-tabular font-semibold text-[#112D4E] block">
+                          #{gap.skillSlug} ({gap.severity})
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <Badge
-                            variant={
-                              gap.severity === "CRITICAL"
-                                ? "error"
-                                : gap.severity === "MODERATE"
-                                  ? "amber"
-                                  : "neutral"
-                            }
-                          >
-                            {gap.severity}
-                          </Badge>
-                          <span className="font-mono-tabular text-xs font-medium text-text-secondary">
-                            +{gap.estimatedLearnHours} hrs prep
-                          </span>
-                        </div>
+                        <span className="text-on-surface-variant text-[11px]">
+                          {gap.learningAction}
+                        </span>
                       </div>
-                      <p className="text-xs text-text-secondary">{gap.learningAction}</p>
+                      <span className="font-mono-tabular text-[11px] px-2 py-0.5 rounded bg-[#E3FDFD] text-[#004F53] font-semibold shrink-0">
+                        +{gap.estimatedLearnHours}h
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* 5. Recommended Tech Stack Table */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Layers className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-                <h4 className="text-sm font-semibold text-text-primary">
-                  Recommended Tech Stack &amp; Architectural Rationale
-                </h4>
+            <div className="rounded-xl bg-surface-container-low border border-[#DBE2EF]/70 p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#3F72AF] flex items-center gap-1.5">
+                  <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                    layers
+                  </span>
+                  Recommended Technology Stack
+                </span>
+                <span className="text-[11px] text-on-surface-variant">Grounded Stack</span>
               </div>
-              <div className="divide-y divide-border-default rounded-[8px] border border-border-default">
+              <div className="space-y-1.5">
                 {idea.recommendedStack.map((item, idx) => (
-                  <div key={idx} className="p-3 text-xs space-y-0.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-text-muted">{item.layer}</span>
-                      <span className="font-mono-tabular font-semibold text-text-primary">
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-lg bg-surface-container-lowest border border-[#DBE2EF]/60 text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] text-on-surface-variant font-medium">
+                        {item.layer}
+                      </span>
+                      <span className="font-mono-tabular font-semibold text-[#112D4E]">
                         {item.tech}
                       </span>
                     </div>
-                    <p className="text-text-secondary">{item.rationale}</p>
+                    <p className="text-[11px] text-on-surface-variant mt-0.5">{item.rationale}</p>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* 6. Matched Available Supervisors Strip */}
-          <div className="rounded-[8px] border border-border-default bg-bg-subtle p-4 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-                <h4 className="text-sm font-semibold text-text-primary">
-                  Matched Department Supervisors with Open Capacity
-                </h4>
+          {/* Matched Supervisors Preview Strip */}
+          {idea.supervisorMatches.length > 0 && (
+            <div className="rounded-xl bg-[#F9F7F7] border border-[#DBE2EF] p-3.5 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                <span className="font-semibold text-[#112D4E] flex items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-[17px] text-[#3F72AF]"
+                  >
+                    person_search
+                  </span>
+                  Matched Faculty Supervisors with Open Capacity
+                </span>
+                <Link
+                  href={`/dashboard/supervisors?ideaId=${encodeURIComponent(idea.id)}`}
+                  className="font-semibold text-[#2A609C] hover:text-[#112D4E] hover:underline"
+                >
+                  View All Ranked Faculty →
+                </Link>
               </div>
-              <Link
-                href={`/dashboard/supervisors?ideaId=${encodeURIComponent(idea.id)}`}
-                className="text-xs font-medium text-brand-primary hover:underline"
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                {idea.supervisorMatches.slice(0, 2).map((sup) => (
+                  <div
+                    key={sup.supervisorProfileId}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-[#DBE2EF] bg-surface-container-lowest p-2.5 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-semibold text-[#112D4E] truncate">
+                          {sup.fullName}
+                        </span>
+                        <span className="font-mono-tabular text-[11px] rounded bg-[#DBE2EF]/70 px-1.5 py-0.5 font-semibold text-[#112D4E]">
+                          {sup.matchPercentage}% Match
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-on-surface-variant truncate mt-0.5">
+                        {sup.rationale}
+                      </p>
+                    </div>
+                    <span className="font-mono-tabular text-[11px] rounded-full bg-[#E3FDFD] border border-[#71C9CE]/50 px-2 py-0.5 font-semibold text-[#004F53] shrink-0">
+                      {sup.availabilityAtMatch}/{sup.maxSlots} open
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Card Action Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-[#DBE2EF]">
+            <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[17px] text-[#004F53]"
               >
-                View All Ranked Faculty &amp; Send Request â†’
-              </Link>
+                verified
+              </span>
+              <span>Calibrated to Departmental Capstone Guidelines</span>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              {idea.supervisorMatches.slice(0, 2).map((sup) => (
-                <div
-                  key={sup.supervisorProfileId}
-                  className="flex items-center justify-between rounded-[6px] border border-border-default bg-bg-surface p-3"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-text-primary">
-                        {sup.fullName}
-                      </span>
-                      <Badge variant="default" className="font-mono-tabular">
-                        {sup.matchPercentage}% Match
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-text-secondary">{sup.rationale}</p>
-                  </div>
-                  <div className="ml-3 shrink-0 text-right">
-                    <Badge variant="success" className="font-mono-tabular">
-                      {sup.availabilityAtMatch} of {sup.maxSlots} slots open
-                    </Badge>
-                  </div>
-                </div>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => handleToggleShortlist(idea)}
+                data-testid={`shortlist-btn-${idea.track}`}
+                className={`px-3.5 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                  isShortlisted
+                    ? "bg-[#E3FDFD] text-[#004F53] border border-[#71C9CE]"
+                    : "bg-surface-container-low hover:bg-[#DBE2EF] text-[#112D4E] border border-[#DBE2EF]"
+                }`}
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                  {isShortlisted ? "bookmark_added" : "bookmark"}
+                </span>
+                <span>{isShortlisted ? "Shortlisted ✓" : "Shortlist Idea"}</span>
+              </button>
+
+              <Link
+                href={`/dashboard/supervisors?ideaId=${encodeURIComponent(idea.id)}`}
+                className="px-3.5 py-2 rounded-lg bg-[#DBE2EF]/70 hover:bg-[#DBE2EF] text-[#112D4E] text-xs font-semibold transition-colors flex items-center gap-1.5"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                  person_search
+                </span>
+                <span>Match Supervisor</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => handleOpenRoadmap(idea)}
+                data-testid={`generate-roadmap-btn-${idea.track}`}
+                className="px-4 py-2 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] text-white text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5"
+              >
+                <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                  alt_route
+                </span>
+                <span>Build {studentProfile?.durationWeeks ?? 24}-Wk Roadmap</span>
+              </button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </article>
     );
   }
 
+  const visibleIdeas =
+    trackFilter === "ALL" ? ideas : ideas.filter((i) => i.track === trackFilter);
+
   return (
     <div className="space-y-6">
-      <section className="rounded-[8px] border border-border-default bg-grad-ambient p-4 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">
-                {portalSession.batchLabel || "Department of IT & Computing"}
-              </Badge>
-              <span className="font-mono-tabular text-xs text-text-secondary">
-                Semester Capacity:{" "}
-                {studentProfile
-                  ? Math.round(
-                      studentProfile.weeklyHours *
-                        studentProfile.durationWeeks *
-                        (studentProfile.teamSize === 1
-                          ? 1
-                          : studentProfile.teamSize === 2
-                            ? 1.65
-                            : 2.2)
-                    )
-                  : 594}{" "}
-                hrs ({studentProfile?.weeklyHours ?? 15}h/wk Ã—{" "}
-                {studentProfile?.durationWeeks ?? 24} wks)
-              </span>
-              <span className="font-mono-tabular text-xs font-semibold text-brand-primary">
-                Â· {runsLeftToday} of 5 daily evaluations left
-              </span>
-            </div>
-            <h1 className="text-[22px] sm:text-[28px] font-semibold leading-[1.2] tracking-[-0.02em] text-text-primary">
-              FYP Proposal Recommendations &amp; Feasibility Breakdown
-            </h1>
-            <p className="text-sm text-text-secondary">
-              Proposals are matched against your technical skills, semester hours, past department
-              project archives, and supervisors with open capacity.
-            </p>
+      {/* Stitch Top Command & Capstone Exploration Header */}
+      <section className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-[#3F72AF]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#E3FDFD] font-semibold text-[#112D4E]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#71C9CE]" />
+              STUDENT PORTAL
+            </span>
+            <span>/</span>
+            <span className="font-semibold text-[#112D4E]">
+              {portalSession.batchLabel || "Dept. of IT & Computing"}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => handleRunAnalysis(false)} disabled={runsLeftToday <= 0}>
-              <Sparkles className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              <span>Refresh Proposals</span>
-            </Button>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="px-2.5 py-1 rounded bg-[#DBE2EF]/60 text-[#112D4E] font-medium flex items-center gap-1">
+              <span
+                aria-hidden="true"
+                className="material-symbols-outlined text-[15px] text-[#3F72AF]"
+              >
+                bolt
+              </span>
+              Daily Proposal Runs:{" "}
+              <strong className="font-mono-tabular font-semibold">{runsLeftToday} / 5</strong>{" "}
+              remaining
+            </span>
           </div>
         </div>
 
-        <div className="mt-4 flex flex-wrap items-center gap-3 pt-2">
-          <Input
-            value={focusNote}
-            onChange={(e) => setFocusNote(e.target.value)}
-            maxLength={240}
-            placeholder="Optional topic focus (e.g., Prefer web/backend systems or open-source datasets without dedicated GPU)..."
-            className="max-w-xl bg-bg-surface text-xs h-9"
-          />
-          <span className="font-mono-tabular text-xs text-text-muted">
-            {focusNote.length}/240 chars
-          </span>
+        <div className="space-y-1">
+          <h1 className="font-headline-lg text-2xl sm:text-3xl text-[#112D4E] font-bold tracking-tight">
+            3-Track FYP Recommendations &amp; Feasibility
+          </h1>
+          <p className="text-sm text-on-surface-variant max-w-3xl leading-relaxed">
+            Personalized capstone proposals synthesized across historical department dissertation
+            archives, faculty supervision capacity, and your verified skill profile.
+          </p>
+        </div>
+
+        {/* Focus Note Input Strip */}
+        <div className="p-2.5 rounded-xl bg-surface-container-low border border-[#DBE2EF] flex flex-col md:flex-row items-stretch md:items-center gap-2.5">
+          <div className="relative flex-1 min-w-0">
+            <span
+              aria-hidden="true"
+              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#3F72AF] text-[18px]"
+            >
+              psychology
+            </span>
+            <input
+              type="text"
+              value={focusNote}
+              onChange={(e) => setFocusNote(e.target.value)}
+              maxLength={240}
+              placeholder="Optional topic focus (e.g., Prioritize low-resource edge deployment or open-source datasets)..."
+              className="w-full h-10 pl-9 pr-3 rounded-lg bg-surface-container-lowest border border-[#DBE2EF] text-on-surface text-xs placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-[#3F72AF]/40"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => handleRunAnalysis(false)}
+            disabled={runsLeftToday <= 0 || viewState === "LOADING"}
+            className="px-4 h-10 rounded-lg bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-xs shrink-0"
+          >
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+              auto_awesome
+            </span>
+            <span>Run Hybrid Analysis</span>
+          </button>
         </div>
       </section>
 
       {actionToast && (
         <div
           data-testid="recommendation-action-toast"
-          className="flex items-center justify-between gap-2 rounded-[8px] border border-status-success/30 bg-status-success-tint px-4 py-3 text-xs font-medium text-status-success-text"
+          className="flex items-center justify-between gap-2 rounded-xl border border-[#71C9CE]/60 bg-[#E3FDFD] px-4 py-3 text-xs font-medium text-[#004F53]"
         >
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+            <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+              check_circle
+            </span>
             <span>{actionToast}</span>
           </div>
           <button
             type="button"
             onClick={() => setActionToast(null)}
-            className="text-xs underline hover:opacity-80"
+            className="text-xs font-semibold underline hover:opacity-80 shrink-0"
           >
             Dismiss
           </button>
@@ -656,51 +755,65 @@ export default function RecommendationsPage() {
 
       {usedFallback && (
         <div
-          className="flex items-center gap-2.5 rounded-[8px] border border-status-info/30 bg-status-info-tint px-4 py-3 text-xs text-status-info-text"
+          className="flex items-center gap-2.5 rounded-xl border border-[#DBE2EF] bg-surface-container-lowest px-4 py-3 text-xs text-[#112D4E]"
           data-testid="fallback-status-banner"
         >
-          <Info className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <span
+            aria-hidden="true"
+            className="material-symbols-outlined text-[18px] text-[#3F72AF] shrink-0"
+          >
+            info
+          </span>
           <span>
-            <strong>Deterministic Matching Notice:</strong> AI narrative refinement was temporarily
-            unavailable; recommendations and feasibility scores were generated using our
-            deterministic matching engine.
+            <strong>Deterministic Matching Active:</strong> Proposals and 4-factor feasibility
+            scores were computed directly by the verified TypeScript hybrid engine.
           </span>
         </div>
       )}
 
       {viewState === "LOADING" && (
-        <Card data-testid="recommendations-loading-state">
-          <CardHeader>
-            <CardTitle>Executing 3-Stage Hybrid Recommendation Pipeline...</CardTitle>
-            <CardDescription>{LOADING_STAGES[loadingStageIndex]}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-bg-subtle">
-              <div
-                className="h-full bg-brand-primary transition-all duration-150"
-                style={{ width: `${((loadingStageIndex + 1) / LOADING_STAGES.length) * 100}%` }}
-              />
-            </div>
-            <Skeleton className="h-52 w-full" />
-            <Skeleton className="h-52 w-full" />
-          </CardContent>
-        </Card>
+        <div
+          className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-6 space-y-4"
+          data-testid="recommendations-loading-state"
+        >
+          <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+            Executing 3-Stage Hybrid Recommendation Pipeline...
+          </h2>
+          <p className="text-xs text-on-surface-variant">{LOADING_STAGES[loadingStageIndex]}</p>
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[#DBE2EF]">
+            <div
+              className="h-full bg-[#112D4E] transition-all duration-150"
+              style={{ width: `${((loadingStageIndex + 1) / LOADING_STAGES.length) * 100}%` }}
+            />
+          </div>
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-48 w-full rounded-xl" />
+        </div>
       )}
 
       {viewState === "EMPTY" && (
-        <Card className="bg-grad-ambient" data-testid="recommendations-empty-state">
-          <CardHeader>
-            <CardTitle>No Recommendation Runs Executed Yet</CardTitle>
-            <CardDescription>
+        <div
+          className="rounded-xl border border-[#DBE2EF] bg-surface-container-lowest p-6 sm:p-8 space-y-4 shadow-xs"
+          data-testid="recommendations-empty-state"
+        >
+          <div className="w-11 h-11 rounded-xl bg-[#E3FDFD] text-[#004F53] flex items-center justify-center">
+            <span aria-hidden="true" className="material-symbols-outlined text-[24px]">
+              lightbulb
+            </span>
+          </div>
+          <div className="space-y-1">
+            <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+              No Recommendation Runs Executed Yet
+            </h2>
+            <p className="text-xs sm:text-sm text-on-surface-variant max-w-2xl">
               {studentProfile && studentProfile.skills.length >= 3
-                ? "Your skill profile is ready. Run your first hybrid analysis to generate 3 personalized FYP proposals (Core/Safe, Career-Stretch, Research/Niche)."
-                : "Save at least 3 technical skills and 1 domain interest in your Skill Profile first, then generate personalized FYP recommendations."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+                ? "Your skill profile is calibrated and ready. Run your first hybrid analysis to synthesize 3 diversified capstone tracks."
+                : "Complete at least 3 verified technical skills and 1 domain interest in your Skill Profile first to unlock personalized FYP recommendations."}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
             {studentProfile && studentProfile.skills.length >= 3 ? (
               <Button onClick={() => handleRunAnalysis(false)}>
-                <Sparkles className="h-4 w-4" strokeWidth={1.75} />
                 Execute First Hybrid Run
               </Button>
             ) : (
@@ -708,71 +821,80 @@ export default function RecommendationsPage() {
                 <Link href="/dashboard/profile">Complete Skill Profile</Link>
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {viewState === "ERROR" && (
-        <Card
-          className="border-status-error/30 bg-status-error-tint/30"
+        <div
+          className="rounded-xl border border-error/30 bg-error-container/50 p-6 space-y-3"
           data-testid="recommendations-error-state"
         >
-          <CardHeader>
-            <CardTitle className="text-status-error-text">
-              Unable to Run Recommendation Analysis
-            </CardTitle>
-            <CardDescription className="text-status-error-text">
-              {errorMessage ??
-                "Failed runs do not consume your 5/day student quota. Please verify your skill profile and retry."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
+          <h2 className="font-headline-sm text-lg font-bold text-on-error-container">
+            Unable to Run Recommendation Analysis
+          </h2>
+          <p className="text-xs text-on-error-container">
+            {errorMessage ??
+              "Failed runs do not consume your 5/day student quota. Please verify your skill profile and retry."}
+          </p>
+          <div className="flex flex-wrap gap-2.5">
             <Button asChild variant="outline">
               <Link href="/dashboard/profile">Update Skill Profile</Link>
             </Button>
             {ideas.length > 0 && (
               <Button variant="outline" onClick={() => setViewState("POPULATED")}>
-                <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
                 Restore Last Verified Run
               </Button>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {viewState === "POPULATED" && (
-        <Tabs defaultValue="ALL" className="w-full">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <TabsList>
-              <TabsTrigger value="ALL">All 3 Diversified Tracks</TabsTrigger>
-              <TabsTrigger value="CORE_SAFE">Track 1: Core &amp; Safe</TabsTrigger>
-              <TabsTrigger value="CAREER_STRETCH">Track 2: Career Stretch</TabsTrigger>
-              <TabsTrigger value="RESEARCH_NICHE">Track 3: Research &amp; Niche</TabsTrigger>
-            </TabsList>
-            <span className="text-xs text-text-muted">
-              Shortlisted Ideas:{" "}
-              <strong className="font-mono-tabular text-text-primary">
-                {shortlistedIds.length}
-              </strong>
-            </span>
+        <div className="space-y-5">
+          {/* Stitch Track Navigation Strip */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-1 p-1 rounded-lg bg-[#DBE2EF]/60 overflow-x-auto">
+              {(
+                [
+                  { key: "ALL", label: "All 3 Tracks", dot: null },
+                  { key: "CORE_SAFE", label: "Track 1: Core & Safe", dot: "bg-[#71C9CE]" },
+                  { key: "CAREER_STRETCH", label: "Track 2: Career Stretch", dot: "bg-[#3F72AF]" },
+                  { key: "RESEARCH_NICHE", label: "Track 3: Research & Niche", dot: "bg-[#112D4E]" },
+                ] as const
+              ).map((tab) => {
+                const active = trackFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setTrackFilter(tab.key)}
+                    className={`px-3.5 py-1.5 rounded-md text-xs flex items-center gap-2 whitespace-nowrap transition-all ${
+                      active
+                        ? "bg-surface-container-lowest text-[#112D4E] font-semibold shadow-xs"
+                        : "text-on-surface-variant hover:text-[#112D4E] font-medium"
+                    }`}
+                  >
+                    {tab.dot && <span className={`w-2 h-2 rounded-full ${tab.dot}`} />}
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3 text-xs text-[#3F72AF]">
+              <span>
+                Shortlisted Proposals:{" "}
+                <strong className="font-mono-tabular text-[#112D4E]">
+                  {shortlistedIds.length}
+                </strong>
+              </span>
+            </div>
           </div>
 
-          <TabsContent value="ALL" className="space-y-6">
-            {ideas.map((idea) => renderIdeaCard(idea))}
-          </TabsContent>
-
-          <TabsContent value="CORE_SAFE" className="space-y-6">
-            {ideas.filter((i) => i.track === "CORE_SAFE").map((idea) => renderIdeaCard(idea))}
-          </TabsContent>
-
-          <TabsContent value="CAREER_STRETCH" className="space-y-6">
-            {ideas.filter((i) => i.track === "CAREER_STRETCH").map((idea) => renderIdeaCard(idea))}
-          </TabsContent>
-
-          <TabsContent value="RESEARCH_NICHE" className="space-y-6">
-            {ideas.filter((i) => i.track === "RESEARCH_NICHE").map((idea) => renderIdeaCard(idea))}
-          </TabsContent>
-        </Tabs>
+          {/* Proposal Cards */}
+          <div className="space-y-6">{visibleIdeas.map((idea) => renderIdeaCard(idea))}</div>
+        </div>
       )}
     </div>
   );

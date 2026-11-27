@@ -4,20 +4,6 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Compass,
-  GraduationCap,
-  ShieldCheck,
-  UserPlus,
-  CheckCircle2,
-  AlertCircle,
-  ArrowRight,
-  KeyRound,
-} from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
   parseStudentRegNo,
   validateFourDigitPin,
 } from "@/lib/auth/university-id";
@@ -28,15 +14,15 @@ export default function SignUpPage() {
   const [studentName, setStudentName] = useState("");
   const [studentRegNo, setStudentRegNo] = useState("");
   const [studentPin, setStudentPin] = useState("");
+  const [showPin, setShowPin] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const parsedReg = useMemo(() => parseStudentRegNo(studentRegNo), [studentRegNo]);
+  const isPinValid = validateFourDigitPin(studentPin);
 
   const isStudentFormValid =
-    studentName.trim().length >= 3 &&
-    parsedReg !== null &&
-    validateFourDigitPin(studentPin);
+    studentName.trim().length >= 3 && parsedReg !== null && isPinValid;
 
   async function handleRegisterSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,150 +48,341 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-canvas px-4 py-8 sm:py-12">
-      <div className="mx-auto max-w-lg space-y-6">
-        <div className="flex flex-col items-center text-center space-y-2">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-brand-primary text-bg-surface shadow-sm">
-              <Compass className="h-5 w-5" strokeWidth={1.75} />
+    <div className="bg-[#F9F7F7] font-body-md text-on-surface antialiased min-h-screen flex flex-col justify-between overflow-x-hidden">
+      {/* Stitch Header */}
+      <header className="fixed top-0 w-full z-50 bg-[#F9F7F7]/90 backdrop-blur-xl border-b border-[#DBE2EF]/80 shadow-[0_1px_8px_rgba(17,45,78,0.04)]">
+        <div className="h-16 w-full max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-[#112D4E] text-[#E3FDFD] flex items-center justify-center font-headline-sm text-lg font-bold shadow-sm shrink-0">
+              P
             </div>
-            <span className="font-heading text-xl font-bold tracking-tight text-text-primary">
-              ProjectCompass
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-title-md text-base sm:text-[18px] leading-tight text-[#112D4E] font-bold tracking-tight truncate">
+                ProjectCompass
+              </span>
+              <span className="font-label-sm text-[10px] text-[#3F72AF] uppercase tracking-wider font-semibold truncate">
+                Dept. of IT &amp; Computing
+              </span>
+            </div>
           </Link>
-          <Badge variant="default">Department of Information Technology &amp; Computing</Badge>
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
-            Student Account Registration
-          </h1>
-          <p className="text-sm text-text-secondary max-w-md">
-            Register with your University Registration Number and a 4-digit Portal PIN across all
-            Fall &amp; Spring batches (`BSIT`, `BSCS`, `BSSE`, `BSAI`, `BSCY`, `BSDS`).
-          </p>
+
+          <nav className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="text-xs text-on-surface-variant hover:text-[#112D4E] transition-colors flex items-center gap-1 font-medium"
+            >
+              <span aria-hidden="true" className="material-symbols-outlined text-[16px]">
+                arrow_back
+              </span>
+              <span>Public Portal</span>
+            </Link>
+            <Link
+              href="/sign-in"
+              className="inline-flex items-center gap-1 rounded-lg bg-[#DBE2EF]/60 px-3 py-1.5 text-xs font-semibold text-[#112D4E] hover:bg-[#DBE2EF] transition-colors"
+            >
+              <span>Portal Sign In</span>
+            </Link>
+          </nav>
         </div>
+      </header>
 
-        <Card className="border-border-default shadow-sm">
-          <CardHeader className="border-b border-border-default bg-bg-subtle/60 pb-4">
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-brand-primary" strokeWidth={1.75} />
-              <CardTitle className="text-base">Final-Year Student Self-Registration</CardTitle>
-            </div>
-            <CardDescription>
-              Your batch year, intake semester, IT program, and roll number are decoded
-              automatically from your University Registration Number.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="pt-6">
-            <form onSubmit={handleRegisterSubmit} className="space-y-4">
-              {errorMessage && (
-                <div
-                  className="flex items-start gap-2 rounded-[6px] border border-status-error/30 bg-status-error-tint p-3 text-xs text-status-error-text"
-                  role="alert"
-                >
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  Full Name
-                </label>
-                <Input
-                  data-testid="register-student-name"
-                  placeholder="e.g., Zainab Malik"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
-                  required
-                />
+      {/* Main Content */}
+      <main className="w-full pt-16 flex-1 flex flex-col justify-center items-center bg-[#F9F7F7] relative">
+        <div className="flex flex-col w-full py-8 sm:py-12 px-4 items-center justify-center">
+          <div className="w-full max-w-[520px] flex flex-col items-center">
+            {/* Primary Elevation Card */}
+            <div className="w-full bg-surface-container-lowest rounded-xl border border-[#DBE2EF] shadow-[0_8px_30px_rgba(17,45,78,0.06)] p-6 sm:p-8 relative animate-fade-in-up">
+              {/* Academic Eyebrow & Status Flag */}
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#DBE2EF]/60 text-[#112D4E] text-[11px] uppercase tracking-wider font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#3F72AF] animate-pulse" />
+                  Student Onboarding · All Intakes
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-[#112D4E] font-semibold bg-[#E3FDFD] border border-[#71C9CE]/50 px-2.5 py-0.5 rounded-full">
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-[14px] text-[#3F72AF]"
+                  >
+                    school
+                  </span>
+                  Student Portal
+                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  University Registration Number
-                </label>
-                <Input
-                  data-testid="register-student-regno"
-                  placeholder="e.g., B22F0512IT042 or B24F0184CS031"
-                  value={studentRegNo}
-                  onChange={(e) => setStudentRegNo(e.target.value.toUpperCase())}
-                  className="font-mono-tabular uppercase"
-                  required
-                />
-                {parsedReg ? (
-                  <div className="flex flex-wrap items-center gap-1.5 rounded-[6px] border border-status-success/30 bg-status-success-tint px-3 py-2 text-xs text-status-success-text">
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    <span className="font-medium">
-                      {parsedReg.intakeTerm} {parsedReg.batchYear} · {parsedReg.departmentName} (
-                      {parsedReg.departmentCode}) · Roll #{parsedReg.rollNumber}
+              {/* Header Section */}
+              <div className="mb-6">
+                <h1 className="font-headline-md text-2xl sm:text-[28px] text-[#112D4E] tracking-tight mb-1.5 font-bold">
+                  Student Self-Registration
+                </h1>
+                <p className="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+                  Create your student account to explore final-year project ideas, connect with
+                  faculty supervisors, and track your semester milestones across BSIT, BSCS, BSSE,
+                  BSAI, BSCY, and BSDS.
+                </p>
+              </div>
+
+              <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-5">
+                {errorMessage && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-lg border border-error/30 bg-error-container/60 p-3 text-xs font-medium text-on-error-container"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined text-[18px] shrink-0"
+                    >
+                      error
+                    </span>
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
+                {/* Field 1: Full Legal Name */}
+                <div className="flex flex-col gap-1.5">
+                  <label
+                    htmlFor="fullName"
+                    className="text-xs font-semibold text-[#112D4E] flex items-center justify-between"
+                  >
+                    <span>Full Legal Name</span>
+                    <span className="text-[11px] text-on-surface-variant font-normal">
+                      As on your University ID
+                    </span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none"
+                    >
+                      badge
+                    </span>
+                    <input
+                      id="fullName"
+                      data-testid="register-student-name"
+                      type="text"
+                      placeholder="e.g. Zainab Malik"
+                      value={studentName}
+                      onChange={(e) => setStudentName(e.target.value)}
+                      required
+                      className="w-full pl-9 pr-3 py-2.5 bg-[#F9F7F7] focus:bg-white text-on-surface text-sm rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:outline-none focus:ring-2 focus:ring-[#71C9CE]/40 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Field 2: Registration Number with Live Decoding Engine */}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor="regNumber"
+                      className="text-xs font-semibold text-[#112D4E] flex items-center gap-1.5"
+                    >
+                      <span>University Registration Number</span>
+                      <span
+                        className="w-1.5 h-1.5 rounded-full bg-error inline-block"
+                        title="Required field"
+                      />
+                    </label>
+                    <span className="text-[11px] text-[#3F72AF] font-semibold">
+                      {parsedReg ? "Verified Format" : "Auto-Decoded"}
                     </span>
                   </div>
-                ) : (
-                  <p className="text-[11px] text-text-muted">
-                    Format: <code className="font-mono-tabular">B[YY][F/S][4-Digits][DEPT][3-Digits]</code>{" "}
-                    (supports IT, CS, SE, AI, CY, DS across any batch year).
+                  <p className="text-xs text-on-surface-variant">
+                    Enter your roll number, e.g.{" "}
+                    <span className="font-mono-tabular font-semibold text-[#112D4E]">
+                      B22F0512IT042
+                    </span>{" "}
+                    or{" "}
+                    <span className="font-mono-tabular font-semibold text-[#112D4E]">
+                      B24F0184CS031
+                    </span>
                   </p>
-                )}
-              </div>
+                  <div className="relative flex items-center">
+                    <span
+                      aria-hidden="true"
+                      className="material-symbols-outlined absolute left-3 text-[#3F72AF] text-[18px] pointer-events-none"
+                    >
+                      fingerprint
+                    </span>
+                    <input
+                      id="regNumber"
+                      data-testid="register-student-regno"
+                      type="text"
+                      placeholder="e.g., B22F0512IT042 or B24F0184CS031"
+                      value={studentRegNo}
+                      onChange={(e) => setStudentRegNo(e.target.value.toUpperCase())}
+                      required
+                      className="w-full pl-9 pr-10 py-2.5 uppercase bg-[#F9F7F7] focus:bg-white text-[#112D4E] font-mono-tabular text-sm tracking-wider rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:outline-none focus:ring-2 focus:ring-[#71C9CE]/40 transition-all font-semibold"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={`material-symbols-outlined absolute right-3 text-[20px] ${
+                        parsedReg ? "text-[#004F53]" : "text-outline"
+                      }`}
+                    >
+                      {parsedReg ? "check_circle" : "radio_button_unchecked"}
+                    </span>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold uppercase tracking-wider text-text-secondary">
-                  Create 4-Digit Portal PIN
-                </label>
-                <div className="relative">
-                  <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                  <Input
-                    data-testid="register-student-pin"
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    placeholder="4 numeric digits (e.g., 4821)"
-                    value={studentPin}
-                    onChange={(e) =>
-                      setStudentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                    }
-                    className="pl-9 font-mono-tabular tracking-widest"
-                    required
-                  />
+                  {/* Live Aqua Decoded Badge Pill */}
+                  {parsedReg ? (
+                    <div className="mt-1 p-3 rounded-lg bg-[#E3FDFD] border border-[#71C9CE]/60 text-[#112D4E] flex items-start gap-2.5 transition-all">
+                      <span
+                        aria-hidden="true"
+                        className="material-symbols-outlined text-[#004F53] text-[18px] mt-0.5 shrink-0"
+                      >
+                        verified
+                      </span>
+                      <div className="flex flex-col text-xs">
+                        <span className="font-semibold">
+                          {parsedReg.intakeTerm} {parsedReg.batchYear} · {parsedReg.departmentName} (
+                          {parsedReg.departmentCode}) · Roll #{parsedReg.rollNumber}
+                        </span>
+                        <span className="text-[#004F53] font-mono-tabular text-[11px] mt-0.5">
+                          Institutional ID: {parsedReg.universityEmail}
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-on-surface-variant">
+                      Pattern:{" "}
+                      <code className="font-mono-tabular text-[#112D4E]">
+                        B[YY][F/S][4-Digits][DEPT][3-Digits]
+                      </code>{" "}
+                      (IT, CS, SE, AI, CY, DS).
+                    </p>
+                  )}
+                </div>
+
+                {/* Field 3: Segmented 4-Digit Portal PIN Card */}
+                <div className="p-4 rounded-xl bg-[#DBE2EF]/35 border border-[#DBE2EF] flex flex-col gap-3">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label
+                        htmlFor="primaryPin"
+                        className="text-xs font-semibold text-[#112D4E] flex items-center gap-1.5"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="material-symbols-outlined text-[#3F72AF] text-[18px]"
+                        >
+                          lock
+                        </span>
+                        <span>Create 4-Digit Portal PIN</span>
+                      </label>
+                      <span
+                        className={`text-[11px] font-semibold flex items-center gap-0.5 ${
+                          isPinValid ? "text-[#004F53]" : "text-[#3F72AF]"
+                        }`}
+                      >
+                        {isPinValid ? "4 Digits Ready ✓" : "Quick Sign-In"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant leading-snug">
+                      Choose a 4-digit numeric PIN to sign in and confirm your capstone proposals.
+                    </p>
+                  </div>
+
+                  <div className="relative flex items-center">
+                    <input
+                      id="primaryPin"
+                      data-testid="register-student-pin"
+                      type={showPin ? "text" : "password"}
+                      inputMode="numeric"
+                      maxLength={4}
+                      placeholder="••••"
+                      value={studentPin}
+                      onChange={(e) =>
+                        setStudentPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                      }
+                      required
+                      className="w-full px-3 py-2.5 text-center bg-white text-[#112D4E] font-mono-tabular text-base tracking-[0.45em] rounded-lg border border-[#DBE2EF] focus:border-[#3F72AF] focus:outline-none focus:ring-2 focus:ring-[#71C9CE]/40 transition-all font-bold"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPin((prev) => !prev)}
+                      aria-label="Toggle PIN visibility"
+                      className="absolute right-2.5 text-[#3F72AF] hover:text-[#112D4E] p-1 rounded-md hover:bg-[#DBE2EF]/50 transition-colors"
+                    >
+                      <span aria-hidden="true" className="material-symbols-outlined text-[18px]">
+                        {showPin ? "visibility_off" : "visibility"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Primary Action CTA Button */}
+                <button
+                  type="submit"
+                  data-testid="register-submit-btn"
+                  disabled={!isStudentFormValid || isPending}
+                  className="w-full h-11 bg-[#112D4E] hover:bg-[#3F72AF] disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-semibold rounded-lg shadow-sm transition-all duration-200 flex items-center justify-center gap-2 group"
+                >
+                  <span aria-hidden="true" className="material-symbols-outlined text-[20px]">
+                    how_to_reg
+                  </span>
+                  <span>{isPending ? "Creating Student Account..." : "Create Student Account"}</span>
+                  <span
+                    aria-hidden="true"
+                    className="material-symbols-outlined text-[18px] transition-transform group-hover:translate-x-0.5"
+                  >
+                    arrow_forward
+                  </span>
+                </button>
+              </form>
+
+              {/* Friendly Faculty Notice (Strict Student-Only Boundary) */}
+              <div className="mt-6 p-3.5 rounded-lg bg-[#DBE2EF]/40 border border-[#DBE2EF] text-[#112D4E] flex items-start gap-3">
+                <span
+                  aria-hidden="true"
+                  className="material-symbols-outlined text-[#3F72AF] text-[20px] shrink-0 mt-0.5"
+                >
+                  info
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-[#112D4E]">
+                    Are you a Faculty Advisor or Coordinator?
+                  </span>
+                  <p className="text-xs text-on-surface-variant mt-0.5 leading-snug">
+                    Faculty supervisors cannot self-register. Accounts are provisioned exclusively
+                    by the Admin Command Center and sign in directly on the{" "}
+                    <Link
+                      href="/sign-in"
+                      className="font-semibold text-[#2A609C] hover:text-[#112D4E] hover:underline"
+                    >
+                      Portal Sign-In
+                    </Link>{" "}
+                    page.
+                  </p>
                 </div>
               </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={!isStudentFormValid || isPending}
-                data-testid="register-submit-btn"
-              >
-                <UserPlus className="h-4 w-4" strokeWidth={1.75} />
-                {isPending ? "Creating Student Account..." : "Create Student Account"}
-                <ArrowRight className="h-4 w-4" strokeWidth={1.75} />
-              </Button>
-            </form>
-
-            <div className="mt-6 rounded-[6px] border border-border-default bg-bg-subtle p-3.5 text-xs text-text-secondary space-y-1">
-              <div className="flex items-center gap-1.5 font-semibold text-text-primary">
-                <ShieldCheck className="h-4 w-4 text-brand-primary shrink-0" />
-                <span>Faculty &amp; Supervisor Access Policy</span>
-              </div>
-              <p className="leading-relaxed">
-                Faculty supervisors cannot self-register. All faculty accounts are provisioned
-                exclusively by the University Admin Panel and sign in directly on the{" "}
-                <Link href="/sign-in" className="font-medium text-brand-primary hover:underline">
-                  Portal Sign-In
-                </Link>{" "}
-                page.
-              </p>
             </div>
 
-            <p className="mt-5 text-center text-xs text-text-secondary">
-              Already have a Student, Faculty, or Admin account?{" "}
-              <Link href="/sign-in" className="font-semibold text-brand-primary hover:underline">
-                Sign in here
+            {/* Secondary Portal Navigation */}
+            <div className="w-full mt-4 flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
+              <span>Already have an account?</span>
+              <Link
+                href="/sign-in"
+                className="text-[#2A609C] hover:text-[#112D4E] font-semibold hover:underline inline-flex items-center gap-0.5 transition-colors"
+              >
+                <span>Sign in here</span>
+                <span aria-hidden="true" className="material-symbols-outlined text-[15px]">
+                  chevron_right
+                </span>
               </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="w-full bg-[#F9F7F7] border-t border-[#DBE2EF]/80 py-4">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-on-surface-variant text-[11px]">
+          <span className="flex items-center gap-1.5 font-semibold text-[#112D4E]">
+            <span className="w-2 h-2 rounded-full bg-[#71C9CE]" />
+            Faculty of IT &amp; Computing Sciences
+          </span>
+          <span>© ProjectCompass Academic Portal</span>
+        </div>
+      </footer>
     </div>
   );
 }
