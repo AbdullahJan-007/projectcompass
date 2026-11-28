@@ -33,7 +33,7 @@ ProjectCompass operates as **three strictly isolated portals** sharing a single 
 
 1. **Never Swallow Production Database Errors:**
    - In `NODE_ENV === "production"`, NO Server Action may catch a Prisma write failure and return `{ ok: true }`.
-   - Every write (`upsertStudentProfile`, `upsertSupervisorProfile`, `provisionFacultyAccount`, `createArchiveRecord`, `generateProjectRoadmap`, `toggleMilestoneStatus`) MUST verify persisted rows before returning `{ ok: true }`.
+   - Every write (`upsertStudentProfile`, `upsertSupervisorProfile`, `provisionFacultyAccount`, `resetAccountPin`, `assignProjectSupervisor`, `changeOwnPin`, `createArchiveRecord`, `bulkImportArchives`, `generateProjectRoadmap`, `toggleMilestoneStatus`) MUST verify persisted rows before returning `{ ok: true }`.
 2. **Production Session Signing Fail-Closed:**
    - `src/lib/auth/token-signer.ts` MUST throw a fatal error in production if `AUTH_SECRET` is missing, shorter than 16 characters, or a placeholder.
 3. **Local-Only Demo Data:**

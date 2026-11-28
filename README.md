@@ -10,13 +10,13 @@
 
 ---
 
-## Key Capabilities & Recent Highlights (v2.0)
+## Key Capabilities & Recent Highlights (v2.1)
 
 - **Decoupled 3-Portal Architecture:** Strictly isolated **Student Portal**, **Faculty Supervisor Portal**, and **Admin Command Center** backed by server-side route guards, HMAC-SHA256 sessions, and deactivated-account login blocking.
-- **Admin-Only Faculty Provisioning:** Students self-register at `/sign-up` (auto-decoding Batch, Intake, Department, and Roll No from Reg No), while Faculty Supervisors are **login-only** and hired exclusively via the Admin Command Center.
-- **Academic Navy Design System & Custom SVG Identity:** Built with the official ProjectCompass Astrolabe SVG mark ([projectcompass-logo.svg](public/projectcompass-logo.svg) & [icon.svg](src/app/icon.svg)), clean `Plus Jakarta Sans` + `Inter` (`tabular-nums`) typography, zero-network `lucide-react` inline SVG icons (`<AppIcon />`), and a single collapsible `PanelLeft` sidebar toggle (`Ctrl+B`).
-- **Live Islamabad (`Asia/Karachi`, PKT) Time & Calendar Engine:** Live ticking PKT clock in headers, dynamic PKT academic cycle & archive years, PKT-formatted audit trail timestamps, and live Islamabad calendar date ranges on every 24-week roadmap milestone.
-- **3-Stage Hybrid Recommendation Engine:** Deterministic SQL filtering + `pgvector` HNSW cosine similarity (42 archetypes & historical archives) + explainable 100-point Feasibility Math + guardrailed Google Gemini / OpenAI synthesis with `COMPLETED_FALLBACK` resilience.
+- **Admin-Only Faculty Provisioning & Governance:** Students self-register at `/sign-up` (with **FYP Group Partner Linking** for 2–3 student teams via Reg No), while Faculty Supervisors are **login-only** and hired exclusively via the Admin Command Center — alongside **Admin PIN Reset**, **Direct Project Supervisor Assignment**, and **Allocation Matrix / Student Roster CSV Exports**.
+- **Academic Navy Design System & Custom SVG Identity:** Built with the official ProjectCompass Astrolabe SVG mark ([projectcompass-logo.svg](public/projectcompass-logo.svg) & [icon.svg](src/app/icon.svg)), clean `Plus Jakarta Sans` + `Inter` (`tabular-nums`) typography, zero-network `lucide-react` inline SVG icons (`<AppIcon />`), single collapsible `PanelLeft` sidebar (`Ctrl+B`), **Live Notification Bell**, and **Self-Service Change PIN**.
+- **Live Islamabad (`Asia/Karachi`, PKT) Time & Calendar Engine:** Live ticking PKT clock in headers, dynamic PKT academic cycle & archive years, PKT-formatted audit trail timestamps, live Islamabad calendar date ranges on every 24-week roadmap milestone, and one-click **Formal FYP Proposal PDF Dossier** printing.
+- **3-Stage Hybrid Recommendation Engine & Bulk Archive Import:** Deterministic SQL filtering + `pgvector` HNSW cosine similarity (42 archetypes & historical archives with **Bulk CSV Archive Importer** up to 100 rows/batch) + explainable 100-point Feasibility Math + guardrailed Google Gemini / OpenAI synthesis with `COMPLETED_FALLBACK` resilience.
 - **Production-Hardened Supabase PostgreSQL 17:** 21 normalized models, `21/21` Row Level Security (RLS) lockdown, `0` unindexed foreign keys, `pgvector` HNSW indexes, and strict local-only `SEED_DEMO_DATA` separation.
 
 ---

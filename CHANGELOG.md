@@ -2,6 +2,17 @@
 
 All notable changes to ProjectCompass are documented here.
 
+## 2026-11-28 — v2.1.0: Enterprise Governance, Exports, Group Partners, Bulk CSV & Live Alerts (`6f3a1f8`)
+
+### Added
+- **Admin PIN Reset & Direct Project Supervisor Assignment:** Added `resetAccountPin` (hashed 4-digit PIN reset + `PIN_RESET` AuditLog) and atomic `assignProjectSupervisor` (releases previous supervisor slot if reassigned, locks 1 slot atomically with `SUPERVISOR_QUOTA_FULL` protection, logs `ADMIN_SUPERVISOR_ASSIGNED`) with inline controls in `/dashboard/admin`.
+- **Formal FYP Proposal PDF & Admin CSV Exports:** Added `src/lib/export/csv-and-proposal.ts` delivering one-click **Print Proposal PDF** dossier on `/dashboard/roadmaps/[id]` (Feasibility Breakdown, Archive Originality Proof, Tech Stack, Islamabad `PKT` 24-Week Schedule) and Excel-ready UTF-8 BOM CSV exports (**Export CSV** on Student Data, **Export Allocation Matrix (CSV)** on Projects).
+- **FYP Group / Team Partner Linking (2–3 Students):** Added `StudentProfile.partnerRegNos` (`String[] @default([])`) synced to live Supabase, enabling students on `/dashboard/profile` to link up to 2 teammates by University Reg No with live batch/department decoding and automatic `Team Size` + `Effective Effort Budget` synchronization.
+- **Bulk CSV Past-FYP Archive Importer (`pgvector`):** Added `bulkImportArchives` (`src/actions/archive.actions.ts`) and reusable `<BulkCsvImporter />` with one-click CSV template download (up to 100 rows per batch, `1536`-dim `pgvector` indexing) in both `/dashboard/admin` and `/dashboard/coordinator`.
+- **Live Notification Bell & Self-Service Change PIN:** Added role-scoped `getPortalNotifications()` (`src/actions/notifications.actions.ts`), `changeOwnPin()` (`src/actions/auth.actions.ts`), and `<NotificationBell />` + `<ChangePinButton />` in `AppShell`.
+
+---
+
 ## 2026-11-27 — v2.0.0: Stitch Academic Navy Rebuild, Live Islamabad PKT, SVG Brand & Repo Cleanup
 
 ### Added

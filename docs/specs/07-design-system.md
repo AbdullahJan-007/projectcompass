@@ -40,4 +40,4 @@ ProjectCompass uses a **WCAG 2.1 AA Academic Navy** light-theme design system ad
 
 - **Desktop (`>= 1024px`):** Fixed `248px` left sidebar with a single `PanelLeftClose` collapse button in the sidebar header. When hidden, main content expands cleanly (`lg:pl-[248px]` → `lg:pl-0`) and a single `PanelLeft` expand button + mini logo appears in the top bar. State persists in `localStorage` and supports `Ctrl+B` / `Cmd+B`.
 - **Mobile & Tablet (`< 1024px`):** Sticky `56px` top bar with `PanelLeft` drawer toggle (`aria-label="Toggle workspace navigation"`), verified zero horizontal overflow at `375px` and `768px`.
-- **Live Islamabad Clock (`<PakistanClock />`):** Live ticking `Asia/Karachi` (PKT / UTC+5) clock & date pill integrated in `AppShell` and auth/landing footers.
+- **Live Islamabad Clock (`<PakistanClock />`) & Portal Utilities (`<NotificationBell />`, `<ChangePinButton />`):** Live ticking `Asia/Karachi` (PKT / UTC+5) clock & role-scoped Notification Bell integrated in `AppShell` header, paired with self-service Change PIN modal in the sidebar footer.
