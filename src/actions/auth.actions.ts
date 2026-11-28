@@ -14,9 +14,13 @@ import {
 import {
   findStudentAccountForLogin,
   findFacultyAccountForLogin,
+  hashFourDigitPin,
   registerStudentAccountInDb,
+  syncPinInAccountsStore,
   verifyFourDigitPinHash,
 } from "@/lib/auth/account-registry";
+import { db } from "@/lib/db";
+import { AuthError, requireUser } from "@/lib/auth/session";
 import {
   signSessionToken,
   checkPinRateLimit,
@@ -381,4 +385,109 @@ export async function signOutUniversitySession(): Promise<ActionResult<{ signedO
     ok: true,
     data: { signedOut: true },
   };
+}
+
+const changeOwnPinSchema = z.object({
+  currentPin: z.string().regex(/^\d{4}$/, "Current PIN must be 4 numeric digits"),
+  newPin: z.string().regex(/^\d{4}$/, "New PIN must be 4 numeric digits"),
+});
+
+/**
+ * Self-service 4-digit PIN change for any authenticated Student, Supervisor, Coordinator, or Admin.
+ */
+export async function changeOwnPin(
+  rawInput: unknown
+): Promise<ActionResult<{ updated: true }>> {
+  try {
+    const user = await requireUser();
+    const parsed = changeOwnPinSchema.safeParse(rawInput);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: parsed.error.issues[0]?.message ?? "Enter valid 4-digit current and new PINs.",
+        },
+      };
+    }
+
+    const { currentPin, newPin } = parsed.data;
+    if (currentPin === newPin) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "New PIN must be different from your current PIN.",
+        },
+      };
+    }
+
+    const dbUser = await db.user.findUnique({
+      where: { id: user.id },
+      include: { studentAccount: true, facultyAccount: true },
+    });
+
+    const existingHash =
+      dbUser?.studentAccount?.pinHash ?? dbUser?.facultyAccount?.pinHash ?? null;
+
+    if (!dbUser || !existingHash) {
+      return {
+        ok: false,
+        error: {
+          code: "NOT_FOUND",
+          message: "Account credentials not found in database.",
+        },
+      };
+    }
+
+    if (!verifyFourDigitPinHash(currentPin, existingHash)) {
+      return {
+        ok: false,
+        error: {
+          code: "UNAUTHORIZED",
+          message: "Current 4-digit PIN is incorrect.",
+        },
+      };
+    }
+
+    const nextHash = hashFourDigitPin(newPin);
+    await db.$transaction(async (tx) => {
+      if (dbUser.studentAccount) {
+        await tx.studentAccount.update({
+          where: { id: dbUser.studentAccount.id },
+          data: { pinHash: nextHash },
+        });
+      }
+      if (dbUser.facultyAccount) {
+        await tx.facultyAccount.update({
+          where: { id: dbUser.facultyAccount.id },
+          data: { pinHash: nextHash },
+        });
+      }
+      await tx.auditLog.create({
+        data: {
+          actorUserId: user.id,
+          action: "SELF_PIN_CHANGED",
+          entityType: "User",
+          entityId: user.id,
+          metadataJson: { reason: "User updated their own 4-digit portal PIN." },
+        },
+      });
+    });
+
+    syncPinInAccountsStore(user.id, nextHash);
+    return { ok: true, data: { updated: true } };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    return {
+      ok: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Unable to update PIN right now. Please try again.",
+      },
+    };
+  }
 }

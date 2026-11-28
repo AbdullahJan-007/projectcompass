@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { AppIcon } from "@/components/ui/app-icon";
 import { ProjectCompassLogo } from "@/components/ui/project-compass-logo";
 import { PakistanClock } from "@/components/ui/pakistan-clock";
+import { NotificationBell, ChangePinButton } from "@/components/layout/portal-utilities";
 import { PortalSessionProvider } from "@/components/layout/portal-session-context";
 import { signOutUniversitySession } from "@/actions/auth.actions";
 import { clearWorkspaceStorage } from "@/lib/workspace-store";
@@ -369,15 +370,18 @@ export function AppShell({
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                data-testid="sidebar-signout-btn"
-                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-md border border-[#DBE2EF] bg-[#F9F7F7] px-2.5 py-1.5 text-[11px] font-semibold text-[#112D4E] transition-colors hover:border-error/40 hover:bg-error-container/50 hover:text-on-error-container"
-              >
-                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
-                <span>Sign Out</span>
-              </button>
+              <div className="mt-2.5 flex items-center gap-1.5">
+                <ChangePinButton />
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  data-testid="sidebar-signout-btn"
+                  className="flex flex-1 items-center justify-center gap-1 rounded-md border border-[#DBE2EF] bg-[#F9F7F7] px-2 py-1.5 text-[11px] font-semibold text-[#112D4E] transition-colors hover:border-error/40 hover:bg-error-container/50 hover:text-on-error-container"
+                >
+                  <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
             </div>
           </div>
         </aside>
@@ -430,8 +434,9 @@ export function AppShell({
               </span>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-2.5 shrink-0">
               <PakistanClock />
+              <NotificationBell />
               <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DBE2EF] bg-surface-container-lowest px-3 py-1 font-label-md text-label-md font-semibold text-[#112D4E] shadow-xs">
                 <ShieldCheck aria-hidden="true" className="h-3.5 w-3.5 text-[#3F72AF]" />
                 {getRoleViewChip(userRole)}

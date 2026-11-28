@@ -27,6 +27,7 @@ import {
 import type { GeneratedIdeaRecord } from "@/lib/recommendation/engine";
 import { AppIcon } from "@/components/ui/app-icon";
 import { formatPakistanRoadmapPhaseDates } from "@/lib/time/pakistan-time";
+import { openFormalProposalPrintWindow } from "@/lib/export/csv-and-proposal";
 
 export default function RoadmapDetailPage() {
   const params = useParams<{ id?: string }>();
@@ -362,15 +363,38 @@ export default function RoadmapDetailPage() {
               <span>Deterministic Sum Invariant: Sum(Phase Weeks) = {baseRoadmap.durationWeeks}</span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleExportMarkdown}
-              data-testid="export-markdown-btn"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E3FDFD] hover:bg-white text-[#112D4E] text-xs font-bold transition-all shadow-sm"
-            >
-              <AppIcon name="download_for_offline" className="text-[18px]" />
-              <span>Export Markdown (.md)</span>
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              {activeIdea && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    openFormalProposalPrintWindow({
+                      studentName: portalSession.userName,
+                      identifier: portalSession.identifier,
+                      batchLabel: portalSession.batchLabel,
+                      idea: activeIdea,
+                      milestones,
+                      durationWeeks: baseRoadmap.durationWeeks,
+                      weeklyHours,
+                    })
+                  }
+                  data-testid="print-proposal-pdf-btn"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                >
+                  <AppIcon name="description" className="text-[16px]" />
+                  <span>Print Proposal PDF</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleExportMarkdown}
+                data-testid="export-markdown-btn"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#E3FDFD] hover:bg-white text-[#112D4E] text-xs font-bold transition-all shadow-sm"
+              >
+                <AppIcon name="download_for_offline" className="text-[18px]" />
+                <span>Export Markdown (.md)</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>

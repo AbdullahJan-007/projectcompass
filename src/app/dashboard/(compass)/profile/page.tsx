@@ -19,6 +19,7 @@ import {
   saveStoredShortlistedIds,
 } from "@/lib/workspace-store";
 import { AppIcon } from "@/components/ui/app-icon";
+import { parseStudentRegNo } from "@/lib/auth/university-id";
 
 type Proficiency = "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
 
@@ -74,6 +75,9 @@ export default function StudentProfilePage() {
     "POPULATED"
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [partnerRegNos, setPartnerRegNos] = useState<string[]>([]);
+  const [partnerDraft, setPartnerDraft] = useState("");
+  const [partnerError, setPartnerError] = useState<string | null>(null);
   const [statusBanner, setStatusBanner] = useState<{
     type: "success" | "error";
     text: string;
@@ -97,6 +101,7 @@ export default function StudentProfilePage() {
           setDurationWeeks(serverProfile.durationWeeks);
           setDurationWeeksDraft(String(serverProfile.durationWeeks));
           setTeamSize(serverProfile.teamSize);
+          setPartnerRegNos(serverProfile.partnerRegNos ?? []);
           setGpaBand(serverProfile.gpaBand);
         }
       })
@@ -262,6 +267,7 @@ export default function StudentProfilePage() {
       weeklyHours,
       durationWeeks,
       teamSize,
+      partnerRegNos,
       gpaBand,
     });
 
@@ -723,6 +729,104 @@ export default function StudentProfilePage() {
                     <option value="2.5 - 3.0">2.5 – 3.0 CGPA</option>
                   </Select>
                 </div>
+              </div>
+
+              {/* FYP Group / Team Partner Linking (Up to 3 Students Total) */}
+              <div className="pt-4 border-t border-[#DBE2EF]/80 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#112D4E]">
+                      FYP Group Partners (Optional · Up to 2 Teammates)
+                    </h3>
+                    <p className="text-xs text-on-surface-variant">
+                      Link group members by University Reg No to keep your team size &amp; effort budget synced.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#DBE2EF]/60 px-2.5 py-0.5 text-[11px] font-semibold text-[#112D4E] font-mono-tabular">
+                    {1 + partnerRegNos.length} / 3 Members
+                  </span>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    value={partnerDraft}
+                    onChange={(e) => {
+                      setPartnerDraft(e.target.value.toUpperCase());
+                      setPartnerError(null);
+                    }}
+                    placeholder="Partner Reg No (e.g., B23F0419SE014)"
+                    className="sm:flex-1 font-mono-tabular uppercase"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={partnerRegNos.length >= 2 || partnerDraft.trim().length < 8}
+                    onClick={() => {
+                      const normalized = partnerDraft.trim().toUpperCase();
+                      const parsedPartner = parseStudentRegNo(normalized);
+                      if (!parsedPartner) {
+                        setPartnerError("Enter a valid Reg No (e.g., B23F0419SE014).");
+                        return;
+                      }
+                      if (normalized === portalSession.identifier.toUpperCase()) {
+                        setPartnerError("You are already included as the primary group member.");
+                        return;
+                      }
+                      if (partnerRegNos.includes(normalized)) {
+                        setPartnerError("This teammate is already linked.");
+                        return;
+                      }
+                      const nextPartners = [...partnerRegNos, normalized].slice(0, 2);
+                      const nextTeam = Math.min(3, 1 + nextPartners.length);
+                      setPartnerRegNos(nextPartners);
+                      setTeamSize(nextTeam);
+                      setPartnerDraft("");
+                      setPartnerError(null);
+                      persistCurrentProfileState({ teamSize: nextTeam });
+                    }}
+                  >
+                    + Link Partner
+                  </Button>
+                </div>
+
+                {partnerError && (
+                  <p className="text-xs font-medium text-on-error-container">{partnerError}</p>
+                )}
+
+                {partnerRegNos.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {partnerRegNos.map((reg) => {
+                      const info = parseStudentRegNo(reg);
+                      return (
+                        <span
+                          key={reg}
+                          className="inline-flex items-center gap-2 rounded-lg border border-[#71C9CE]/60 bg-[#E3FDFD] px-3 py-1.5 text-xs font-semibold text-[#004F53]"
+                        >
+                          <span className="font-mono-tabular">{reg}</span>
+                          {info && (
+                            <span className="text-[11px] font-medium text-[#112D4E]">
+                              ({info.departmentCode} · {info.intakeTerm} {info.batchYear})
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            aria-label={`Remove partner ${reg}`}
+                            onClick={() => {
+                              const nextPartners = partnerRegNos.filter((p) => p !== reg);
+                              const nextTeam = Math.max(1, 1 + nextPartners.length);
+                              setPartnerRegNos(nextPartners);
+                              setTeamSize(nextTeam);
+                              persistCurrentProfileState({ teamSize: nextTeam });
+                            }}
+                            className="rounded p-0.5 text-[#112D4E] hover:bg-white/70"
+                          >
+                            <AppIcon name="close" className="text-[13px]" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>

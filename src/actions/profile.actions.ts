@@ -163,6 +163,7 @@ export async function getActiveStudentProfile(): Promise<PersistedStudentProfile
           weeklyHours: dbProfile.weeklyHours,
           durationWeeks: dbProfile.durationWeeks,
           teamSize: dbProfile.teamSize,
+          partnerRegNos: dbProfile.partnerRegNos ?? [],
           gpaBand: dbProfile.gpaBand ?? "3.4 - 3.8",
           totalEffortHours: Math.round(
             dbProfile.weeklyHours * dbProfile.durationWeeks * teamFactor
@@ -205,6 +206,10 @@ const studentProfileInputSchema = z.object({
   weeklyHours: z.coerce.number().int().min(5).max(45),
   durationWeeks: z.coerce.number().int().min(12).max(36),
   teamSize: z.coerce.number().int().min(1).max(3),
+  partnerRegNos: z
+    .array(z.string().trim().min(8).max(20))
+    .max(2, "Maximum 2 group partners (3 students total)")
+    .optional(),
   gpaBand: z.string().max(20).optional(),
 });
 
@@ -270,6 +275,9 @@ export async function upsertStudentProfile(
               weeklyHours: input.weeklyHours,
               durationWeeks: input.durationWeeks,
               teamSize: input.teamSize,
+              partnerRegNos: Array.from(
+                new Set((input.partnerRegNos ?? []).map((r) => r.trim().toUpperCase()))
+              ).slice(0, 2),
               gpaBand: input.gpaBand ?? null,
               profileSummaryTxt: summaryText,
             },
@@ -282,6 +290,9 @@ export async function upsertStudentProfile(
               weeklyHours: input.weeklyHours,
               durationWeeks: input.durationWeeks,
               teamSize: input.teamSize,
+              partnerRegNos: Array.from(
+                new Set((input.partnerRegNos ?? []).map((r) => r.trim().toUpperCase()))
+              ).slice(0, 2),
               gpaBand: input.gpaBand ?? null,
               profileSummaryTxt: summaryText,
             },

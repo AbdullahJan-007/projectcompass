@@ -27,6 +27,7 @@ export interface PersistedStudentProfile {
   weeklyHours: number;
   durationWeeks: number;
   teamSize: number;
+  partnerRegNos?: string[];
   gpaBand: string;
   totalEffortHours: number;
   updatedAt: string;

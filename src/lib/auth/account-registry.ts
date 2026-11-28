@@ -864,3 +864,28 @@ export async function registerFacultyAccountInDb(params: {
 
   return { ok: true, account: newAccount };
 }
+
+export function syncPinInAccountsStore(userId: string, pinHash: string) {
+  if (isProductionRuntime()) return;
+  try {
+    const store = readAccountsStore();
+    let changed = false;
+    for (const s of store.studentAccounts) {
+      if (s.userId === userId) {
+        s.pinHash = pinHash;
+        changed = true;
+      }
+    }
+    for (const f of store.facultyAccounts) {
+      if (f.userId === userId) {
+        f.pinHash = pinHash;
+        changed = true;
+      }
+    }
+    if (changed) {
+      writeAccountsStore(store);
+    }
+  } catch {
+    // Ignore local store sync errors
+  }
+}

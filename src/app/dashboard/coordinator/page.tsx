@@ -13,6 +13,7 @@ import {
 } from "@/actions/archive.actions";
 import { getCoordinatorWorkspaceData } from "@/actions/workspace.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { BulkCsvImporter } from "@/components/archives/bulk-csv-importer";
 import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 type IngestStatus =
@@ -373,6 +374,8 @@ export default function CoordinatorDashboardPage() {
                 index 1536-dim embeddings asynchronously.
               </p>
             </div>
+
+            <BulkCsvImporter onImported={() => window.location.reload()} />
 
             <form onSubmit={handleCreateArchive} className="space-y-4">
               <div className="space-y-1.5">

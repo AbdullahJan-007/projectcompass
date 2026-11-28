@@ -206,6 +206,7 @@ model StudentProfile {
   weeklyHours       Int                          @default(15)
   durationWeeks     Int                          @default(24)
   teamSize          Int                          @default(2)
+  partnerRegNos     String[]                     @default([])
   gpaBand           String?
   profileSummaryTxt String?
   profileEmbedding  Unsupported("vector(1536)")?

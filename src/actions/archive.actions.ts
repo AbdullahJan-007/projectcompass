@@ -437,3 +437,156 @@ export async function deleteArchiveRecord(
     };
   }
 }
+
+const bulkImportArchivesSchema = z.object({
+  rows: z
+    .array(
+      z.object({
+        title: z.string().min(8).max(160),
+        abstract: z.string().min(10).max(3000),
+        academicYear: z.coerce.number().int().min(2010).max(2035),
+        programCode: z.enum(["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"]).default("BSIT"),
+        domain: z.string().min(2).max(60),
+        techStack: z.array(z.string().min(1).max(60)).min(1).max(15),
+      })
+    )
+    .min(1, "Upload at least 1 valid archive row")
+    .max(100, "Maximum 100 archive rows per bulk CSV import"),
+});
+
+/**
+ * Bulk CSV importer for historical FYP archives with deterministic 1536-dim pgvector embeddings.
+ */
+export async function bulkImportArchives(rawInput: unknown): Promise<
+  ActionResult<{
+    importedCount: number;
+    readyCount: number;
+    needsManualCount: number;
+  }>
+> {
+  try {
+    const user = await requireRole(["COORDINATOR", "ADMIN"]);
+    const parsed = bulkImportArchivesSchema.safeParse(rawInput);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message:
+            parsed.error.issues[0]?.message ??
+            "Invalid CSV rows. Ensure columns: title, academicYear, programCode, domain, techStack, abstract.",
+        },
+      };
+    }
+
+    const { rows } = parsed.data;
+    let readyCount = 0;
+    let needsManualCount = 0;
+
+    try {
+      const uniquePrograms = Array.from(new Set(rows.map((r) => r.programCode)));
+      for (const code of uniquePrograms) {
+        const deptMeta = resolveDepartmentByCode(code);
+        await db.department.upsert({
+          where: { code: deptMeta.code },
+          update: {},
+          create: {
+            id: deptMeta.id,
+            code: deptMeta.code,
+            name: deptMeta.name,
+            university: "Department of IT & Computing",
+          },
+        });
+      }
+
+      for (const row of rows) {
+        const deptMeta = resolveDepartmentByCode(row.programCode);
+        const isReady = row.abstract.trim().length >= 100;
+        const created = await db.projectArchive.create({
+          data: {
+            departmentId: deptMeta.id,
+            title: row.title.trim(),
+            abstract: row.abstract.trim(),
+            academicYear: row.academicYear,
+            domain: row.domain.trim(),
+            techStack: row.techStack,
+            ingestStatus: isReady ? "PENDING_EMBEDDING" : "NEEDS_MANUAL_ABSTRACT",
+            ingestError: isReady
+              ? null
+              : "Abstract shorter than 100 chars — requires manual abstract completion.",
+            uploadedById: user.id,
+          },
+        });
+
+        if (isReady) {
+          const ingestRes = await processArchiveRecordIngestion(created.id);
+          if (ingestRes.status === "READY") readyCount++;
+          else needsManualCount++;
+        } else {
+          needsManualCount++;
+        }
+      }
+
+      await db.auditLog.create({
+        data: {
+          actorUserId: user.id,
+          action: "ARCHIVE_BULK_IMPORTED",
+          entityType: "ProjectArchive",
+          entityId: `batch_${Date.now()}`,
+          metadataJson: {
+            reason: `Bulk CSV imported ${rows.length} historical FYP archives (${readyCount} indexed, ${needsManualCount} needs manual abstract).`,
+          },
+        },
+      });
+    } catch (dbErr) {
+      if (isProductionRuntime() || !isDbConnectionOffline(dbErr)) {
+        return {
+          ok: false,
+          error: {
+            code: "INTERNAL_ERROR",
+            message: "Database error while bulk-importing archive records.",
+          },
+        };
+      }
+      const store = readInstitutionalDb();
+      for (const row of rows) {
+        const isReady = row.abstract.trim().length >= 100;
+        if (isReady) readyCount++;
+        else needsManualCount++;
+        store.archives.unshift({
+          id: `cm0arch_csv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          title: row.title.trim(),
+          abstract: row.abstract.trim(),
+          academicYear: row.academicYear,
+          domain: row.domain.trim(),
+          techStack: row.techStack,
+          departmentCode: row.programCode,
+          ingestStatus: isReady ? "READY" : "NEEDS_MANUAL_ABSTRACT",
+          ingestError: isReady ? undefined : "Abstract shorter than 100 chars.",
+          createdAt: new Date().toISOString(),
+        });
+      }
+      writeInstitutionalDb(store);
+    }
+
+    revalidatePath("/dashboard/coordinator");
+    revalidatePath("/dashboard/admin");
+    return {
+      ok: true,
+      data: {
+        importedCount: rows.length,
+        readyCount,
+        needsManualCount,
+      },
+    };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    return {
+      ok: false,
+      error: { code: "INTERNAL_ERROR", message: "Bulk archive import failed." },
+    };
+  }
+}

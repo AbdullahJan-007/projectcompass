@@ -12,6 +12,8 @@ import {
   overrideSupervisorQuota,
   provisionFacultyAccount,
   toggleUserActiveStatus,
+  resetAccountPin,
+  assignProjectSupervisor,
 } from "@/actions/admin.actions";
 import {
   createArchiveRecord,
@@ -25,6 +27,12 @@ import {
   type LiveArchiveItem,
 } from "@/actions/workspace.actions";
 import { AppIcon } from "@/components/ui/app-icon";
+import { BulkCsvImporter } from "@/components/archives/bulk-csv-importer";
+import {
+  buildAdminAllocationsCsv,
+  buildAdminStudentsCsv,
+  downloadTextFile,
+} from "@/lib/export/csv-and-proposal";
 import { getPakistanYear } from "@/lib/time/pakistan-time";
 
 const IT_PROGRAMS = ["BSIT", "BSCS", "BSSE", "BSAI", "BSCY", "BSDS"] as const;
@@ -131,9 +139,63 @@ export default function AdminDashboardPage() {
   const [editingArchiveId, setEditingArchiveId] = useState<string | null>(null);
   const [manualAbstractPatch, setManualAbstractPatch] = useState("");
 
+  // Priority 1: Admin PIN Reset & Direct Project Supervisor Assignment
+  const [pinModalUser, setPinModalUser] = useState<{ id: string; fullName: string; email: string } | null>(null);
+  const [newPinDraft, setNewPinDraft] = useState("");
+  const [resettingPin, setResettingPin] = useState(false);
+  const [assignSelections, setAssignSelections] = useState<Record<string, string>>({});
+  const [assigningProjectId, setAssigningProjectId] = useState<string | null>(null);
+
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(
     null
   );
+
+  async function handleResetUserPin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!pinModalUser) return;
+    setResettingPin(true);
+    setBanner(null);
+    const res = await resetAccountPin({
+      targetUserId: pinModalUser.id,
+      newPin: newPinDraft.trim(),
+    });
+    setResettingPin(false);
+    if (!res.ok) {
+      setBanner({ type: "error", text: res.error.message });
+      return;
+    }
+    setPinModalUser(null);
+    setNewPinDraft("");
+    setBanner({
+      type: "success",
+      text: `4-digit PIN reset successfully for ${res.data.fullName}.`,
+    });
+    await refreshAdminData();
+  }
+
+  async function handleAssignSupervisorToProject(projectId: string) {
+    const supId = assignSelections[projectId] || supervisors.find((s) => s.isActive)?.id;
+    if (!supId) {
+      setBanner({ type: "error", text: "Hire an active faculty supervisor first." });
+      return;
+    }
+    setAssigningProjectId(projectId);
+    setBanner(null);
+    const res = await assignProjectSupervisor({
+      recommendedIdeaId: projectId,
+      supervisorProfileId: supId,
+    });
+    setAssigningProjectId(null);
+    if (!res.ok) {
+      setBanner({ type: "error", text: res.error.message });
+      return;
+    }
+    setBanner({
+      type: "success",
+      text: `Assigned ${res.data.supervisorName} to project successfully (1 slot locked atomically).`,
+    });
+    await refreshAdminData();
+  }
 
   async function refreshAdminData() {
     const data = await getAdminWorkspaceData();
@@ -1025,6 +1087,23 @@ export default function AdminDashboardPage() {
                       </option>
                     ))}
                   </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={filteredStudents.length === 0}
+                    onClick={() =>
+                      downloadTextFile(
+                        `projectcompass-students-${getPakistanYear()}.csv`,
+                        buildAdminStudentsCsv(filteredStudents),
+                        "text/csv;charset=utf-8"
+                      )
+                    }
+                    className="h-9 text-xs shrink-0"
+                  >
+                    <AppIcon name="download_for_offline" className="text-[15px] mr-1" />
+                    Export CSV
+                  </Button>
                 </div>
               </div>
 
@@ -1090,14 +1169,33 @@ export default function AdminDashboardPage() {
           {/* TAB 3: PROJECTS */}
           {activeTab === "projects" && (
             <section className="rounded-xl bg-surface-container-lowest border border-[#DBE2EF] p-5 sm:p-6 shadow-xs space-y-4">
-              <div className="pb-3 border-b border-[#DBE2EF]/70">
-                <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
-                  Capstone Project Repository &amp; Feasibility Scoring
-                </h2>
-                <p className="text-xs text-on-surface-variant">
-                  Live oversight of generated student proposals, feasibility scores, and locked
-                  faculty supervisors.
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#DBE2EF]/70">
+                <div>
+                  <h2 className="font-headline-sm text-lg font-bold text-[#112D4E]">
+                    Capstone Project Repository &amp; Feasibility Scoring
+                  </h2>
+                  <p className="text-xs text-on-surface-variant">
+                    Live oversight of generated student proposals, feasibility scores, and direct
+                    faculty supervisor assignment.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={projects.length === 0}
+                  onClick={() =>
+                    downloadTextFile(
+                      `projectcompass-allocations-${getPakistanYear()}.csv`,
+                      buildAdminAllocationsCsv(projects),
+                      "text/csv;charset=utf-8"
+                    )
+                  }
+                  className="h-9 text-xs"
+                >
+                  <AppIcon name="download_for_offline" className="text-[15px] mr-1" />
+                  Export Allocation Matrix (CSV)
+                </Button>
               </div>
 
               {projects.length === 0 ? (
@@ -1128,13 +1226,51 @@ export default function AdminDashboardPage() {
                         </p>
                       </div>
 
-                      <div className="pt-2.5 border-t border-[#DBE2EF] flex items-center justify-between text-[11px]">
-                        <span className="text-[#112D4E] font-medium truncate">
-                          {proj.supervisorName
-                            ? `Supervisor: ${proj.supervisorName}`
-                            : "Awaiting Supervisor Lock"}
-                        </span>
-                        <span className="font-semibold text-[#2A609C] shrink-0">{proj.status}</span>
+                      <div className="pt-2.5 border-t border-[#DBE2EF] space-y-2 text-[11px]">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[#112D4E] font-medium truncate">
+                            {proj.supervisorName
+                              ? `Supervisor: ${proj.supervisorName}`
+                              : "Awaiting Supervisor Lock"}
+                          </span>
+                          <span className="font-semibold text-[#2A609C] shrink-0">{proj.status}</span>
+                        </div>
+                        {supervisors.filter((s) => s.isActive).length > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <Select
+                              aria-label={`Assign supervisor for ${proj.title}`}
+                              value={
+                                assignSelections[proj.id] ??
+                                supervisors.find((s) => s.isActive)?.id ??
+                                ""
+                              }
+                              onChange={(e) =>
+                                setAssignSelections((prev) => ({
+                                  ...prev,
+                                  [proj.id]: e.target.value,
+                                }))
+                              }
+                              className="h-8 text-[11px] flex-1"
+                            >
+                              {supervisors
+                                .filter((s) => s.isActive)
+                                .map((sup) => (
+                                  <option key={sup.id} value={sup.id}>
+                                    {sup.fullName} ({sup.activeSlots}/{sup.maxSlots})
+                                  </option>
+                                ))}
+                            </Select>
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={assigningProjectId === proj.id}
+                              onClick={() => handleAssignSupervisorToProject(proj.id)}
+                              className="h-8 px-2.5 text-[11px] shrink-0"
+                            >
+                              {assigningProjectId === proj.id ? "..." : "Assign"}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1155,6 +1291,12 @@ export default function AdminDashboardPage() {
                     Indexes 1536-dim pgvector embeddings for semantic duplicate verification.
                   </p>
                 </div>
+
+                <BulkCsvImporter
+                  onImported={() => {
+                    void refreshAdminData();
+                  }}
+                />
 
                 <form onSubmit={handleCreateArchive} className="space-y-3.5">
                   <div className="space-y-1">
@@ -1371,19 +1513,33 @@ export default function AdminDashboardPage() {
                           {u.email} · {u.departmentCode}
                         </p>
                       </div>
-                      <Select
-                        aria-label={`Role for ${u.fullName}`}
-                        value={u.role}
-                        onChange={(e) =>
-                          handleRoleChange(u.id, e.target.value as UserDirectoryRow["role"])
-                        }
-                        className="w-full sm:w-40"
-                      >
-                        <option value="STUDENT">STUDENT</option>
-                        <option value="SUPERVISOR">SUPERVISOR</option>
-                        <option value="COORDINATOR">COORDINATOR</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </Select>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Select
+                          aria-label={`Role for ${u.fullName}`}
+                          value={u.role}
+                          onChange={(e) =>
+                            handleRoleChange(u.id, e.target.value as UserDirectoryRow["role"])
+                          }
+                          className="w-36"
+                        >
+                          <option value="STUDENT">STUDENT</option>
+                          <option value="SUPERVISOR">SUPERVISOR</option>
+                          <option value="COORDINATOR">COORDINATOR</option>
+                          <option value="ADMIN">ADMIN</option>
+                        </Select>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPinModalUser({ id: u.id, fullName: u.fullName, email: u.email });
+                            setNewPinDraft("");
+                          }}
+                          className="h-9 px-2.5 text-[11px]"
+                        >
+                          Reset PIN
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1435,6 +1591,57 @@ export default function AdminDashboardPage() {
             </div>
           )}
         </>
+      )}
+
+      {/* Admin PIN Reset Modal */}
+      {pinModalUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#001833]/50 backdrop-blur-[2px] p-4"
+          onClick={() => setPinModalUser(null)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-[#DBE2EF] bg-white p-5 shadow-2xl space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="border-b border-[#DBE2EF] pb-3">
+              <h3 className="font-headline-sm text-base font-bold text-[#112D4E]">
+                Reset 4-Digit Portal PIN
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-0.5">
+                {pinModalUser.fullName} ({pinModalUser.email})
+              </p>
+            </div>
+            <form onSubmit={handleResetUserPin} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#112D4E] mb-1">
+                  New 4-Digit Numeric PIN
+                </label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={4}
+                  required
+                  value={newPinDraft}
+                  onChange={(e) => setNewPinDraft(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  placeholder="e.g., 4829"
+                  className="font-mono-tabular tracking-[0.35em] text-center font-bold"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setPinModalUser(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={resettingPin || newPinDraft.length !== 4}
+                >
+                  {resettingPin ? "Resetting..." : "Confirm PIN Reset"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

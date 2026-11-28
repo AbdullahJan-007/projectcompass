@@ -5,9 +5,11 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { AuthError, requireRole } from "@/lib/auth/session";
 import {
+  hashFourDigitPin,
   readAccountsStore,
   registerFacultyAccountInDb,
   syncActiveStatusInAccountsStore,
+  syncPinInAccountsStore,
   syncRoleInAccountsStore,
 } from "@/lib/auth/account-registry";
 import {
@@ -566,6 +568,292 @@ export async function toggleUserActiveStatus(
       error: {
         code: "INTERNAL_ERROR",
         message: "Failed to update user active status.",
+      },
+    };
+  }
+}
+
+const resetAccountPinSchema = z.object({
+  targetUserId: z.string().min(4).max(64),
+  newPin: z.string().regex(/^\d{4}$/, "New PIN must be exactly 4 numeric digits"),
+  reason: z.string().max(240).optional(),
+});
+
+/**
+ * Admin-only 4-digit PIN reset for forgotten Student or Faculty accounts.
+ */
+export async function resetAccountPin(
+  rawInput: unknown
+): Promise<ActionResult<{ targetUserId: string; fullName: string }>> {
+  try {
+    const actor = await requireRole(["ADMIN"]);
+    const parsed = resetAccountPinSchema.safeParse(rawInput);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: parsed.error.issues[0]?.message ?? "Invalid PIN reset request.",
+        },
+      };
+    }
+
+    const { targetUserId, newPin, reason } = parsed.data;
+    const newPinHash = hashFourDigitPin(newPin);
+
+    const target = await db.user.findUnique({
+      where: { id: targetUserId },
+      include: { studentAccount: true, facultyAccount: true },
+    });
+
+    if (!target) {
+      return {
+        ok: false,
+        error: { code: "NOT_FOUND", message: "Target user account not found." },
+      };
+    }
+
+    await db.$transaction(async (tx) => {
+      if (target.studentAccount) {
+        await tx.studentAccount.update({
+          where: { id: target.studentAccount.id },
+          data: { pinHash: newPinHash },
+        });
+      }
+      if (target.facultyAccount) {
+        await tx.facultyAccount.update({
+          where: { id: target.facultyAccount.id },
+          data: { pinHash: newPinHash },
+        });
+      }
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "PIN_RESET",
+          entityType: "User",
+          entityId: target.id,
+          metadataJson: {
+            reason: reason?.trim() || `Admin reset 4-digit PIN for ${target.fullName}.`,
+          },
+        },
+      });
+    });
+
+    syncPinInAccountsStore(target.id, newPinHash);
+    revalidatePath("/dashboard/admin");
+    return { ok: true, data: { targetUserId: target.id, fullName: target.fullName } };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    if (!isProductionRuntime() && isDbConnectionOffline(err)) {
+      const actor = await requireRole(["ADMIN"]);
+      const parsed = resetAccountPinSchema.parse(rawInput);
+      syncPinInAccountsStore(parsed.targetUserId, hashFourDigitPin(parsed.newPin));
+      const instStore = readInstitutionalDb();
+      instStore.auditLogs.unshift({
+        id: `cm0audit_${Date.now()}`,
+        timestamp: new Date().toISOString().slice(0, 16).replace("T", " "),
+        actor: actor.fullName,
+        action: "PIN_RESET",
+        entityType: "User",
+        entityId: parsed.targetUserId,
+        summary: parsed.reason?.trim() || `Admin reset 4-digit PIN for ${parsed.targetUserId}.`,
+      });
+      writeInstitutionalDb(instStore);
+      revalidatePath("/dashboard/admin");
+      return { ok: true, data: { targetUserId: parsed.targetUserId, fullName: "Account" } };
+    }
+    return {
+      ok: false,
+      error: { code: "INTERNAL_ERROR", message: "Failed to reset account PIN." },
+    };
+  }
+}
+
+const assignProjectSupervisorSchema = z.object({
+  recommendedIdeaId: z.string().min(4).max(64),
+  supervisorProfileId: z.string().min(4).max(64),
+  note: z.string().max(240).optional(),
+});
+
+/**
+ * Admin-only direct supervisor assignment / reassignment for any Student FYP project.
+ * Atomically releases any previous accepted supervisor slot and locks 1 slot on the new supervisor.
+ */
+export async function assignProjectSupervisor(rawInput: unknown): Promise<
+  ActionResult<{
+    recommendedIdeaId: string;
+    supervisorProfileId: string;
+    supervisorName: string;
+  }>
+> {
+  try {
+    const actor = await requireRole(["ADMIN"]);
+    const parsed = assignProjectSupervisorSchema.safeParse(rawInput);
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Select both a valid project and faculty supervisor.",
+        },
+      };
+    }
+
+    const { recommendedIdeaId, supervisorProfileId, note } = parsed.data;
+
+    const result = await db.$transaction(async (tx) => {
+      const idea = await tx.recommendedIdea.findUnique({
+        where: { id: recommendedIdeaId },
+        include: {
+          run: { include: { studentProfile: true } },
+          supervisionRequests: { where: { status: "ACCEPTED" } },
+        },
+      });
+
+      if (!idea) {
+        return { error: { code: "NOT_FOUND" as const, message: "Student project not found." } };
+      }
+
+      const targetSup = await tx.supervisorProfile.findUnique({
+        where: { id: supervisorProfileId },
+        include: { user: { select: { fullName: true, isActive: true } } },
+      });
+
+      if (!targetSup || !targetSup.user.isActive) {
+        return {
+          error: {
+            code: "NOT_FOUND" as const,
+            message: "Target faculty supervisor not found or inactive.",
+          },
+        };
+      }
+
+      const existingAccepted = idea.supervisionRequests.find(
+        (r) => r.supervisorProfileId === supervisorProfileId
+      );
+      if (existingAccepted) {
+        return {
+          ok: true as const,
+          supervisorName: targetSup.user.fullName,
+        };
+      }
+
+      // Release any previous accepted supervisor slot for this idea
+      for (const prev of idea.supervisionRequests) {
+        await tx.supervisorRequest.update({
+          where: { id: prev.id },
+          data: {
+            status: "RELEASED",
+            supervisorNote: "Reassigned by University Admin Command Center.",
+          },
+        });
+        await tx.supervisorProfile.updateMany({
+          where: { id: prev.supervisorProfileId, activeSlots: { gt: 0 } },
+          data: { activeSlots: { decrement: 1 } },
+        });
+      }
+
+      // Atomically lock 1 slot on the newly assigned supervisor
+      const locked = await tx.supervisorProfile.updateMany({
+        where: {
+          id: supervisorProfileId,
+          activeSlots: { lt: targetSup.maxSlots },
+        },
+        data: { activeSlots: { increment: 1 } },
+      });
+
+      if (locked.count === 0) {
+        return {
+          error: {
+            code: "SUPERVISOR_QUOTA_FULL" as const,
+            message: `${targetSup.user.fullName} has reached maximum supervision capacity (${targetSup.maxSlots} slots). Increase quota first.`,
+          },
+        };
+      }
+
+      const existingPair = await tx.supervisorRequest.findFirst({
+        where: {
+          studentProfileId: idea.run.studentProfileId,
+          supervisorProfileId,
+          recommendedIdeaId: idea.id,
+        },
+        select: { id: true },
+      });
+
+      if (existingPair) {
+        await tx.supervisorRequest.update({
+          where: { id: existingPair.id },
+          data: {
+            status: "ACCEPTED",
+            supervisorNote: note?.trim() || "Assigned directly by University Admin.",
+            respondedAt: new Date(),
+          },
+        });
+      } else {
+        await tx.supervisorRequest.create({
+          data: {
+            studentProfileId: idea.run.studentProfileId,
+            supervisorProfileId,
+            recommendedIdeaId: idea.id,
+            studentPitch:
+              "Direct departmental supervision assignment recorded by the University Admin Command Center.",
+            status: "ACCEPTED",
+            supervisorNote: note?.trim() || "Assigned directly by University Admin.",
+            respondedAt: new Date(),
+          },
+        });
+      }
+
+      await tx.recommendedIdea.update({
+        where: { id: idea.id },
+        data: { status: "SHORTLISTED" },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorUserId: actor.id,
+          action: "ADMIN_SUPERVISOR_ASSIGNED",
+          entityType: "RecommendedIdea",
+          entityId: idea.id,
+          metadataJson: {
+            supervisorProfileId,
+            reason: `Assigned ${targetSup.user.fullName} to "${idea.title}".`,
+          },
+        },
+      });
+
+      return { ok: true as const, supervisorName: targetSup.user.fullName };
+    });
+
+    if ("error" in result && result.error) {
+      return { ok: false, error: result.error };
+    }
+
+    revalidatePath("/dashboard/admin");
+    revalidatePath("/dashboard/supervisor");
+    revalidatePath("/dashboard/supervisors");
+
+    return {
+      ok: true,
+      data: {
+        recommendedIdeaId,
+        supervisorProfileId,
+        supervisorName: result.supervisorName,
+      },
+    };
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return { ok: false, error: { code: err.code, message: err.message } };
+    }
+    return {
+      ok: false,
+      error: {
+        code: "INTERNAL_ERROR",
+        message: "Failed to assign supervisor to project.",
       },
     };
   }
