@@ -106,9 +106,10 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="w-full pt-16 bg-surface">
+      <main className="w-full pt-16 bg-[#F7F9FC]">
         {/* Hero Section */}
-        <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-12 sm:pt-12 sm:pb-16 overflow-hidden">
+        <section className="relative w-full bg-architectural-grid border-b border-[#E2E8F0]">
+          <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-14 sm:pt-14 sm:pb-20 overflow-hidden">
           <div
             aria-hidden="true"
             className="absolute -top-28 -left-28 w-72 h-72 bg-[#8BBBFD]/20 rounded-full blur-3xl pointer-events-none"
@@ -306,6 +307,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </section>
 

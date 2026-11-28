@@ -87,11 +87,13 @@ export default function SignUpPage() {
       </header>
 
       {/* Main Content */}
-      <main className="w-full pt-16 flex-1 flex flex-col justify-center items-center bg-[#F9F7F7] relative">
+      <main className="w-full pt-16 flex-1 flex flex-col justify-center items-center bg-[#F7F9FC] bg-architectural-grid relative">
         <div className="flex flex-col w-full py-8 sm:py-12 px-4 items-center justify-center">
           <div className="w-full max-w-[520px] flex flex-col items-center">
             {/* Primary Elevation Card */}
-            <div className="w-full bg-surface-container-lowest rounded-xl border border-[#DBE2EF] shadow-[0_8px_30px_rgba(17,45,78,0.06)] p-6 sm:p-8 relative animate-fade-in-up">
+            <div className="w-full bg-white rounded-2xl overflow-hidden shadow-[0_20px_50px_-14px_rgba(17,45,78,0.14),0_0_0_1px_rgba(226,232,240,0.9)] relative animate-fade-in-up">
+              <div className="h-1.5 w-full bg-gradient-to-r from-[#112D4E] via-[#3F72AF] to-[#71C9CE]" />
+              <div className="p-6 sm:p-8">
               {/* Academic Eyebrow & Status Flag */}
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#DBE2EF]/60 text-[#112D4E] text-[11px] uppercase tracking-wider font-semibold">
@@ -304,6 +306,7 @@ export default function SignUpPage() {
                     page.
                   </p>
                 </div>
+              </div>
               </div>
             </div>
 

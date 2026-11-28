@@ -130,15 +130,15 @@ const Select = React.forwardRef<
           aria-label={ariaLabel}
           disabled={disabled}
           onClick={() => setOpen((prev) => !prev)}
-          className="flex h-10 w-full items-center justify-between gap-2 rounded-[8px] border border-border-strong bg-bg-surface px-3 text-left text-sm text-text-primary transition-colors hover:border-brand-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-full items-center justify-between gap-2 rounded-lg border border-[#CBD5E1] bg-white px-3.5 text-left text-sm text-[#0F172A] shadow-[0_1px_2px_rgba(15,23,42,0.03)] transition-all duration-150 hover:border-[#94A3B8] focus-visible:border-[#3F72AF] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#3F72AF]/15 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
         >
           <span className="truncate leading-normal">
             {selectedOption ? selectedOption.label : activeValue}
           </span>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-text-muted transition-transform duration-150",
-              open && "rotate-180 text-brand-primary"
+              "h-4 w-4 shrink-0 text-[#64748B] transition-transform duration-150",
+              open && "rotate-180 text-[#112D4E]"
             )}
             strokeWidth={1.75}
           />
@@ -149,7 +149,7 @@ const Select = React.forwardRef<
             id={listboxId}
             role="listbox"
             aria-label={ariaLabel}
-            className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 max-h-64 overflow-y-auto rounded-[8px] border border-border-default bg-bg-surface p-1 shadow-[0_10px_25px_-5px_rgba(15,23,42,0.12),0_4px_10px_-4px_rgba(15,23,42,0.08)]"
+            className="absolute left-0 right-0 top-[calc(100%+6px)] z-50 max-h-64 overflow-y-auto rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-[0_14px_34px_-6px_rgba(17,45,78,0.16),0_4px_12px_-4px_rgba(15,23,42,0.08)]"
           >
             {options.map((opt) => {
               const isSelected = opt.value === activeValue;

@@ -100,19 +100,12 @@ export default function SignInPage() {
       </header>
 
       {/* Main Centered Auth Card */}
-      <main className="w-full pt-16 flex-1 flex flex-col justify-center items-center bg-[#F9F7F7] relative">
+      <main className="w-full pt-16 flex-1 flex flex-col justify-center items-center bg-[#F7F9FC] bg-architectural-grid relative">
         <div className="flex flex-col w-full items-center justify-center py-8 sm:py-12 px-4">
           <div className="relative w-full max-w-[460px] animate-fade-in-up">
-            <div
-              aria-hidden="true"
-              className="absolute -top-10 -left-10 w-44 h-44 rounded-full bg-[#71C9CE]/20 blur-3xl pointer-events-none"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute -bottom-10 -right-10 w-44 h-44 rounded-full bg-[#3F72AF]/15 blur-3xl pointer-events-none"
-            />
-
-            <div className="relative bg-surface-container-lowest rounded-xl shadow-[0_12px_32px_rgba(17,45,78,0.06)] border border-[#DBE2EF] p-6 sm:p-8 flex flex-col gap-6">
+            <div className="relative bg-white rounded-2xl overflow-hidden shadow-[0_20px_50px_-14px_rgba(17,45,78,0.14),0_0_0_1px_rgba(226,232,240,0.9)]">
+              <div className="h-1.5 w-full bg-gradient-to-r from-[#112D4E] via-[#3F72AF] to-[#71C9CE]" />
+              <div className="p-6 sm:p-8 flex flex-col gap-6">
               {/* Panel Header */}
               <div className="flex flex-col items-center text-center gap-2">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E3FDFD] border border-[#71C9CE]/40 text-[#112D4E] font-label-sm text-[11px] font-semibold tracking-wide">
@@ -347,6 +340,7 @@ export default function SignInPage() {
                     <span>HMAC Session Protected</span>
                   </span>
                 </div>
+              </div>
               </div>
             </div>
           </div>

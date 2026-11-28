@@ -197,9 +197,9 @@ export function AppShell({
     <PortalSessionProvider
       value={{ userRole, userName, identifier, departmentCode, batchLabel }}
     >
-      <div className="flex min-h-screen flex-col lg:flex-row bg-[#F9F7F7] text-on-surface overflow-x-hidden">
+      <div className="flex min-h-screen flex-col lg:flex-row bg-[#F7F9FC] text-[#0F172A] overflow-x-hidden">
         {/* Mobile & Tablet Sticky Header (< lg) */}
-        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/95 backdrop-blur-xl px-4 lg:hidden">
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-[#E2E8F0] bg-white/90 backdrop-blur-xl px-4 lg:hidden">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
@@ -246,11 +246,11 @@ export function AppShell({
         <aside
           data-collapsed={desktopCollapsed ? "true" : "false"}
           className={cn(
-            "fixed inset-y-0 left-0 z-50 flex w-[248px] max-w-[84vw] flex-col justify-between border-r border-[#DBE2EF] bg-[#F5F3F3] transition-transform duration-200 ease-out lg:z-40 lg:w-[248px] lg:max-w-none",
+            "fixed inset-y-0 left-0 z-50 flex w-[248px] max-w-[84vw] flex-col justify-between border-r border-[#E2E8F0] bg-white transition-transform duration-200 ease-out lg:z-40 lg:w-[248px] lg:max-w-none",
             mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
             desktopCollapsed
               ? "lg:-translate-x-full lg:shadow-none"
-              : "lg:translate-x-0 lg:shadow-none"
+              : "lg:translate-x-0 lg:shadow-[1px_0_0_rgba(15,23,42,0.02)]"
           )}
         >
           <div className="flex flex-col min-h-0 flex-1 overflow-y-auto">
@@ -321,10 +321,10 @@ export function AppShell({
                     onClick={() => setMobileOpen(false)}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-150",
+                      "group relative flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-[13px] transition-all duration-150",
                       active
-                        ? "bg-[#112D4E] font-semibold text-white shadow-sm"
-                        : "font-medium text-on-surface-variant hover:bg-[#DBE2EF]/60 hover:text-[#112D4E]"
+                        ? "bg-gradient-to-r from-[#112D4E] to-[#1D4473] font-semibold text-white shadow-[0_2px_8px_rgba(17,45,78,0.22)]"
+                        : "font-medium text-[#475569] hover:bg-[#F1F5F9] hover:text-[#112D4E]"
                     )}
                   >
                     <AppIcon
@@ -342,7 +342,7 @@ export function AppShell({
           </div>
 
           {/* Institutional Status & Session Footer */}
-          <div className="shrink-0 space-y-2.5 border-t border-[#DBE2EF] bg-[#F5F3F3] p-3.5">
+          <div className="shrink-0 space-y-2.5 border-t border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
             <div className="rounded-lg border border-[#DBE2EF] bg-surface-container-lowest p-2.5 shadow-xs">
               <div className="flex items-center justify-between mb-0.5">
                 <span className="font-label-sm text-[11px] font-semibold text-[#3F72AF]">
@@ -394,7 +394,7 @@ export function AppShell({
           )}
         >
           {/* Desktop Top Chrome Header (>= lg) */}
-          <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#DBE2EF] bg-[#F9F7F7]/92 backdrop-blur-xl px-6 lg:flex">
+          <header className="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-[#E2E8F0] bg-white/85 backdrop-blur-xl px-6 lg:flex">
             <div className="flex items-center gap-3 min-w-0">
               {/* Show single expand button in top bar ONLY when sidebar is hidden */}
               {desktopCollapsed && (
